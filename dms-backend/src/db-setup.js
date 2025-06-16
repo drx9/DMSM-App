@@ -59,7 +59,7 @@ async function setupDatabase() {
 
     // Sync all models, forcing recreation of tables to ensure a clean schema.
     // WARNING: This will delete ALL data in your database!
-    await sequelize.sync({ force: true });
+    await sequelize.sync();
     console.log('All models were synchronized successfully (forced recreation).');
 
     // Add a small delay to ensure all operations are complete

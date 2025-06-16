@@ -1,52 +1,46 @@
-const { DataTypes, Model } = require('sequelize');
-const sequelize = require('../config/database');
+const { DataTypes } = require('sequelize');
 
-class OTP extends Model {}
-
-OTP.init({
-  id: {
-    type: DataTypes.UUID,
-    defaultValue: DataTypes.UUIDV4,
-    primaryKey: true
-  },
-  userId: {
-    type: DataTypes.UUID,
-    allowNull: false,
-    references: {
-      model: 'Users',
-      key: 'id'
+module.exports = (sequelize) => {
+  const OTP = sequelize.define('OTP', {
+    id: {
+      type: DataTypes.UUID,
+      defaultValue: DataTypes.UUIDV4,
+      primaryKey: true
     },
-    onDelete: 'CASCADE',
-    onUpdate: 'CASCADE'
-  },
-  otp: {
-    type: DataTypes.STRING,
-    allowNull: false
-  },
-  type: {
-    type: DataTypes.STRING,
-    allowNull: false,
-    validate: {
-      isIn: [['PHONE', 'EMAIL']]
+    code: {
+      type: DataTypes.STRING,
+      allowNull: false
+    },
+    type: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      field: 'type'
+    },
+    expiresAt: {
+      type: DataTypes.DATE,
+      allowNull: false
+    },
+    isUsed: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false
+    },
+    userId: {
+      type: DataTypes.UUID,
+      allowNull: false
     }
-  },
-  expiresAt: {
-    type: DataTypes.DATE,
-    allowNull: false
-  },
-  isUsed: {
-    type: DataTypes.BOOLEAN,
-    defaultValue: false
-  }
-}, {
-  sequelize,
-  modelName: 'OTP',
-  timestamps: true,
-  indexes: [
-    {
-      fields: ['userId']
-    }
-  ]
-});
+  }, {
+    tableName: 'otps',
+    timestamps: true,
+    underscored: true
+  });
 
-module.exports = OTP; 
+  // Define associations after model definition
+  OTP.associate = (models) => {
+    OTP.belongsTo(models.User, {
+      foreignKey: 'userId',
+      as: 'user'
+    });
+  };
+
+  return OTP;
+}; 

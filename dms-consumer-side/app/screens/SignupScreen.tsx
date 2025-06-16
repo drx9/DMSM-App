@@ -18,7 +18,17 @@ import { useLanguage } from '../context/LanguageContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
 
-const API_URL = 'http://192.168.2.109:3000/api'; // Ensure this matches your backend IP
+const API_URL = 'http://192.168.2.101:3000/api'; // Ensure this matches your backend IP
+
+// Create axios instance with default config
+const api = axios.create({
+  baseURL: API_URL,
+  timeout: 10000, // 10 second timeout
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json'
+  }
+});
 
 interface ApiResponse {
   success: boolean;
@@ -67,7 +77,21 @@ const SignupScreen = () => {
 
     try {
       setIsLoading(true);
-      const response = await axios.post<ApiResponse>(`${API_URL}/auth/register`, {
+      console.log('Attempting to register with data:', {
+        name,
+        phoneNumber: phoneNumber || undefined,
+        email: email || undefined,
+        // Don't log password for security
+        address: address || undefined,
+        city: city || undefined,
+        state: state || undefined,
+        postalCode: postalCode || undefined,
+        country: country || undefined,
+        dateOfBirth: dateOfBirth ? dateOfBirth.toISOString().split('T')[0] : undefined,
+        gender: gender || undefined,
+      });
+
+      const response = await api.post<ApiResponse>('/auth/register', {
         name,
         phoneNumber: phoneNumber || undefined,
         email: email || undefined,
@@ -77,9 +101,11 @@ const SignupScreen = () => {
         state: state || undefined,
         postalCode: postalCode || undefined,
         country: country || undefined,
-        dateOfBirth: dateOfBirth ? dateOfBirth.toISOString().split('T')[0] : undefined, // Format to YYYY-MM-DD
+        dateOfBirth: dateOfBirth ? dateOfBirth.toISOString().split('T')[0] : undefined,
         gender: gender || undefined,
       });
+
+      console.log('Registration response:', response.data);
 
       if (response.data.success) {
         Alert.alert(t('success'), response.data.message || t('registrationSuccessful'));
@@ -93,7 +119,29 @@ const SignupScreen = () => {
     } catch (error) {
       console.error('Signup error:', error);
       const axiosError = error as AxiosError<ApiResponse>;
-      const errorMessage = axiosError.response?.data?.message || axiosError.response?.data?.errors?.[0]?.msg || t('failedToRegister');
+      console.error('Detailed error:', {
+        message: axiosError.message,
+        code: axiosError.code,
+        response: axiosError.response?.data,
+        status: axiosError.response?.status,
+        config: {
+          url: axiosError.config?.url,
+          method: axiosError.config?.method,
+          data: axiosError.config?.data,
+          headers: axiosError.config?.headers
+        }
+      });
+
+      let errorMessage = t('failedToRegister');
+      if (axiosError.code === 'ECONNABORTED') {
+        errorMessage = t('requestTimedOut');
+      } else if (axiosError.code === 'ERR_NETWORK') {
+        errorMessage = t('networkError');
+      } else {
+        errorMessage = axiosError.response?.data?.message || 
+                      axiosError.response?.data?.errors?.[0]?.msg || 
+                      t('failedToRegister');
+      }
       Alert.alert(t('error'), errorMessage);
     } finally {
       setIsLoading(false);

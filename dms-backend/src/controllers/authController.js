@@ -1,5 +1,5 @@
 const { validationResult } = require('express-validator');
-const User = require('../models/User');
+const { User } = require('../models');
 const authService = require('../services/authService');
 const { Op } = require('sequelize'); // Import Op for OR queries
 
@@ -11,6 +11,19 @@ const initiateLogin = async (req, res) => {
     }
 
     const { phoneNumber, email } = req.body;
+    console.log('Login attempt with:', { phoneNumber, email });
+
+    // Debug: List all tables
+    const [tables] = await User.sequelize.query(
+      `SELECT table_name FROM information_schema.tables WHERE table_schema = 'public';`
+    );
+    console.log('Tables in DB:', tables);
+
+    // Debug: List all columns in Users table
+    const [cols] = await User.sequelize.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_name = 'Users';`
+    );
+    console.log('Columns in Users table:', cols);
 
     // Find user by phoneNumber or email
     const whereClause = {};
@@ -20,9 +33,25 @@ const initiateLogin = async (req, res) => {
       whereClause.email = email;
     }
 
+    console.log('Searching with whereClause:', whereClause);
+
+    // First, let's check what users exist in the database
+    const allUsers = await User.findAll();
+    console.log('All users in database:', allUsers.map(u => ({
+      id: u.id,
+      phoneNumber: u.phoneNumber,
+      email: u.email
+    })));
+
     const user = await User.findOne({
       where: whereClause
     });
+
+    console.log('Found user:', user ? {
+      id: user.id,
+      phoneNumber: user.phoneNumber,
+      email: user.email
+    } : 'No user found');
 
     if (user) {
       // User exists, proceed with OTP login

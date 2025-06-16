@@ -15,7 +15,7 @@ import { useRouter } from 'expo-router';
 import axios, { AxiosError } from 'axios';
 import { useLanguage } from '../context/LanguageContext';
 
-const API_URL = 'http://192.168.2.109:3000/api';
+const API_URL = 'http://192.168.2.101:3000/api';
 
 interface ApiResponse {
   success: boolean;
@@ -38,6 +38,7 @@ const LoginScreen = () => {
 
     try {
       setIsLoading(true);
+      console.log('Attempting to login with phone number:', phoneNumber);
       const response = await axios.post<ApiResponse>(`${API_URL}/auth/login`, {
         phoneNumber: phoneNumber,
       });
@@ -64,6 +65,18 @@ const LoginScreen = () => {
     } catch (error) {
       console.error('Login error:', error);
       const axiosError = error as AxiosError<ApiResponse>;
+      console.error('Detailed error:', {
+        message: axiosError.message,
+        code: axiosError.code,
+        response: axiosError.response?.data,
+        status: axiosError.response?.status,
+        config: {
+          url: axiosError.config?.url,
+          method: axiosError.config?.method,
+          data: axiosError.config?.data,
+          headers: axiosError.config?.headers
+        }
+      });
       Alert.alert(
         t('error'),
         axiosError.response?.data?.message || t('failedToInitiateLogin')

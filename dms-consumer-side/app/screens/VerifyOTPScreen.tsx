@@ -13,7 +13,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import axios from 'axios';
 import { useLanguage } from '../context/LanguageContext';
 
-const API_URL = 'http://192.168.2.109:3000/api';
+const API_URL = 'http://192.168.2.101:3000/api';
 
 // Create axios instance with default config
 const api = axios.create({
