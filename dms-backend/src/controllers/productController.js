@@ -1,4 +1,5 @@
-const { Product, Category } = require('../models');
+const db = require('../models');
+const { Product, Category } = db;
 const { Op } = require('sequelize');
 
 const VALID_SORT_COLUMNS = [

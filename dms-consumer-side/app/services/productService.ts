@@ -21,13 +21,13 @@ interface Product {
 }
 
 interface GetProductsParams {
-    page?: number;
-    limit?: number;
-    search?: string;
-    category?: string;
-    sort?: SortOption;
-    filters?: string; // Add this line
-  }
+  page?: number;
+  limit?: number;
+  search?: string;
+  category?: string;
+  sort?: SortOption;
+  filters?: string; // Add this line
+}
 
 interface GetProductsResponse {
   products: Product[];

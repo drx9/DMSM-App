@@ -1,5 +1,10 @@
 {
   "dependencies": {
-    "mongoose": "^8.15.1"
+    "autoprefixer": "^10.4.21",
+    "bcryptjs": "^3.0.2",
+    "dotenv": "^16.5.0",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.15.1",
+    "tailwindcss": "^4.1.10"
   }
-} 
+}

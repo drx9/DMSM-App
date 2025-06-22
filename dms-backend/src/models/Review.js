@@ -27,7 +27,7 @@ const Review = sequelize.define('Review', {
     type: DataTypes.UUID,
     allowNull: false,
     references: {
-      model: 'Products',
+      model: 'products',
       key: 'id',
     },
   },
@@ -35,7 +35,7 @@ const Review = sequelize.define('Review', {
     type: DataTypes.UUID,
     allowNull: false,
     references: {
-      model: 'Users',
+      model: 'users',
       key: 'id',
     },
   },
@@ -43,8 +43,18 @@ const Review = sequelize.define('Review', {
   timestamps: true,
 });
 
-// Associations
-Review.belongsTo(require('./Product'), { foreignKey: 'productId' });
-Review.belongsTo(require('./User'), { foreignKey: 'userId' });
+Review.associate = (models) => {
+  // A Review belongs to one Product
+  Review.belongsTo(models.Product, {
+    foreignKey: 'productId',
+    as: 'product',
+  });
+
+  // A Review belongs to one User
+  Review.belongsTo(models.User, {
+    foreignKey: 'userId',
+    as: 'user',
+  });
+};
 
 module.exports = Review; 
