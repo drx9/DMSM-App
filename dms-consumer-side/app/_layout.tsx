@@ -1,9 +1,11 @@
 import { Stack } from 'expo-router';
 import LanguageProvider from './context/LanguageContext';
+// import { SafeAreaView } from 'react-native';
 
 export default function Layout() {
   return (
     <LanguageProvider>
+      {/* Remove SafeAreaView here to avoid double wrapping */}
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="splash" />
         <Stack.Screen name="language" />

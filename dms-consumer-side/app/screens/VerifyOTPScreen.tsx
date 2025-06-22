@@ -11,9 +11,10 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from '../context/LanguageContext';
 
-const API_URL = 'http://192.168.2.101:3000/api';
+const API_URL = 'http://192.168.2.100:3000/api';
 
 // Create axios instance with default config
 const api = axios.create({
@@ -82,11 +83,19 @@ const VerifyOTPScreen = () => {
       console.log('Verification response:', response.data);
 
       if (response.data.token) {
-        // Store the token
-        // TODO: Store token in secure storage
+        // Store the token in AsyncStorage
+        console.log('Token received from backend:', response.data.token);
+        await AsyncStorage.setItem('userToken', response.data.token);
+        console.log('Token stored successfully in AsyncStorage');
+        
+        // Verify token was stored
+        const storedToken = await AsyncStorage.getItem('userToken');
+        console.log('Verification - Token retrieved from AsyncStorage:', storedToken ? 'Token exists' : 'No token');
+        
         // Navigate to main app
         router.replace('/(tabs)');
       } else {
+        console.log('No token in response:', response.data);
         Alert.alert(t('error'), t('invalidOrExpiredOTP'));
       }
     } catch (error) {

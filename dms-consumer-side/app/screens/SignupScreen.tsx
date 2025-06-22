@@ -11,14 +11,22 @@ import {
   ScrollView,
   Alert,
   Switch,
+  SafeAreaView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import axios, { AxiosError } from 'axios';
 import { useLanguage } from '../context/LanguageContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
+import { 
+  getResponsiveFontSize, 
+  getResponsiveWidth, 
+  getResponsiveHeight,
+  SAFE_AREA_TOP,
+  SPACING 
+} from '../../utils/deviceUtils';
 
-const API_URL = 'http://192.168.2.101:3000/api'; // Ensure this matches your backend IP
+const API_URL = 'http://192.168.2.100:3000/api'; // Ensure this matches your backend IP
 
 // Create axios instance with default config
 const api = axios.create({
@@ -156,9 +164,10 @@ const SignupScreen = () => {
   };
 
   return (
+    <SafeAreaView style={styles.container}>
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+        style={styles.keyboardContainer}
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.header}>
@@ -279,14 +288,6 @@ const SignupScreen = () => {
                 {dateOfBirth ? dateOfBirth.toISOString().split('T')[0] : t('enterDateOfBirth')}
               </Text>
             </TouchableOpacity>
-            {showDatePicker && (
-              <DateTimePicker
-                value={dateOfBirth || new Date()}
-                mode="date"
-                display="default"
-                onChange={onChangeDate}
-              />
-            )}
           </View>
 
           <View style={styles.inputContainer}>
@@ -294,13 +295,13 @@ const SignupScreen = () => {
             <View style={styles.pickerContainer}>
               <Picker
                 selectedValue={gender}
-                onValueChange={(itemValue: string) => setGender(itemValue)}
+                  onValueChange={(itemValue) => setGender(itemValue)}
                 style={styles.picker}
               >
                 <Picker.Item label={t('selectGender')} value="" />
-                <Picker.Item label={t('male')} value="Male" />
-                <Picker.Item label={t('female')} value="Female" />
-                <Picker.Item label={t('other')} value="Other" />
+                  <Picker.Item label={t('male')} value="male" />
+                  <Picker.Item label={t('female')} value="female" />
+                  <Picker.Item label={t('other')} value="other" />
               </Picker>
             </View>
           </View>
@@ -308,27 +309,36 @@ const SignupScreen = () => {
           <TouchableOpacity
             style={[
               styles.signupButton,
-              (isLoading) && styles.signupButtonDisabled,
+                (!name || (!phoneNumber && !email) || !password || isLoading) && styles.signupButtonDisabled,
             ]}
             onPress={handleSignup}
-            disabled={isLoading}
+              disabled={!name || (!phoneNumber && !email) || !password || isLoading}
           >
             <Text style={styles.signupButtonText}>
               {isLoading ? t('registering') : t('register')}
             </Text>
           </TouchableOpacity>
+          </View>
 
           <View style={styles.footer}>
             <Text style={styles.footerText}>
               {t('alreadyHaveAnAccount')}{' '}
-              <Text style={styles.loginText} onPress={() => router.replace('/login')}>
-                {t('login')}
-              </Text>
+              <Text style={styles.loginText}>{t('login')}</Text>
             </Text>
-          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
+
+      {showDatePicker && (
+        <DateTimePicker
+          value={dateOfBirth || new Date()}
+          mode="date"
+          display="default"
+          onChange={onChangeDate}
+          maximumDate={new Date()}
+        />
+      )}
+    </SafeAreaView>
   );
 };
 
@@ -337,28 +347,31 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
+  keyboardContainer: {
+    flex: 1,
+  },
   scrollContainer: {
     flexGrow: 1,
-    padding: 20,
+    padding: SPACING.md,
   },
   header: {
     alignItems: 'center',
-    marginTop: 40,
-    marginBottom: 40,
+    marginTop: SAFE_AREA_TOP + SPACING.xl,
+    marginBottom: SPACING.xl,
   },
   logo: {
-    width: 120,
-    height: 120,
-    marginBottom: 20,
+    width: getResponsiveWidth(30),
+    height: getResponsiveWidth(30),
+    marginBottom: SPACING.md,
   },
   welcomeText: {
-    fontSize: 24,
+    fontSize: getResponsiveFontSize(24),
     fontWeight: 'bold',
     color: '#1A1A1A',
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     color: '#666666',
     textAlign: 'center',
   },
@@ -366,12 +379,12 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   inputContainer: {
-    marginBottom: 20,
+    marginBottom: SPACING.md,
   },
   label: {
-    fontSize: 14,
+    fontSize: getResponsiveFontSize(14),
     color: '#666666',
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
   },
   phoneInputContainer: {
     flexDirection: 'row',
@@ -379,22 +392,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E0E0E0',
     borderRadius: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: SPACING.sm,
   },
   countryCode: {
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     color: '#1A1A1A',
-    marginRight: 8,
+    marginRight: SPACING.sm,
   },
   input: {
     flex: 1,
     height: 50,
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     color: '#1A1A1A',
     borderWidth: 1,
     borderColor: '#E0E0E0',
     borderRadius: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: SPACING.sm,
     justifyContent: 'center', // for date picker text vertical alignment
   },
   signupButton: {
@@ -403,21 +416,22 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: SPACING.lg,
   },
   signupButtonDisabled: {
     backgroundColor: '#FFB6B6',
   },
   signupButtonText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: getResponsiveFontSize(18),
     fontWeight: 'bold',
   },
   footer: {
     alignItems: 'center',
+    marginTop: SPACING.md,
   },
   footerText: {
-    fontSize: 14,
+    fontSize: getResponsiveFontSize(14),
     color: '#666666',
   },
   loginText: {

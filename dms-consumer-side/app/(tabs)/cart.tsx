@@ -5,140 +5,208 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Image,
-  SafeAreaView,
   StatusBar,
-  FlatList,
+  Image,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { useLanguage } from '../context/LanguageContext';
-
-// Mock Cart Item Data
-interface CartItem {
-  id: number;
-  name: string;
-  price: number;
-  quantity: number;
-  image: string;
-}
-
-const mockCartItems: CartItem[] = [
-  { id: 1, name: 'Amul Taaza Toned Fresh Milk', price: 27, quantity: 1, image: 'https://raw.githubusercontent.com/sujal02/Blinkit-Images/main/milk.png' },
-  { id: 2, name: 'Potata (Aloo)', price: 37, quantity: 2, image: 'https://raw.githubusercontent.com/sujal02/Blinkit-Images/main/potato.png' },
-  { id: 3, name: 'Hybrid Tomato', price: 37, quantity: 1, image: 'https://raw.githubusercontent.com/sujal02/Blinkit-Images/main/tomato.png' },
-];
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 const CartScreen = () => {
-  const [cartItems, setCartItems] = useState<CartItem[]>(mockCartItems); // Start with mock data
-  const router = useRouter();
-  const { t } = useLanguage();
+  const [cartItems, setCartItems] = useState([
+    {
+      id: '1',
+      name: 'Fresh Tomatoes',
+      price: 45,
+      quantity: 2,
+      image: 'https://images.unsplash.com/photo-1546094096-0df4bcaaa337?w=400',
+      unit: '500g',
+    },
+    {
+      id: '2',
+      name: 'Organic Bananas',
+      price: 30,
+      quantity: 1,
+      image: 'https://images.unsplash.com/photo-1571771894821-ce9b6c11b08e?w=400',
+      unit: '1kg',
+    },
+    {
+      id: '3',
+      name: 'Fresh Milk',
+      price: 60,
+      quantity: 1,
+      image: 'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=400',
+      unit: '1L',
+    },
+  ]);
 
-  const calculateTotal = () => {
-    return cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const router = useRouter();
+
+  const updateQuantity = (itemId: string, newQuantity: number) => {
+    if (newQuantity <= 0) {
+      Alert.alert(
+        'Remove Item',
+        'Do you want to remove this item from cart?',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Remove',
+            style: 'destructive',
+            onPress: () => {
+              setCartItems(cartItems.filter(item => item.id !== itemId));
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    setCartItems(cartItems.map(item =>
+      item.id === itemId ? { ...item, quantity: newQuantity } : item
+    ));
   };
 
-  const handleQuantityChange = (itemId: number, newQuantity: number) => {
-    setCartItems(prevItems =>
-      prevItems.map(item =>
-        item.id === itemId ? { ...item, quantity: newQuantity > 0 ? newQuantity : 1 } : item
-      )
+  const calculateSubtotal = () => {
+    return cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
+  };
+
+  const calculateDeliveryFee = () => {
+    const subtotal = calculateSubtotal();
+    return subtotal > 500 ? 0 : 40;
+  };
+
+  const calculateTotal = () => {
+    return calculateSubtotal() + calculateDeliveryFee();
+  };
+
+  const handleCheckout = () => {
+    Alert.alert(
+      'Checkout',
+      'Proceed to checkout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Proceed', onPress: () => console.log('Proceeding to checkout') },
+      ]
     );
   };
 
-  const handleRemoveItem = (itemId: number) => {
-    setCartItems(prevItems => prevItems.filter(item => item.id !== itemId));
-  };
+  if (cartItems.length === 0) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle="light-content" backgroundColor="#CB202D" />
+        
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.headerTitle}>My Cart</Text>
+        </View>
 
-  const renderCartItem = ({ item }: { item: CartItem }) => (
-    <View style={styles.cartItemCard}>
-      <Image source={{ uri: item.image }} style={styles.cartItemImage} />
-      <View style={styles.cartItemDetails}>
-        <Text style={styles.cartItemName}>{item.name}</Text>
-        <Text style={styles.cartItemPrice}>₹{item.price}</Text>
-        <View style={styles.cartItemQuantityControl}>
-          <TouchableOpacity
-            style={styles.quantityButton}
-            onPress={() => handleQuantityChange(item.id, item.quantity - 1)}
-            disabled={item.quantity === 1}
+        <View style={styles.emptyContainer}>
+          <View style={styles.emptyIcon}>
+            <Ionicons name="cart-outline" size={80} color="#CCCCCC" />
+          </View>
+          <Text style={styles.emptyTitle}>Your cart is empty</Text>
+          <Text style={styles.emptySubtitle}>Add some items to get started</Text>
+          <TouchableOpacity 
+            style={styles.shopNowButton}
+            onPress={() => router.push('/(tabs)')}
           >
-            <Text style={styles.quantityButtonText}>-</Text>
-          </TouchableOpacity>
-          <Text style={styles.quantityText}>{item.quantity}</Text>
-          <TouchableOpacity
-            style={styles.quantityButton}
-            onPress={() => handleQuantityChange(item.id, item.quantity + 1)}
-          >
-            <Text style={styles.quantityButtonText}>+</Text>
+            <Text style={styles.shopNowButtonText}>Shop Now</Text>
           </TouchableOpacity>
         </View>
-      </View>
-      <TouchableOpacity 
-        style={styles.removeButton}
-        onPress={() => handleRemoveItem(item.id)}
-      >
-        <Ionicons name="trash-outline" size={20} color="#FF6B6B" />
-      </TouchableOpacity>
-    </View>
-  );
+      </SafeAreaView>
+    );
+  }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+    <SafeAreaView style={styles.container} edges={['top', 'bottom', 'left', 'right']}>
+      <StatusBar barStyle="light-content" backgroundColor="#CB202D" />
 
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Bag</Text>
+        <Text style={styles.headerTitle}>My Cart</Text>
+        <TouchableOpacity style={styles.clearButton}>
+          <Text style={styles.clearButtonText}>Clear All</Text>
+        </TouchableOpacity>
       </View>
 
-      {cartItems.length === 0 ? (
-        <View style={styles.emptyCartContainer}>
-          <Image
-            source={{ uri: 'https://raw.githubusercontent.com/sujal02/Blinkit-Images/main/empty_cart.png' }}
-            style={styles.emptyCartImage}
-            resizeMode="contain"
-          />
-          <Text style={styles.emptyCartTitle}>Reordering will be easy</Text>
-          <Text style={styles.emptyCartSubtitle}>
-            Items you order will show up here so you can buy them again easily.
-          </Text>
-          <TouchableOpacity
-            style={styles.startShoppingButton}
-            onPress={() => router.replace('/')}
-          >
-            <Text style={styles.startShoppingButtonText}>Start Shopping</Text>
-          </TouchableOpacity>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Cart Items */}
+        <View style={styles.itemsContainer}>
+          {cartItems.map((item) => (
+            <View key={item.id} style={styles.cartItem}>
+              <Image source={{ uri: item.image }} style={styles.itemImage} />
+              <View style={styles.itemInfo}>
+                <Text style={styles.itemName}>{item.name}</Text>
+                <Text style={styles.itemUnit}>{item.unit}</Text>
+                <Text style={styles.itemPrice}>₹{item.price}</Text>
+              </View>
+              <View style={styles.quantityContainer}>
+                <TouchableOpacity
+                  style={styles.quantityButton}
+                  onPress={() => updateQuantity(item.id, item.quantity - 1)}
+                >
+                  <Ionicons name="remove" size={16} color="#CB202D" />
+                </TouchableOpacity>
+                <Text style={styles.quantityText}>{item.quantity}</Text>
+                <TouchableOpacity
+                  style={styles.quantityButton}
+                  onPress={() => updateQuantity(item.id, item.quantity + 1)}
+                >
+                  <Ionicons name="add" size={16} color="#CB202D" />
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))}
         </View>
-      ) : (
-        <View style={styles.cartContent}>
-          <FlatList
-            data={cartItems}
-            renderItem={renderCartItem}
-            keyExtractor={(item) => item.id.toString()}
-            contentContainerStyle={styles.cartListContent}
-            showsVerticalScrollIndicator={false}
-          />
 
-          {/* Cart Summary */}
-          <View style={styles.cartSummary}>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryText}>Item Total</Text>
-              <Text style={styles.summaryText}>₹{calculateTotal().toFixed(2)}</Text>
-            </View>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryText}>Delivery Charges</Text>
-              <Text style={styles.summaryText}>₹0.00</Text>
-            </View>
-            <View style={styles.summaryRowTotal}>
-              <Text style={styles.summaryTotalText}>Grand Total</Text>
-              <Text style={styles.summaryTotalText}>₹{calculateTotal().toFixed(2)}</Text>
-            </View>
-            <TouchableOpacity style={styles.checkoutButton}>
-              <Text style={styles.checkoutButtonText}>Proceed to Checkout</Text>
-            </TouchableOpacity>
+        {/* Delivery Info */}
+        <View style={styles.deliveryInfo}>
+          <View style={styles.deliveryRow}>
+            <Ionicons name="time-outline" size={20} color="#CB202D" />
+            <Text style={styles.deliveryText}>Delivery in 10 minutes</Text>
+          </View>
+          <View style={styles.deliveryRow}>
+            <Ionicons name="location-outline" size={20} color="#CB202D" />
+            <Text style={styles.deliveryText}>Deliver to: Home - Jodhpur, Rajasthan</Text>
           </View>
         </View>
-      )}
+
+        {/* Price Breakdown */}
+        <View style={styles.priceBreakdown}>
+          <Text style={styles.breakdownTitle}>Price Details</Text>
+          <View style={styles.breakdownRow}>
+            <Text style={styles.breakdownLabel}>Subtotal</Text>
+            <Text style={styles.breakdownValue}>₹{calculateSubtotal()}</Text>
+          </View>
+          <View style={styles.breakdownRow}>
+            <Text style={styles.breakdownLabel}>Delivery Fee</Text>
+            <Text style={styles.breakdownValue}>
+              {calculateDeliveryFee() === 0 ? 'FREE' : `₹${calculateDeliveryFee()}`}
+            </Text>
+          </View>
+          {calculateDeliveryFee() > 0 && (
+            <View style={styles.savingsInfo}>
+              <Text style={styles.savingsText}>
+                Add ₹{500 - calculateSubtotal()} more for FREE delivery
+              </Text>
+            </View>
+          )}
+          <View style={styles.totalRow}>
+            <Text style={styles.totalLabel}>Total</Text>
+            <Text style={styles.totalValue}>₹{calculateTotal()}</Text>
+          </View>
+        </View>
+      </ScrollView>
+
+      {/* Checkout Button */}
+      <View style={styles.checkoutContainer}>
+        <TouchableOpacity style={styles.checkoutButton} onPress={handleCheckout}>
+          <Text style={styles.checkoutButtonText}>
+            Proceed to Checkout • ₹{calculateTotal()}
+          </Text>
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 };
@@ -146,172 +214,234 @@ const CartScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F8F9FA',
   },
   header: {
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#CB202D',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
   },
   headerTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#1C1C1C',
+    color: '#FFFFFF',
   },
-  // Empty Cart Styles
-  emptyCartContainer: {
+  clearButton: {
+    padding: 8,
+  },
+  clearButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    paddingHorizontal: 32,
   },
-  emptyCartImage: {
-    width: 200,
-    height: 200,
-    marginBottom: 20,
+  emptyIcon: {
+    marginBottom: 24,
   },
-  emptyCartTitle: {
-    fontSize: 22,
+  emptyTitle: {
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#1C1C1C',
+    color: '#1A1A1A',
     marginBottom: 8,
-    textAlign: 'center',
   },
-  emptyCartSubtitle: {
+  emptySubtitle: {
     fontSize: 16,
     color: '#666666',
     textAlign: 'center',
-    marginBottom: 30,
-    paddingHorizontal: 20,
+    marginBottom: 32,
   },
-  startShoppingButton: {
+  shopNowButton: {
     backgroundColor: '#CB202D',
+    paddingHorizontal: 32,
     paddingVertical: 12,
-    paddingHorizontal: 30,
     borderRadius: 8,
   },
-  startShoppingButtonText: {
+  shopNowButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: 'bold',
   },
-
-  // Cart with Items Styles
-  cartContent: {
+  scrollView: {
     flex: 1,
+  },
+  itemsContainer: {
     paddingHorizontal: 16,
+    paddingTop: 16,
   },
-  cartListContent: {
-    paddingVertical: 16,
-  },
-  cartItemCard: {
-    flexDirection: 'row',
+  cartItem: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    padding: 12,
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 12,
+    flexDirection: 'row',
     alignItems: 'center',
-    elevation: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
+    elevation: 3,
   },
-  cartItemImage: {
-    width: 80,
-    height: 80,
-    resizeMode: 'contain',
+  itemImage: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
     marginRight: 12,
-    borderRadius: 4,
   },
-  cartItemDetails: {
+  itemInfo: {
     flex: 1,
-    justifyContent: 'center',
   },
-  cartItemName: {
+  itemName: {
     fontSize: 16,
-    fontWeight: '500',
-    color: '#1C1C1C',
+    fontWeight: '600',
+    color: '#1A1A1A',
     marginBottom: 4,
   },
-  cartItemPrice: {
+  itemUnit: {
     fontSize: 14,
-    fontWeight: 'bold',
-    color: '#1C1C1C',
-    marginBottom: 8,
+    color: '#666666',
+    marginBottom: 4,
   },
-  cartItemQuantityControl: {
+  itemPrice: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1A1A1A',
+  },
+  quantityContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
-    borderRadius: 5,
+    backgroundColor: '#F8F9FA',
+    borderRadius: 8,
+    padding: 4,
   },
   quantityButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#FFFFFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
-  quantityButtonText: {
+  quantityText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1A1A1A',
+    marginHorizontal: 12,
+    minWidth: 20,
+    textAlign: 'center',
+  },
+  deliveryInfo: {
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  deliveryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  deliveryText: {
+    fontSize: 14,
+    color: '#1A1A1A',
+    marginLeft: 8,
+  },
+  priceBreakdown: {
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  breakdownTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1A1A1A',
+    marginBottom: 12,
+  },
+  breakdownRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  breakdownLabel: {
+    fontSize: 14,
+    color: '#666666',
+  },
+  breakdownValue: {
+    fontSize: 14,
+    color: '#1A1A1A',
+    fontWeight: '500',
+  },
+  savingsInfo: {
+    backgroundColor: '#FFF5F5',
+    padding: 8,
+    borderRadius: 6,
+    marginVertical: 8,
+  },
+  savingsText: {
+    fontSize: 12,
+    color: '#CB202D',
+    textAlign: 'center',
+    fontWeight: '500',
+  },
+  totalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+    paddingTop: 12,
+    marginTop: 8,
+  },
+  totalLabel: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1A1A1A',
+  },
+  totalValue: {
     fontSize: 18,
     fontWeight: 'bold',
     color: '#CB202D',
   },
-  quantityText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    paddingHorizontal: 8,
-    color: '#1C1C1C',
-  },
-  removeButton: {
-    marginLeft: 12,
-    padding: 8,
-  },
-  cartSummary: {
+  checkoutContainer: {
     backgroundColor: '#FFFFFF',
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#F0F0F0',
-    elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 5,
-  },
-  summaryRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  summaryText: {
-    fontSize: 16,
-    color: '#666666',
-  },
-  summaryRowTotal: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 10,
-    paddingTop: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     borderTopWidth: 1,
     borderTopColor: '#E0E0E0',
   },
-  summaryTotalText: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1C1C1C',
-  },
   checkoutButton: {
-    backgroundColor: '#4CAF50', // Green color for checkout
-    paddingVertical: 14,
-    borderRadius: 8,
+    backgroundColor: '#CB202D',
+    borderRadius: 12,
+    paddingVertical: 16,
     alignItems: 'center',
-    marginTop: 20,
   },
   checkoutButtonText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });

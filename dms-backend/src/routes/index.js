@@ -4,6 +4,7 @@ const router = express.Router();
 const authRoutes = require('./authRoutes');
 const productRoutes = require('./productRoutes');
 const categoryRoutes = require('./categoryRoutes');
+const userRoutes = require('./userRoutes');
 
 // Health check endpoint
 router.get('/health', (req, res) => {
@@ -14,5 +15,6 @@ router.get('/health', (req, res) => {
 router.use('/auth', authRoutes);
 router.use('/products', productRoutes);
 router.use('/categories', categoryRoutes);
+router.use('/user', userRoutes);
 
 module.exports = router; 

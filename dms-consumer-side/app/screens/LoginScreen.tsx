@@ -10,12 +10,20 @@ import {
   Image,
   ScrollView,
   Alert,
+  SafeAreaView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import axios, { AxiosError } from 'axios';
 import { useLanguage } from '../context/LanguageContext';
+import { 
+  getResponsiveFontSize, 
+  getResponsiveWidth, 
+  getResponsiveHeight,
+  SAFE_AREA_TOP,
+  SPACING 
+} from '../../utils/deviceUtils';
 
-const API_URL = 'http://192.168.2.101:3000/api';
+const API_URL = 'http://192.168.2.100:3000/api';
 
 interface ApiResponse {
   success: boolean;
@@ -87,9 +95,10 @@ const LoginScreen = () => {
   };
 
   return (
+    <SafeAreaView style={styles.container}>
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+        style={styles.keyboardContainer}
     >
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.header}>
@@ -154,6 +163,7 @@ const LoginScreen = () => {
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
@@ -162,40 +172,43 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
+  keyboardContainer: {
+    flex: 1,
+  },
   scrollContainer: {
     flexGrow: 1,
-    padding: 20,
+    padding: SPACING.md,
   },
   header: {
     alignItems: 'center',
-    marginTop: 40,
-    marginBottom: 40,
+    marginTop: SAFE_AREA_TOP + SPACING.xl,
+    marginBottom: SPACING.xl,
   },
   logo: {
-    width: 120,
-    height: 120,
-    marginBottom: 20,
+    width: getResponsiveWidth(30),
+    height: getResponsiveWidth(30),
+    marginBottom: SPACING.md,
   },
   welcomeText: {
-    fontSize: 24,
+    fontSize: getResponsiveFontSize(24),
     fontWeight: 'bold',
     color: '#1A1A1A',
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     color: '#666666',
   },
   formContainer: {
     width: '100%',
   },
   inputContainer: {
-    marginBottom: 24,
+    marginBottom: SPACING.lg,
   },
   label: {
-    fontSize: 14,
+    fontSize: getResponsiveFontSize(14),
     color: '#666666',
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
   },
   phoneInputContainer: {
     flexDirection: 'row',
@@ -203,17 +216,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E0E0E0',
     borderRadius: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: SPACING.sm,
   },
   countryCode: {
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     color: '#1A1A1A',
-    marginRight: 8,
+    marginRight: SPACING.sm,
   },
   input: {
     flex: 1,
     height: 50,
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     color: '#1A1A1A',
   },
   loginButton: {
@@ -222,20 +235,20 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: SPACING.lg,
   },
   loginButtonDisabled: {
     backgroundColor: '#FFB6B6',
   },
   loginButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     fontWeight: 'bold',
   },
   divider: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 24,
+    marginVertical: SPACING.lg,
   },
   dividerLine: {
     flex: 1,
@@ -243,7 +256,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#E0E0E0',
   },
   dividerText: {
-    marginHorizontal: 16,
+    marginHorizontal: SPACING.md,
     color: '#666666',
   },
   googleButton: {
@@ -254,24 +267,24 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E0E0E0',
     borderRadius: 8,
-    marginBottom: 24,
+    marginBottom: SPACING.lg,
   },
   googleIcon: {
     width: 24,
     height: 24,
-    marginRight: 12,
+    marginRight: SPACING.sm,
   },
   googleButtonText: {
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     color: '#1A1A1A',
   },
   footer: {
     alignItems: 'center',
     marginTop: 'auto',
-    marginBottom: 20,
+    marginBottom: SPACING.md,
   },
   footerText: {
-    fontSize: 14,
+    fontSize: getResponsiveFontSize(14),
     color: '#666666',
   },
   signUpText: {

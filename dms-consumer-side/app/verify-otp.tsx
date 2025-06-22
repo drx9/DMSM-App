@@ -8,16 +8,26 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  SafeAreaView,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios, { AxiosError } from 'axios';
+import { 
+  getResponsiveFontSize, 
+  getResponsiveWidth, 
+  getResponsiveHeight,
+  SAFE_AREA_TOP,
+  SPACING 
+} from '../utils/deviceUtils';
 
-const API_URL = 'http://192.168.2.101:3000/api';
+const API_URL = 'http://192.168.2.100:3000/api';
 
 interface ApiResponse {
   success: boolean;
   message?: string;
   userId?: string;
+  token?: string;
 }
 
 const VerifyOTPScreen = () => {
@@ -51,7 +61,16 @@ const VerifyOTPScreen = () => {
       });
 
       if (response.data.success) {
+        // Store the token in AsyncStorage
+        if (response.data.token) {
+          await AsyncStorage.setItem('userToken', response.data.token);
+          console.log('VerifyOTP: Token stored successfully');
+        } else {
+          console.log('VerifyOTP: No token received from server');
+        }
+        
         // Navigate to main app
+        console.log('VerifyOTP: Navigating to main app');
         router.replace('/(tabs)');
       }
     } catch (error) {
@@ -85,9 +104,10 @@ const VerifyOTPScreen = () => {
   };
 
   return (
+    <SafeAreaView style={styles.container}>
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
+        style={styles.keyboardContainer}
     >
       <View style={styles.content}>
         <Text style={styles.title}>Verify OTP</Text>
@@ -130,6 +150,7 @@ const VerifyOTPScreen = () => {
         </View>
       </View>
     </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 };
 
@@ -138,34 +159,38 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
+  keyboardContainer: {
+    flex: 1,
+  },
   content: {
     flex: 1,
-    padding: 20,
+    padding: SPACING.md,
     justifyContent: 'center',
+    paddingTop: SAFE_AREA_TOP + SPACING.xl,
   },
   title: {
-    fontSize: 24,
+    fontSize: getResponsiveFontSize(24),
     fontWeight: 'bold',
     color: '#1A1A1A',
-    marginBottom: 8,
+    marginBottom: SPACING.sm,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     color: '#666666',
-    marginBottom: 32,
+    marginBottom: SPACING.xl,
     textAlign: 'center',
   },
   otpContainer: {
-    marginBottom: 24,
+    marginBottom: SPACING.lg,
   },
   otpInput: {
     height: 50,
     borderWidth: 1,
     borderColor: '#E0E0E0',
     borderRadius: 8,
-    paddingHorizontal: 16,
-    fontSize: 20,
+    paddingHorizontal: SPACING.md,
+    fontSize: getResponsiveFontSize(20),
     textAlign: 'center',
     letterSpacing: 8,
   },
@@ -175,14 +200,14 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: SPACING.lg,
   },
   verifyButtonDisabled: {
     backgroundColor: '#FFB6B6',
   },
   verifyButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     fontWeight: 'bold',
   },
   resendContainer: {
@@ -191,11 +216,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   resendText: {
-    fontSize: 14,
+    fontSize: getResponsiveFontSize(14),
     color: '#666666',
   },
   resendButton: {
-    fontSize: 14,
+    fontSize: getResponsiveFontSize(14),
     color: '#FF6B6B',
     fontWeight: 'bold',
   },

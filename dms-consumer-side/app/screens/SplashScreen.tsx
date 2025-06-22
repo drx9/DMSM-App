@@ -1,8 +1,15 @@
 import React, { useEffect } from 'react';
-import { View, Text, Image, StyleSheet, StatusBar, Animated, Dimensions } from 'react-native';
+import { View, Text, Image, StyleSheet, StatusBar, Animated, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
-
-const { width } = Dimensions.get('window');
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { 
+  DEVICE_WIDTH, 
+  DEVICE_HEIGHT, 
+  getResponsiveFontSize, 
+  getResponsiveWidth, 
+  getResponsiveHeight,
+  SAFE_AREA_TOP 
+} from '../../utils/deviceUtils';
 
 const SplashScreen = () => {
   const router = useRouter();
@@ -24,15 +31,23 @@ const SplashScreen = () => {
       }),
     ]).start();
 
-    const timer = setTimeout(() => {
-      router.replace('/language');
+    const timer = setTimeout(async () => {
+      try {
+        // Always go to language selection first for proper flow
+        console.log('Navigating to language selection');
+        router.replace('/language');
+      } catch (error) {
+        console.error('Error in navigation:', error);
+        // Fallback to language selection
+        router.replace('/language');
+      }
     }, 2500);
 
     return () => clearTimeout(timer);
   }, []);
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <StatusBar backgroundColor="#FFFFFF" barStyle="dark-content" />
       <Animated.View
         style={[
@@ -51,7 +66,7 @@ const SplashScreen = () => {
       <Text style={styles.title}>DMS Mart</Text>
       <Text style={styles.subtitle}>Your Local Daily Needs Partner</Text>
       </Animated.View>
-    </View>
+    </SafeAreaView>
   );
 };
 
@@ -64,21 +79,21 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     alignItems: 'center',
-    width: width * 0.8,
+    width: DEVICE_WIDTH * 0.8,
   },
   logo: {
-    width: width * 0.5,
-    height: width * 0.5,
+    width: DEVICE_WIDTH * 0.5,
+    height: DEVICE_WIDTH * 0.5,
     marginBottom: 20,
   },
   title: {
-    fontSize: 32,
+    fontSize: getResponsiveFontSize(32),
     fontWeight: 'bold',
     color: '#1A1A1A',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: getResponsiveFontSize(16),
     color: '#666666',
   },
 });
