@@ -19,30 +19,39 @@ import { useLanguage } from '../context/LanguageContext';
 import { useRouter } from 'expo-router';
 import categoryService, { Category } from '../../services/categoryService';
 import productService, { Product } from '../../services/productService';
+import { API_URL } from '../config';
 
 const { width } = Dimensions.get('window');
 // Calculate width for 3 cards in the Mega Diwali Sale section, considering padding and margins
 const MEGA_SALE_CARD_WIDTH = (width - 16 * 2 - 12 * 2) / 3; // (total width - 2*horizontal padding - 2*marginRight) / 3 cards
+const PRODUCT_CARD_WIDTH = (width - 16 * 2 - 12 * 2) / 2; // 2 cards per row
 
 const HomeScreen = () => {
+  console.log('HomeScreen loaded at', new Date().toISOString());
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [popularProducts, setPopularProducts] = useState<Product[]>([]);
+  const [newArrivals, setNewArrivals] = useState<Product[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const { t } = useLanguage();
   const router = useRouter();
 
+  // Minimal fetch test
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [categoriesResponse, productsResponse] = await Promise.all([
-        categoryService.getCategories(),
-        productService.getProducts({ limit: 6, sort: 'FEATURED' })
-      ]);
-      setCategories(categoriesResponse.categories);
-      setFeaturedProducts(productsResponse.products);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to load data. Please try again.');
+      setError(null);
+      console.log('FETCH TEST START');
+      const res = await fetch(`${API_URL}/products`);
+      const data = await res.json();
+      setPopularProducts(data.products);
+      setNewArrivals(data.products);
+      setError(null);
+    } catch (err) {
+      console.error('FETCH TEST ERROR:', err);
+      const errorMessage = (err as any)?.message ?? 'Unknown error';
+      setError('Fetch failed: ' + errorMessage);
     } finally {
       setLoading(false);
     }
@@ -79,6 +88,17 @@ const HomeScreen = () => {
     );
   }
 
+  if (error) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={{ color: 'red', fontSize: 16 }}>{error}</Text>
+        <TouchableOpacity onPress={fetchData} style={{ marginTop: 16, padding: 12, backgroundColor: '#CB202D', borderRadius: 8 }}>
+          <Text style={{ color: 'white' }}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#CB202D" />
@@ -95,7 +115,7 @@ const HomeScreen = () => {
         </View>
         <TouchableOpacity style={styles.profileIconContainer}>
           <Image
-            source={{ uri: 'https://raw.githubusercontent.com/sujal02/Blinkit-Images/main/profile_placeholder.png' }} 
+            source={{ uri: 'https://raw.githubusercontent.com/sujal02/Blinkit-Images/main/profile_placeholder.png' }}
             style={styles.profileIcon}
           />
           <Text style={styles.profileIconText}>15x15</Text>
@@ -103,7 +123,7 @@ const HomeScreen = () => {
       </View>
 
       {/* Search Bar */}
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.searchBarContainer}
         onPress={() => router.push('/products')}
       >
@@ -123,43 +143,61 @@ const HomeScreen = () => {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Featured Products */}
-        <View style={styles.productGridSection}>
-          <Text style={styles.sectionTitle}>Featured Products</Text>
+        {/* Popular Products */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Popular Products</Text>
           <View style={styles.productGrid}>
-            {featuredProducts.map((product) => (
-              <TouchableOpacity 
-                key={product.id} 
+            {popularProducts.map((product) => (
+              <TouchableOpacity
+                key={product.id}
                 style={styles.productCard}
                 onPress={() => handleProductPress(product.id)}
               >
                 <Image source={{ uri: product.images[0] }} style={styles.productImage} />
-                <TouchableOpacity style={styles.addButtton}>
-                  <Text style={styles.addButtonText}>ADD</Text>
-                </TouchableOpacity>
                 <Text style={styles.productName}>{product.name}</Text>
                 <View style={styles.productDetailsRow}>
-                  <Text style={styles.productPrice}>₹{product.price}</Text>
-                  {product.discount > 0 && (
-                    <Text style={styles.discountText}>{product.discount}% OFF</Text>
+                  <Text style={styles.productPrice}>₹{Number(product.price)}</Text>
+                  {Number(product.discount) > 0 && (
+                    <Text style={styles.discountText}>{Number(product.discount)}% OFF</Text>
                   )}
                 </View>
               </TouchableOpacity>
             ))}
           </View>
         </View>
-
+        {/* New Arrivals */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>New Arrivals</Text>
+          <View style={styles.productGrid}>
+            {newArrivals.map((product) => (
+              <TouchableOpacity
+                key={product.id}
+                style={styles.productCard}
+                onPress={() => handleProductPress(product.id)}
+              >
+                <Image source={{ uri: product.images[0] }} style={styles.productImage} />
+                <Text style={styles.productName}>{product.name}</Text>
+                <View style={styles.productDetailsRow}>
+                  <Text style={styles.productPrice}>₹{Number(product.price)}</Text>
+                  {Number(product.discount) > 0 && (
+                    <Text style={styles.discountText}>{Number(product.discount)}% OFF</Text>
+                  )}
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
         {/* Categories */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Categories</Text>
-          <ScrollView 
-            horizontal 
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.categoryContainer}
           >
             {categories.map((category) => (
-              <TouchableOpacity 
-                key={category.id} 
+              <TouchableOpacity
+                key={category.id}
                 style={styles.categoryCard}
                 onPress={() => handleCategoryPress(category)}
               >
@@ -290,11 +328,6 @@ const styles = StyleSheet.create({
     color: '#1C1C1C',
     marginBottom: 10,
   },
-  productGridSection: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-  },
   productGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -302,7 +335,7 @@ const styles = StyleSheet.create({
   },
   productCard: {
     backgroundColor: '#FFFFFF',
-    width: (width / 2) - 24, // Two cards per row with padding
+    width: PRODUCT_CARD_WIDTH,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E0E0E0',
@@ -315,21 +348,6 @@ const styles = StyleSheet.create({
     height: 120,
     resizeMode: 'contain',
     marginBottom: 8,
-  },
-  addButtton: {
-    backgroundColor: '#4CAF50',
-    borderRadius: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    zIndex: 1,
-  },
-  addButtonText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: 'bold',
   },
   productName: {
     fontSize: 14,

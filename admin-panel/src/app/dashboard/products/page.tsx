@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
@@ -33,6 +33,9 @@ export default function ProductsPage() {
     const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
     const [loading, setLoading] = useState(true);
     const [deletingId, setDeletingId] = useState<string | null>(null);
+    const [showUploadModal, setShowUploadModal] = useState(false);
+    const [uploading, setUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     // New state for sort/filter
     const [sort, setSort] = useState('createdAt');
@@ -40,6 +43,9 @@ export default function ProductsPage() {
     const [category, setCategory] = useState<string>('all');
     const [categories, setCategories] = useState<Category[]>([]);
     const [stockFilter, setStockFilter] = useState('all'); // 'all', 'low_stock', 'out_of_stock'
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [pageSize] = useState(10); // You can make this selectable if you want
 
     // Fetch categories for filter dropdown
     useEffect(() => {
@@ -55,13 +61,15 @@ export default function ProductsPage() {
     }, []);
 
     // Fetch products with sort/order/category
-    const fetchProducts = async () => {
+    const fetchProducts = async (page = currentPage) => {
         try {
             setLoading(true);
-            const params: any = { sort, order };
+            const params: any = { sort, order, page, limit: pageSize };
             if (category !== 'all') params.category = category;
             const response = await api.get('/api/products', { params });
             setProducts(response.data.products);
+            setCurrentPage(response.data.currentPage || 1);
+            setTotalPages(response.data.totalPages || 1);
         } catch (error) {
             toast.error('Failed to load products.');
         } finally {
@@ -70,7 +78,7 @@ export default function ProductsPage() {
     };
 
     useEffect(() => {
-        fetchProducts();
+        fetchProducts(1); // Reset to first page on filter/sort change
         // eslint-disable-next-line
     }, [sort, order, category]);
 
@@ -99,6 +107,43 @@ export default function ProductsPage() {
         }
     };
 
+    // Pagination controls
+    const renderPagination = () => {
+        if (totalPages <= 1) return null;
+        const pages = [];
+        for (let i = 1; i <= totalPages; i++) {
+            pages.push(
+                <button
+                    key={i}
+                    className={`px-3 py-1 rounded ${currentPage === i ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700'} mx-1`}
+                    onClick={() => fetchProducts(i)}
+                    disabled={currentPage === i}
+                >
+                    {i}
+                </button>
+            );
+        }
+        return (
+            <div className="flex justify-center items-center mt-6 gap-2">
+                <button
+                    className="px-3 py-1 rounded bg-gray-200 text-gray-700 mx-1"
+                    onClick={() => fetchProducts(currentPage - 1)}
+                    disabled={currentPage === 1}
+                >
+                    Prev
+                </button>
+                {pages}
+                <button
+                    className="px-3 py-1 rounded bg-gray-200 text-gray-700 mx-1"
+                    onClick={() => fetchProducts(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                >
+                    Next
+                </button>
+            </div>
+        );
+    };
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-50 to-white p-6">
             <div className="max-w-7xl mx-auto">
@@ -113,7 +158,7 @@ export default function ProductsPage() {
                                 Manage your store inventory with advanced filtering and sorting options
                             </p>
                         </div>
-                        <div className="mt-6 sm:ml-16 sm:mt-0 sm:flex-none">
+                        <div className="mt-6 sm:ml-16 sm:mt-0 sm:flex-none flex gap-2">
                             <Link
                                 href="/dashboard/products/new"
                                 className="inline-flex items-center rounded-xl bg-gradient-to-r from-green-500 to-green-600 px-6 py-3 text-sm font-semibold text-white shadow-lg hover:from-green-600 hover:to-green-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-600 transition-all duration-200 transform hover:scale-105"
@@ -121,9 +166,62 @@ export default function ProductsPage() {
                                 <PlusCircleIcon className="-ml-0.5 mr-2 h-5 w-5" aria-hidden="true" />
                                 Add Product
                             </Link>
+                            <button
+                                className="inline-flex items-center rounded-xl bg-gradient-to-r from-blue-500 to-blue-600 px-6 py-3 text-sm font-semibold text-white shadow-lg hover:from-blue-600 hover:to-blue-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 transition-all duration-200 transform hover:scale-105"
+                                onClick={() => setShowUploadModal(true)}
+                            >
+                                <svg className="-ml-0.5 mr-2 h-5 w-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5m0 0l5 5m-5-5v12" /></svg>
+                                Upload Excel
+                            </button>
                         </div>
                     </div>
                 </div>
+
+                {/* Upload Excel Modal */}
+                {showUploadModal && (
+                    <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-50 z-50">
+                        <div className="bg-white p-6 rounded shadow-md w-96">
+                            <h2 className="text-lg font-semibold mb-4">Bulk Upload Products (Excel)</h2>
+                            <input
+                                type="file"
+                                accept=".xlsx,.xls,.csv"
+                                ref={fileInputRef}
+                                className="w-full border rounded px-2 py-1 mb-4"
+                            />
+                            <div className="flex justify-end gap-2">
+                                <button
+                                    className="px-4 py-2 bg-gray-300 rounded"
+                                    onClick={() => setShowUploadModal(false)}
+                                    disabled={uploading}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    className="px-4 py-2 bg-blue-600 text-white rounded"
+                                    onClick={async () => {
+                                        if (!fileInputRef.current?.files?.[0]) return;
+                                        setUploading(true);
+                                        const formData = new FormData();
+                                        formData.append('file', fileInputRef.current.files[0]);
+                                        try {
+                                            await api.post('/api/products/bulk-upload', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+                                            toast.success('Products uploaded successfully!');
+                                            setShowUploadModal(false);
+                                            setTimeout(fetchProducts, 500);
+                                        } catch {
+                                            toast.error('Failed to upload products');
+                                        } finally {
+                                            setUploading(false);
+                                        }
+                                    }}
+                                    disabled={uploading}
+                                >
+                                    {uploading ? 'Uploading...' : 'Upload'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Filter Controls */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
@@ -202,105 +300,123 @@ export default function ProductsPage() {
                         </div>
                     </div>
                 ) : (
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <table className="min-w-full divide-y divide-gray-100">
-                                <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
-                                    <tr>
-                                        <th
-                                            scope="col"
-                                            className="py-4 pl-6 pr-3 text-left text-sm font-semibold text-gray-800"
-                                        >
-                                            Product Name
-                                        </th>
-                                        <th
-                                            scope="col"
-                                            className="px-3 py-4 text-left text-sm font-semibold text-gray-800"
-                                        >
-                                            Price
-                                        </th>
-                                        <th
-                                            scope="col"
-                                            className="px-3 py-4 text-left text-sm font-semibold text-gray-800"
-                                        >
-                                            Stock
-                                        </th>
-                                        <th
-                                            scope="col"
-                                            className="px-3 py-4 text-left text-sm font-semibold text-gray-800"
-                                        >
-                                            Status
-                                        </th>
-                                        <th scope="col" className="relative py-4 pl-3 pr-6">
-                                            <span className="sr-only">Actions</span>
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-50">
-                                    {filteredProducts.map((product) => (
-                                        <tr key={product.id} className="hover:bg-gray-50 transition-colors duration-150">
-                                            <td className="whitespace-nowrap py-5 pl-6 pr-3 text-sm font-medium text-gray-900">
-                                                {product.name}
-                                            </td>
-                                            <td className="whitespace-nowrap px-3 py-5 text-sm">
-                                                <span className="font-semibold text-gray-800">₹{product.price.toLocaleString()}</span>
-                                            </td>
-                                            <td className="whitespace-nowrap px-3 py-5 text-sm">
-                                                <span className={`font-medium ${product.stock === 0 ? 'text-red-600' :
-                                                    product.stock <= 10 ? 'text-orange-600' : 'text-green-600'
-                                                    }`}>
-                                                    {product.stock}
-                                                </span>
-                                            </td>
-                                            <td className="whitespace-nowrap px-3 py-5 text-sm">
-                                                <span
-                                                    className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset ${product.isOutOfStock || product.stock === 0
-                                                        ? 'bg-red-50 text-red-700 ring-red-200'
-                                                        : product.stock <= 10
-                                                            ? 'bg-orange-50 text-orange-700 ring-orange-200'
-                                                            : product.isActive
-                                                                ? 'bg-green-50 text-green-700 ring-green-200'
-                                                                : 'bg-gray-50 text-gray-700 ring-gray-200'
-                                                        }`}
-                                                >
-                                                    {product.isOutOfStock || product.stock === 0
-                                                        ? 'Out of Stock'
-                                                        : product.stock <= 10
-                                                            ? 'Low Stock'
-                                                            : product.isActive
-                                                                ? 'Active'
-                                                                : 'Inactive'}
-                                                </span>
-                                            </td>
-                                            <td className="relative whitespace-nowrap py-5 pl-3 pr-6 text-right text-sm font-medium">
-                                                <div className="flex items-center justify-end space-x-3">
-                                                    <Link
-                                                        href={`/dashboard/products/${product.id}`}
-                                                        className="inline-flex items-center px-3 py-1.5 rounded-lg text-green-600 hover:text-green-700 hover:bg-green-50 transition-all duration-200"
-                                                    >
-                                                        <PencilIcon className="h-4 w-4 mr-1" aria-hidden="true" />
-                                                        Edit
-                                                    </Link>
-                                                    <button
-                                                        onClick={() => handleDelete(product.id)}
-                                                        disabled={deletingId === product.id}
-                                                        className="inline-flex items-center px-3 py-1.5 rounded-lg text-red-600 hover:text-red-700 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
-                                                    >
-                                                        {deletingId === product.id ? (
-                                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600 mr-1"></div>
-                                                        ) : (
-                                                            <TrashIcon className="h-4 w-4 mr-1" aria-hidden="true" />
-                                                        )}
-                                                        Delete
-                                                    </button>
-                                                </div>
-                                            </td>
+                    <>
+                        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                            <div className="overflow-x-auto">
+                                <table className="min-w-full divide-y divide-gray-100">
+                                    <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
+                                        <tr>
+                                            <th
+                                                scope="col"
+                                                className="py-4 pl-6 pr-3 text-left text-sm font-semibold text-gray-800"
+                                            >
+                                                Image
+                                            </th>
+                                            <th
+                                                scope="col"
+                                                className="py-4 pl-6 pr-3 text-left text-sm font-semibold text-gray-800"
+                                            >
+                                                Product Name
+                                            </th>
+                                            <th
+                                                scope="col"
+                                                className="px-3 py-4 text-left text-sm font-semibold text-gray-800"
+                                            >
+                                                Price
+                                            </th>
+                                            <th
+                                                scope="col"
+                                                className="px-3 py-4 text-left text-sm font-semibold text-gray-800"
+                                            >
+                                                Stock
+                                            </th>
+                                            <th
+                                                scope="col"
+                                                className="px-3 py-4 text-left text-sm font-semibold text-gray-800"
+                                            >
+                                                Status
+                                            </th>
+                                            <th scope="col" className="relative py-4 pl-3 pr-6">
+                                                <span className="sr-only">Actions</span>
+                                            </th>
                                         </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                        {filteredProducts.map((product) => (
+                                            <tr key={product.id} className="hover:bg-gray-50 transition-colors duration-150">
+                                                <td className="whitespace-nowrap py-5 pl-6 pr-3">
+                                                    <div className="w-10 h-10 rounded bg-gray-100 flex items-center justify-center overflow-hidden">
+                                                        <img
+                                                            src={product.images && product.images.length > 0 ? product.images[0] : '/images/dms-logo.png'}
+                                                            alt={product.name}
+                                                            className="object-cover w-10 h-10"
+                                                        />
+                                                    </div>
+                                                </td>
+                                                <td className="whitespace-nowrap py-5 pl-6 pr-3 text-sm font-medium text-gray-900">
+                                                    {product.name}
+                                                </td>
+                                                <td className="whitespace-nowrap px-3 py-5 text-sm">
+                                                    <span className="font-semibold text-gray-800">₹{product.price.toLocaleString()}</span>
+                                                </td>
+                                                <td className="whitespace-nowrap px-3 py-5 text-sm">
+                                                    <span className={`font-medium ${product.stock === 0 ? 'text-red-600' :
+                                                        product.stock <= 10 ? 'text-orange-600' : 'text-green-600'
+                                                        }`}>
+                                                        {product.stock}
+                                                    </span>
+                                                </td>
+                                                <td className="whitespace-nowrap px-3 py-5 text-sm">
+                                                    <span
+                                                        className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ring-1 ring-inset ${product.isOutOfStock || product.stock === 0
+                                                            ? 'bg-red-50 text-red-700 ring-red-200'
+                                                            : product.stock <= 10
+                                                                ? 'bg-orange-50 text-orange-700 ring-orange-200'
+                                                                : product.isActive
+                                                                    ? 'bg-green-50 text-green-700 ring-green-200'
+                                                                    : 'bg-gray-50 text-gray-700 ring-gray-200'
+                                                            }`}
+                                                    >
+                                                        {product.isOutOfStock || product.stock === 0
+                                                            ? 'Out of Stock'
+                                                            : product.stock <= 10
+                                                                ? 'Low Stock'
+                                                                : product.isActive
+                                                                    ? 'Active'
+                                                                    : 'Inactive'}
+                                                    </span>
+                                                </td>
+                                                <td className="relative whitespace-nowrap py-5 pl-3 pr-6 text-right text-sm font-medium">
+                                                    <div className="flex items-center justify-end space-x-3">
+                                                        <Link
+                                                            href={`/dashboard/products/${product.id}`}
+                                                            className="inline-flex items-center px-3 py-1.5 rounded-lg text-green-600 hover:text-green-700 hover:bg-green-50 transition-all duration-200"
+                                                        >
+                                                            <PencilIcon className="h-4 w-4 mr-1" aria-hidden="true" />
+                                                            Edit
+                                                        </Link>
+                                                        <button
+                                                            onClick={() => handleDelete(product.id)}
+                                                            disabled={deletingId === product.id}
+                                                            className="inline-flex items-center px-3 py-1.5 rounded-lg text-red-600 hover:text-red-700 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                                                        >
+                                                            {deletingId === product.id ? (
+                                                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-600 mr-1"></div>
+                                                            ) : (
+                                                                <TrashIcon className="h-4 w-4 mr-1" aria-hidden="true" />
+                                                            )}
+                                                            Delete
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                    </div>
+                        {renderPagination()}
+                    </>
                 )}
             </div>
         </div>

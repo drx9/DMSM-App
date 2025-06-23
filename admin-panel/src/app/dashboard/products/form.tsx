@@ -98,10 +98,14 @@ export default function ProductForm({ productId }: { productId?: string }) {
         setIsUploading(true);
         toast.loading(`Uploading image...`, { id: toastId });
 
-        const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-        const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+        // Hardcoded Cloudinary config for unsigned upload
+        const CLOUD_NAME = 'dpldml5ix';
+        const UPLOAD_PRESET = 'dmsm_unsigned_preset';
 
-        if (!CLOUD_NAME || !UPLOAD_PRESET || UPLOAD_PRESET === "<YOUR_UPLOAD_PRESET_NAME>") {
+        console.log('Uploading to:', `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`);
+        console.log('Using preset:', UPLOAD_PRESET);
+
+        if (!CLOUD_NAME || !UPLOAD_PRESET) {
             toast.error("Cloudinary config missing. Please set it in .env.local and restart the server.", { id: toastId });
             setIsUploading(false);
             return;
@@ -110,6 +114,11 @@ export default function ProductForm({ productId }: { productId?: string }) {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('upload_preset', UPLOAD_PRESET);
+
+        // Debug: log all FormData keys and values
+        for (let pair of formData.entries()) {
+            console.log('FormData:', pair[0], pair[1]);
+        }
 
         try {
             const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {

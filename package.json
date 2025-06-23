@@ -2,9 +2,13 @@
   "dependencies": {
     "autoprefixer": "^10.4.21",
     "bcryptjs": "^3.0.2",
+    "chart.js": "^4.5.0",
     "dotenv": "^16.5.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.15.1",
-    "tailwindcss": "^4.1.10"
+    "multer": "^2.0.1",
+    "react-chartjs-2": "^5.3.0",
+    "tailwindcss": "^4.1.10",
+    "xlsx": "^0.18.5"
   }
 }
