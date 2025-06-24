@@ -104,4 +104,6 @@ router.post(
   authController.adminPasswordLogin
 );
 
+router.get('/user/:userId', authController.getUserById);
+
 module.exports = router; 

@@ -6,6 +6,8 @@ const productRoutes = require('./productRoutes');
 const categoryRoutes = require('./categoryRoutes');
 const dashboardRoutes = require('./dashboardRoutes');
 const orderRoutes = require('./orderRoutes');
+const cartRoutes = require('./cartRoutes');
+const addressRoutes = require('./addressRoutes');
 
 // Health check endpoint
 router.get('/health', (req, res) => {
@@ -18,5 +20,7 @@ router.use('/products', productRoutes);
 router.use('/categories', categoryRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/orders', orderRoutes);
+router.use('/cart', cartRoutes);
+router.use('/addresses', addressRoutes);
 
 module.exports = router; 

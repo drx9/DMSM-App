@@ -15,4 +15,7 @@ router.put('/:id', authenticateToken, isAdmin, productController.updateProduct);
 router.delete('/:id', authenticateToken, isAdmin, productController.deleteProduct);
 router.post('/bulk-upload', authenticateToken, isAdmin, upload.single('file'), productController.bulkUploadProducts);
 
+// Get product details with variants, similar, and bought together
+router.get('/:id/details', productController.getProductDetails);
+
 module.exports = router; 

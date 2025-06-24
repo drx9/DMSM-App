@@ -65,7 +65,11 @@ const Product = sequelize.define('Product', {
       model: 'users',
       key: 'id',
     },
-  }
+  },
+  details: {
+    type: DataTypes.JSONB,
+    defaultValue: {},
+  },
 }, {
   tableName: 'products',
   timestamps: true,

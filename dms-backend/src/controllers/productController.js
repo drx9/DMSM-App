@@ -168,6 +168,71 @@ const productController = {
       console.error('Error bulk uploading products:', error);
       res.status(500).json({ message: 'Error bulk uploading products' });
     }
+  },
+
+  getProductDetails: async (req, res) => {
+    try {
+      const { id } = req.params;
+      const product = await Product.findByPk(id, {
+        include: [
+          { model: db.Variant, as: 'variants' },
+          { model: db.Review, as: 'reviews' },
+        ],
+      });
+      if (!product) return res.status(404).json({ message: 'Product not found' });
+
+      // --- Similar Products: same category, exclude current ---
+      const similarProducts = await Product.findAll({
+        where: {
+          categoryId: product.categoryId,
+          id: { [db.Sequelize.Op.ne]: product.id },
+          isActive: true,
+        },
+        limit: 10,
+      });
+
+      // --- Bought Together: products from same orders ---
+      // 1. Find all orderIds where this product was bought
+      const orderItems = await db.OrderItem.findAll({
+        where: { productId: product.id },
+        attributes: ['orderId'],
+      });
+      const orderIds = orderItems.map(oi => oi.orderId);
+      let boughtTogether = [];
+      if (orderIds.length > 0) {
+        // 2. Find all products in those orders, excluding this product
+        const boughtItems = await db.OrderItem.findAll({
+          where: {
+            orderId: { [db.Sequelize.Op.in]: orderIds },
+            productId: { [db.Sequelize.Op.ne]: product.id },
+          },
+          attributes: ['productId'],
+          group: ['productId'],
+          limit: 10,
+        });
+        const boughtProductIds = boughtItems.map(bi => bi.productId);
+        boughtTogether = await Product.findAll({
+          where: {
+            id: { [db.Sequelize.Op.in]: boughtProductIds },
+            isActive: true,
+          },
+          limit: 10,
+        });
+      }
+      // Fallback: if no bought together, use similar products
+      if (boughtTogether.length === 0) {
+        boughtTogether = similarProducts.slice(0, 5);
+      }
+
+      res.json({
+        product,
+        variants: product.variants,
+        similarProducts,
+        boughtTogether,
+      });
+    } catch (err) {
+      res.status(500).json({ message: err.message });
+    }
   }
 };
 
