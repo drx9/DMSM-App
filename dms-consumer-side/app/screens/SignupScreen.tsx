@@ -99,7 +99,7 @@ const SignupScreen = () => {
         gender: gender || undefined,
       });
 
-      const response = await api.post<ApiResponse>('/auth/register', {
+      const response = await api.post<ApiResponse>(`${API_URL}/auth/register`, {
         name,
         phoneNumber: phoneNumber || undefined,
         email: email || undefined,

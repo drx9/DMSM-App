@@ -26,7 +26,8 @@ interface GetProductsParams {
   search?: string;
   category?: string;
   sort?: SortOption;
-  filters?: string; // Add this line
+  filters?: string;
+  order?: 'ASC' | 'DESC';
 }
 
 interface GetProductsResponse {
@@ -40,6 +41,7 @@ const productService = {
   // Get all products with filters
   getProducts: async (params: GetProductsParams = {}): Promise<GetProductsResponse> => {
     try {
+      console.log('Fetching products from:', `${API_URL}/products`, params);
       const response = await axios.get(`${API_URL}/products`, { params });
       return response.data;
     } catch (error) {

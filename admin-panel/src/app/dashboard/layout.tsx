@@ -65,7 +65,7 @@ export default function DashboardLayout({
                                     <div className="flex h-16 shrink-0 items-center">
                                         <img
                                             className="h-8 w-auto"
-                                            src="/logo.png"
+                                            src="/images/dms-logo.png"
                                             alt="DMSM Admin"
                                         />
                                     </div>
@@ -113,7 +113,7 @@ export default function DashboardLayout({
                     <div className="flex h-16 shrink-0 items-center">
                         <img
                             className="h-8 w-auto"
-                            src="/logo.png"
+                            src="/images/dms-logo.png"
                             alt="DMSM Admin"
                         />
                     </div>
@@ -199,4 +199,4 @@ export default function DashboardLayout({
             </div>
         </div>
     );
-}
+} 

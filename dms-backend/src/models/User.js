@@ -63,6 +63,10 @@ User.init({
     defaultValue: true,
     field: 'is_active',
   },
+  photo: {
+    type: DataTypes.STRING,
+    allowNull: true,
+  },
 }, {
   sequelize,
   modelName: 'User',

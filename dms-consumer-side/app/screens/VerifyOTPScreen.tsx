@@ -73,7 +73,7 @@ const VerifyOTPScreen = () => {
       console.log('Attempting to verify OTP...');
       console.log('Request payload:', { userId, otp, type: 'PHONE' });
 
-      const response = await api.post<ApiResponse>('/auth/verify', {
+      const response = await api.post<ApiResponse>(`${API_URL}/auth/verify`, {
         userId,
         otp,
         type: 'PHONE'
@@ -125,7 +125,7 @@ const VerifyOTPScreen = () => {
       console.log('Attempting to resend OTP...');
       console.log('Request payload:', { userId });
 
-      const response = await api.post<ApiResponse>('/auth/resend-otp', { userId });
+      const response = await api.post<ApiResponse>(`${API_URL}/auth/resend-otp`, { userId });
 
       console.log('Resend OTP response:', response.data);
 

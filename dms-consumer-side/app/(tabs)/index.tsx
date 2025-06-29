@@ -19,30 +19,39 @@ import { useRouter } from 'expo-router';
 import categoryService, { Category } from '../../services/categoryService';
 import productService, { Product } from '../../services/productService';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { API_URL } from '../config';
 
 const { width } = Dimensions.get('window');
 // Calculate width for 3 cards in the Mega Diwali Sale section, considering padding and margins
 const MEGA_SALE_CARD_WIDTH = (width - 16 * 2 - 12 * 2) / 3; // (total width - 2*horizontal padding - 2*marginRight) / 3 cards
+const PRODUCT_CARD_WIDTH = (width - 16 * 2 - 12 * 2) / 2; // 2 cards per row
 
 const HomeScreen = () => {
+  console.log('HomeScreen loaded at', new Date().toISOString());
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [popularProducts, setPopularProducts] = useState<Product[]>([]);
+  const [newArrivals, setNewArrivals] = useState<Product[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const { t } = useLanguage();
   const router = useRouter();
 
+  // Minimal fetch test
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [categoriesResponse, productsResponse] = await Promise.all([
-        categoryService.getCategories(),
-        productService.getProducts({ limit: 6, sort: 'FEATURED' })
-      ]);
-      setCategories(categoriesResponse.categories);
-      setFeaturedProducts(productsResponse.products);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to load data. Please try again.');
+      setError(null);
+      console.log('FETCH TEST START');
+      const res = await fetch(`${API_URL}/products`);
+      const data = await res.json();
+      setPopularProducts(data.products);
+      setNewArrivals(data.products);
+      setError(null);
+    } catch (err) {
+      console.error('FETCH TEST ERROR:', err);
+      const errorMessage = (err as any)?.message ?? 'Unknown error';
+      setError('Fetch failed: ' + errorMessage);
     } finally {
       setLoading(false);
     }
@@ -79,6 +88,17 @@ const HomeScreen = () => {
     );
   }
 
+  if (error) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={{ color: 'red', fontSize: 16 }}>{error}</Text>
+        <TouchableOpacity onPress={fetchData} style={{ marginTop: 16, padding: 12, backgroundColor: '#CB202D', borderRadius: 8 }}>
+          <Text style={{ color: 'white' }}>Retry</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container} edges={['top', 'bottom', 'left', 'right']}>
       <StatusBar barStyle="light-content" backgroundColor="#CB202D" />
@@ -100,14 +120,18 @@ const HomeScreen = () => {
             </View>
           </View>
         </View>
-        <TouchableOpacity style={styles.profileButton}>
-          <Ionicons name="person" size={24} color="#FFFFFF" />
+        <TouchableOpacity style={styles.profileIconContainer}>
+          <Image
+            source={{ uri: 'https://raw.githubusercontent.com/sujal02/Blinkit-Images/main/profile_placeholder.png' }}
+            style={styles.profileIcon}
+          />
+          <Text style={styles.profileIconText}>15x15</Text>
         </TouchableOpacity>
       </View>
 
       {/* Search Bar */}
-      <TouchableOpacity 
-        style={styles.searchContainer}
+      <TouchableOpacity
+        style={styles.searchBarContainer}
         onPress={() => router.push('/products')}
       >
         <View style={styles.searchBar}>
@@ -126,17 +150,61 @@ const HomeScreen = () => {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Categories Section */}
+        {/* Popular Products */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Shop by Category</Text>
-          <ScrollView 
-            horizontal 
+          <Text style={styles.sectionTitle}>Popular Products</Text>
+          <View style={styles.productGrid}>
+            {popularProducts.map((product) => (
+              <TouchableOpacity
+                key={product.id}
+                style={styles.productCard}
+                onPress={() => handleProductPress(product.id)}
+              >
+                <Image source={{ uri: product.images[0] }} style={styles.productImage} />
+                <Text style={styles.productName}>{product.name}</Text>
+                <View style={styles.productDetailsRow}>
+                  <Text style={styles.productPrice}>₹{Number(product.price)}</Text>
+                  {Number(product.discount) > 0 && (
+                    <Text style={styles.discountText}>{Number(product.discount)}% OFF</Text>
+                  )}
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+        {/* New Arrivals */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>New Arrivals</Text>
+          <View style={styles.productGrid}>
+            {newArrivals.map((product) => (
+              <TouchableOpacity
+                key={product.id}
+                style={styles.productCard}
+                onPress={() => handleProductPress(product.id)}
+              >
+                <Image source={{ uri: product.images[0] }} style={styles.productImage} />
+                <Text style={styles.productName}>{product.name}</Text>
+                <View style={styles.productDetailsRow}>
+                  <Text style={styles.productPrice}>₹{Number(product.price)}</Text>
+                  {Number(product.discount) > 0 && (
+                    <Text style={styles.discountText}>{Number(product.discount)}% OFF</Text>
+                  )}
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+        {/* Categories */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Categories</Text>
+          <ScrollView
+            horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.categoryContainer}
           >
             {categories.map((category) => (
-              <TouchableOpacity 
-                key={category.id} 
+              <TouchableOpacity
+                key={category.id}
                 style={styles.categoryCard}
                 onPress={() => handleCategoryPress(category)}
               >
@@ -319,31 +387,6 @@ const styles = StyleSheet.create({
     marginRight: 16,
     width: 80,
   },
-  categoryImageContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  categoryImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  categoryName: {
-    fontSize: 12,
-    color: '#1A1A1A',
-    textAlign: 'center',
-    fontWeight: '500',
-  },
   productGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -353,7 +396,10 @@ const styles = StyleSheet.create({
   productCard: {
     width: (width - 48) / 2,
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    width: PRODUCT_CARD_WIDTH,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
     marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -367,61 +413,16 @@ const styles = StyleSheet.create({
   productImage: {
     width: '100%',
     height: 120,
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
-  },
-  discountBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: '#CB202D',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  discountText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    fontWeight: 'bold',
-  },
-  productInfo: {
-    padding: 12,
+    resizeMode: 'contain',
+    marginBottom: 8,
   },
   productName: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#1A1A1A',
-    marginBottom: 8,
-    lineHeight: 18,
+    fontWeight: '500',
+    color: '#1C1C1C',
+    marginBottom: 4,
   },
-  priceContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  productPrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1A1A1A',
-  },
-  addButton: {
-    backgroundColor: '#CB202D',
-    borderRadius: 6,
-    paddingVertical: 8,
-    alignItems: 'center',
-  },
-  addButtonText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: 'bold',
-  },
-  offersContainer: {
-    paddingHorizontal: 16,
-  },
-  offerCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
+  productDetailsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     shadowColor: '#000',

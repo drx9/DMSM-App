@@ -206,10 +206,28 @@ const adminPasswordLogin = async (req, res) => {
   }
 };
 
+const getUserById = async (req, res) => {
+  try {
+    const user = await User.findByPk(req.params.userId, {
+      attributes: ['id', 'name', 'email', 'phoneNumber', 'role', 'isVerified', 'isActive', 'createdAt', 'updatedAt']
+    });
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    const userObj = user.toJSON();
+    if ('photo' in user) userObj.photo = user.photo || null;
+    res.json(userObj);
+  } catch (error) {
+    console.error('Get user by ID error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
 module.exports = {
   login,
   verifyOTP,
   resendOTP,
   register,
   adminPasswordLogin,
+  getUserById,
 }; 

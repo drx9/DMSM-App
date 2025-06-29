@@ -92,4 +92,8 @@ router.put('/:id/assign-delivery', async (req, res) => {
     }
 });
 
+router.post('/place-order', orderController.placeOrder);
+
+router.get('/user/:userId', orderController.getUserOrders);
+
 module.exports = router; 
