@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,74 +6,91 @@ import {
   ScrollView,
   TouchableOpacity,
   StatusBar,
-  Alert,
+  SafeAreaView,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { Platform } from 'react-native';
+import axios from 'axios';
+import { API_URL } from '../config';
 
 const ProfileScreen = () => {
   const router = useRouter();
+  const [orders, setOrders] = useState<any[]>([]);
+  const [addresses, setAddresses] = useState<any[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [loadingOrders, setLoadingOrders] = useState(true);
+  const [loadingAddresses, setLoadingAddresses] = useState(true);
+  const [showAddressModal, setShowAddressModal] = useState(false);
+  const [newAddress, setNewAddress] = useState({ line1: '', city: '', state: '', postalCode: '', country: 'India' });
+  const [addingAddress, setAddingAddress] = useState(false);
 
-  const handleLogout = async () => {
-    Alert.alert(
-      'Logout',
-      'Are you sure you want to logout?',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Logout',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              // Clear the authentication token
-              await AsyncStorage.removeItem('userToken');
-              console.log('Logged out successfully');
-              // Navigate to login screen
-              router.replace('/login');
-            } catch (error) {
-              console.error('Error during logout:', error);
-              Alert.alert('Error', 'Failed to logout. Please try again.');
-            }
-          },
-        },
-      ]
-    );
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const storedUserId = await AsyncStorage.getItem('userId');
+      setUserId(storedUserId);
+      if (storedUserId) {
+        fetchOrders(storedUserId);
+        fetchAddresses(storedUserId);
+      }
+    };
+    fetchUserData();
+  }, []);
+
+  const fetchOrders = async (uid: string) => {
+    setLoadingOrders(true);
+    try {
+      const res = await axios.get(`${API_URL}/orders/user/${uid}`);
+      setOrders(res.data);
+    } catch (err) {
+      setOrders([]);
+    } finally {
+      setLoadingOrders(false);
+    }
+  };
+
+  const fetchAddresses = async (uid: string) => {
+    setLoadingAddresses(true);
+    try {
+      const res = await axios.get(`${API_URL}/addresses/${uid}`);
+      setAddresses(res.data);
+    } catch (err) {
+      setAddresses([]);
+    } finally {
+      setLoadingAddresses(false);
+    }
+  };
+
+  const handleAddAddress = async () => {
+    if (!userId) return;
+    setAddingAddress(true);
+    try {
+      const res = await axios.post(`${API_URL}/addresses`, { ...newAddress, userId });
+      setAddresses(prev => [...prev, res.data]);
+      setShowAddressModal(false);
+      setNewAddress({ line1: '', city: '', state: '', postalCode: '', country: 'India' });
+    } catch (err) {
+      // handle error
+    } finally {
+      setAddingAddress(false);
+    }
+  };
+
+  const handleLogout = () => {
+    // Implement logout logic here
+    console.log('Logging out...');
+    // Example: redirect to login screen
+    router.replace('/login');
   };
 
   const handleFeaturePress = (feature: any) => {
-    switch (feature.screen) {
-      case 'account-details':
-        router.push('/account-details');
-        break;
-      case 'order-updates':
-        // TODO: Navigate to order updates
-        console.log('Navigate to order updates');
-        break;
-      case 'customer-support':
-        // TODO: Navigate to customer support
-        console.log('Navigate to customer support');
-        break;
-      case 'saved-addresses':
-        // TODO: Navigate to saved addresses
-        console.log('Navigate to saved addresses');
-        break;
-      case 'wishlist':
-        // TODO: Navigate to wishlist
-        console.log('Navigate to wishlist');
-        break;
-      case 'payment-options':
-        // TODO: Navigate to payment options
-        console.log('Navigate to payment options');
-        break;
-      case 'add-gift-card':
-        // TODO: Navigate to add gift card
-        console.log('Navigate to add gift card');
-        break;
-      default:
-        console.log(`Navigating to ${feature.name}`);
+    if (feature.screen === 'order-updates') {
+      router.push('/my-orders' as any);
+    } else if (feature.screen === 'saved-addresses') {
+      router.push('/saved-addresses' as any);
+    } else {
+      // Placeholder for other features
+      console.log(`Navigating to ${feature.name}`);
     }
   };
 
@@ -90,89 +107,33 @@ const ProfileScreen = () => {
   ];
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#F8F9FA' }}>
-      {/* Top SafeArea for header */}
-      <SafeAreaView edges={['top']} style={{ backgroundColor: '#CB202D', flex: 0 }}>
-        <StatusBar barStyle="light-content" backgroundColor="#CB202D" />
-        <View style={[styles.header, { backgroundColor: '#CB202D' }]}> 
-          <Text style={styles.headerTitle}>My Profile</Text>
-        </View>
-      </SafeAreaView>
-      {/* Main content */}
-      <SafeAreaView style={{ flex: 1 }} edges={['left', 'right', 'bottom']}>
-        {/* User Info Section */}
-        <View style={styles.userSection}>
-          <View style={styles.userAvatar}>
-            <Ionicons name="person" size={40} color="#FFFFFF" />
-          </View>
-          <View style={styles.userInfo}>
-            <Text style={styles.userName}>Welcome User</Text>
-            <Text style={styles.userEmail}>user@example.com</Text>
-          </View>
-          <TouchableOpacity style={styles.editButton}>
-            <Ionicons name="create-outline" size={20} color="#CB202D" />
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
+
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>My Profile</Text>
+      </View>
+
+      <ScrollView style={styles.scrollViewContent}>
+        {profileFeatures.map((feature) => (
+          <TouchableOpacity
+            key={feature.id}
+            style={styles.featureItem}
+            onPress={() => console.log(`Navigating to ${feature.name}`)} // Replace with actual navigation
+          >
+            <Ionicons name={feature.icon as any} size={24} color="#333" style={styles.featureIcon} />
+            <Text style={styles.featureText}>{feature.name}</Text>
+            <Ionicons name="chevron-forward-outline" size={20} color="#999" />
           </TouchableOpacity>
-        </View>
-        <ScrollView style={styles.scrollViewContent} showsVerticalScrollIndicator={false}>
-          {/* Quick Actions */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Quick Actions</Text>
-            <View style={styles.quickActions}>
-              <TouchableOpacity style={styles.quickActionCard}>
-                <View style={styles.quickActionIcon}>
-                  <Ionicons name="receipt" size={24} color="#CB202D" />
-                </View>
-                <Text style={styles.quickActionText}>My Orders</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.quickActionCard}>
-                <View style={styles.quickActionIcon}>
-                  <Ionicons name="heart" size={24} color="#CB202D" />
-                </View>
-                <Text style={styles.quickActionText}>Wishlist</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.quickActionCard}>
-                <View style={styles.quickActionIcon}>
-                  <Ionicons name="location" size={24} color="#CB202D" />
-                </View>
-                <Text style={styles.quickActionText}>Addresses</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.quickActionCard}>
-                <View style={styles.quickActionIcon}>
-                  <Ionicons name="card" size={24} color="#CB202D" />
-                </View>
-                <Text style={styles.quickActionText}>Payments</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-          {/* Profile Features */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Account Settings</Text>
-            {profileFeatures.map((feature) => (
-              <TouchableOpacity
-                key={feature.id}
-                style={styles.featureItem}
-                onPress={() => handleFeaturePress(feature)}
-              >
-                <View style={[styles.featureIcon, { backgroundColor: `${feature.color}15` }]}> 
-                  <Ionicons name={feature.icon as any} size={20} color={feature.color} />
-                </View>
-                <Text style={styles.featureText}>{feature.name}</Text>
-                <Ionicons name="chevron-forward" size={16} color="#CCCCCC" />
-              </TouchableOpacity>
-            ))}
-          </View>
-          {/* Logout Button */}
-          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-            <Ionicons name="log-out-outline" size={20} color="#CB202D" />
-            <Text style={styles.logoutButtonText}>Logout</Text>
-          </TouchableOpacity>
-          {/* App Version */}
-          <View style={styles.versionContainer}>
-            <Text style={styles.versionText}>DMS Mart v1.0.0</Text>
-          </View>
-        </ScrollView>
-      </SafeAreaView>
-    </View>
+        ))}
+
+        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={24} color="#CB202D" style={styles.featureIcon} />
+          <Text style={styles.logoutButtonText}>Logout</Text>
+        </TouchableOpacity>
+      </ScrollView>
+    </SafeAreaView>
   );
 };
 
@@ -188,32 +149,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-  },
-  userSection: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  userAvatar: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#CB202D',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  userInfo: {
-    flex: 1,
-  },
-  userName: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#1A1A1A',
     marginBottom: 4,
@@ -238,39 +174,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     paddingHorizontal: 16,
   },
-  quickActions: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 16,
-    marginBottom: 16,
-  },
-  quickActionCard: {
-    alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    width: 80,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  quickActionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#FFF5F5',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  quickActionText: {
-    fontSize: 12,
-    color: '#1A1A1A',
-    fontWeight: '500',
-    textAlign: 'center',
-  },
   featureItem: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -292,8 +195,7 @@ const styles = StyleSheet.create({
   featureText: {
     flex: 1,
     fontSize: 16,
-    color: '#1A1A1A',
-    fontWeight: '500',
+    color: '#333',
   },
   logoutButton: {
     flexDirection: 'row',
@@ -312,7 +214,7 @@ const styles = StyleSheet.create({
   },
   logoutButtonText: {
     fontSize: 16,
-    color: '#CB202D',
+    color: '#CB202D', // Zomato Red
     fontWeight: 'bold',
     marginLeft: 12,
   },

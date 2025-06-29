@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -16,14 +16,13 @@ import { useRouter } from 'expo-router';
 import axios, { AxiosError } from 'axios';
 import { useLanguage } from '../context/LanguageContext';
 import { API_URL } from '../config';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
+import { AntDesign, FontAwesome } from '@expo/vector-icons';
 
-import {
-  getResponsiveFontSize,
-  getResponsiveWidth,
-  getResponsiveHeight,
-  SAFE_AREA_TOP,
-  SPACING
-} from '../../utils/deviceUtils';
+// TODO: Add token storage mechanism (e.g., AsyncStorage)
+// import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface PhoneLoginResponse {
   success: boolean;
@@ -45,6 +44,8 @@ interface EmailLoginResponse {
 
 type ApiResponse = PhoneLoginResponse | EmailLoginResponse;
 
+WebBrowser.maybeCompleteAuthSession();
+
 const LoginScreen = () => {
   const [loginMode, setLoginMode] = useState<'phone' | 'email'>('phone');
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -53,6 +54,41 @@ const LoginScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { t } = useLanguage();
+
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    clientId: 'YOUR_EXPO_CLIENT_ID',
+    iosClientId: 'YOUR_IOS_CLIENT_ID',
+    androidClientId: 'YOUR_ANDROID_CLIENT_ID',
+    webClientId: 'YOUR_WEB_CLIENT_ID',
+  });
+
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { id_token } = response.params;
+      if (id_token) {
+        // Send id_token to backend
+        axios.post(`${API_URL}/auth/google`, { token: id_token })
+          .then(async (res) => {
+            if (res.data.success && res.data.token && res.data.user) {
+              // Store user info and token
+              await AsyncStorage.setItem('userId', res.data.user.id);
+              // await AsyncStorage.setItem('userToken', res.data.token);
+              Alert.alert('Success', 'Logged in with Google!');
+              router.replace('/(tabs)');
+            } else if (res.data.redirectToRegister && res.data.email) {
+              // Redirect to signup with email prefilled
+              router.push({ pathname: '/signup', params: { email: res.data.email } });
+            } else {
+              Alert.alert('Error', res.data.message || 'Google login failed');
+            }
+          })
+          .catch((err) => {
+            console.error('Google login backend error:', err);
+            Alert.alert('Error', 'Google login failed');
+          });
+      }
+    }
+  }, [response]);
 
   const handleLogin = async () => {
     setIsLoading(true);
@@ -107,9 +143,10 @@ const LoginScreen = () => {
         password,
       });
 
-      if (response.data.success && response.data.token) {
-        // TODO: Store token securely
-        // await AsyncStorage.setItem('userToken', response.data.token);
+      if (response.data.success && response.data.token && response.data.user) {
+        // Store token and userId
+        await AsyncStorage.setItem('userId', response.data.user.id);
+        // await AsyncStorage.setItem('userToken', response.data.token); // if you want to store token
         Alert.alert(t('success'), t('loginSuccessful'));
         router.replace('/(tabs)');
       } else {
@@ -229,6 +266,30 @@ const LoginScreen = () => {
           </TouchableOpacity>
         </View>
 
+        <View style={styles.socialContainer}>
+          <Text style={styles.orText}>or sign in with</Text>
+          <View style={styles.socialButtons}>
+            <TouchableOpacity
+              style={styles.socialButton}
+              onPress={() => promptAsync()}
+            >
+              <AntDesign name="google" size={20} color="#EA4335" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.socialButton}
+              disabled
+            >
+              <FontAwesome name="facebook" size={20} color="#1877F2" />
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.socialButton}
+              onPress={() => setLoginMode('email')}
+            >
+              <AntDesign name="mail" size={20} color="#10B981" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
         <View style={styles.footer}>
           <Text style={styles.footerText}>
             {t('dontHaveAnAccount')}{' '}
@@ -254,118 +315,168 @@ const styles = StyleSheet.create({
   scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',
-    padding: 24,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 32,
+    marginBottom: 28,
   },
   logo: {
-    width: 100,
-    height: 100,
-    marginBottom: 16,
+    width: 80,
+    height: 80,
+    marginBottom: 12,
   },
   welcomeText: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1A1A1A',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+    letterSpacing: -0.2,
   },
   subtitle: {
-    fontSize: 16,
-    color: '#666666',
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
+    fontWeight: '400',
   },
   formContainer: {
     width: '100%',
   },
   modeSelector: {
     flexDirection: 'row',
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    marginBottom: 24,
+    borderColor: '#E5E7EB',
+    marginBottom: 20,
     overflow: 'hidden',
+    backgroundColor: '#F9FAFB',
   },
   modeButton: {
     flex: 1,
-    paddingVertical: 12,
+    paddingVertical: 10,
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
+    backgroundColor: 'transparent',
   },
   modeButtonActive: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#10B981',
   },
   modeButtonText: {
-    fontSize: 16,
+    fontSize: 12,
     fontWeight: '600',
-    color: '#1A1A1A',
+    color: '#6B7280',
   },
   modeButtonTextActive: {
     color: '#FFFFFF',
   },
   inputContainer: {
-    marginBottom: 16,
+    marginBottom: 14,
   },
   label: {
-    fontSize: getResponsiveFontSize(14),
-    color: '#666666',
-    marginBottom: 8,
+    fontSize: 11,
+    color: '#6B7280',
+    marginBottom: 6,
+    fontWeight: '500',
+  },
+  input: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 13,
+    color: '#1F2937',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   phoneInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
-    borderRadius: 8,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: '#E0E0E0',
+    borderColor: '#E5E7EB',
   },
   countryCode: {
-    fontSize: getResponsiveFontSize(16),
-    color: '#1A1A1A',
-    marginRight: SPACING.sm,
-  },
-  input: {
-    flex: 1,
-    height: 50,
-    fontSize: getResponsiveFontSize(16),
-    color: '#1A1A1A',
+    paddingLeft: 14,
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '500',
   },
   loginButton: {
-    backgroundColor: '#007AFF',
-    borderRadius: 8,
-    paddingVertical: 16,
+    backgroundColor: '#10B981',
+    borderRadius: 10,
+    paddingVertical: 14,
     alignItems: 'center',
-    marginTop: 16,
+    marginTop: 14,
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   loginButtonDisabled: {
-    backgroundColor: '#A9A9A9',
+    backgroundColor: '#9CA3AF',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   loginButtonText: {
     color: '#FFFFFF',
-    fontSize: getResponsiveFontSize(16),
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   forgotPasswordButton: {
     alignSelf: 'flex-end',
-    marginTop: 12,
+    marginTop: 10,
   },
   forgotPasswordText: {
-    color: '#007AFF',
-    fontSize: 14,
+    color: '#10B981',
+    fontSize: 11,
     fontWeight: '500',
+  },
+  socialContainer: {
+    alignItems: 'center',
+    marginTop: 20,
+  },
+  orText: {
+    color: '#6B7280',
+    fontSize: 11,
+    marginBottom: 12,
+    fontWeight: '400',
+  },
+  socialButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  socialButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    width: 44,
+    height: 44,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 1,
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 32,
+    marginTop: 28,
   },
   footerText: {
-    fontSize: getResponsiveFontSize(14),
-    color: '#666666',
+    fontSize: 11,
+    color: '#6B7280',
+    fontWeight: '400',
   },
   signUpText: {
-    color: '#007AFF',
-    fontWeight: 'bold',
+    color: '#10B981',
+    fontWeight: '600',
   },
 });
 

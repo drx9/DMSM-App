@@ -166,7 +166,8 @@ const productController = {
       res.json({ message: 'Products uploaded successfully', count: products.length });
     } catch (error) {
       console.error('Error bulk uploading products:', error);
-      res.status(500).json({ message: 'Error bulk uploading products' });
+      if (error.stack) console.error(error.stack);
+      res.status(500).json({ message: 'Error bulk uploading products', error: error.message });
     }
   },
 

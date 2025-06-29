@@ -13,7 +13,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from '../context/LanguageContext';
-import { API_URL } from '../config';
+import { API_URL } from '../config'; // Import from central config
 
 // Create axios instance with default config
 const api = axios.create({
@@ -38,6 +38,8 @@ const VerifyOTPScreen = () => {
   const router = useRouter();
   const { userId } = useLocalSearchParams();
   const { t } = useLanguage();
+
+  const userIdString = Array.isArray(userId) ? userId[0] : userId;
 
   // Test connection on component mount
   useEffect(() => {
@@ -71,10 +73,10 @@ const VerifyOTPScreen = () => {
     try {
       setIsLoading(true);
       console.log('Attempting to verify OTP...');
-      console.log('Request payload:', { userId, otp, type: 'PHONE' });
+      console.log('Request payload:', { userId: userIdString, otp, type: 'PHONE' });
 
       const response = await api.post<ApiResponse>(`${API_URL}/auth/verify`, {
-        userId,
+        userId: userIdString,
         otp,
         type: 'PHONE'
       });
@@ -82,16 +84,9 @@ const VerifyOTPScreen = () => {
       console.log('Verification response:', response.data);
 
       if (response.data.token) {
-        // Store the token in AsyncStorage
-        console.log('Token received from backend:', response.data.token);
-        await AsyncStorage.setItem('userToken', response.data.token);
-        console.log('Token stored successfully in AsyncStorage');
-        
-        // Verify token was stored
-        const storedToken = await AsyncStorage.getItem('userToken');
-        console.log('Verification - Token retrieved from AsyncStorage:', storedToken ? 'Token exists' : 'No token');
-        
-        // Navigate to main app
+        // Store the token and userId
+        await AsyncStorage.setItem('userId', userIdString);
+        // TODO: Store token in secure storage
         router.replace('/(tabs)');
       } else {
         console.log('No token in response:', response.data);
@@ -123,9 +118,9 @@ const VerifyOTPScreen = () => {
     try {
       setIsLoading(true);
       console.log('Attempting to resend OTP...');
-      console.log('Request payload:', { userId });
+      console.log('Request payload:', { userId: userIdString });
 
-      const response = await api.post<ApiResponse>(`${API_URL}/auth/resend-otp`, { userId });
+      const response = await api.post<ApiResponse>(`${API_URL}/auth/resend-otp`, { userId: userIdString });
 
       console.log('Resend OTP response:', response.data);
 
@@ -217,14 +212,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#1A1A1A',
     marginBottom: 8,
     textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#666666',
     marginBottom: 32,
     textAlign: 'center',
@@ -238,7 +233,7 @@ const styles = StyleSheet.create({
     borderColor: '#E0E0E0',
     borderRadius: 8,
     paddingHorizontal: 16,
-    fontSize: 20,
+    fontSize: 18,
     textAlign: 'center',
     letterSpacing: 8,
   },
@@ -255,7 +250,7 @@ const styles = StyleSheet.create({
   },
   verifyButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
   },
   resendContainer: {
@@ -264,11 +259,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   resendText: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#666666',
   },
   resendButton: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#FF6B6B',
     fontWeight: 'bold',
   },

@@ -21,7 +21,11 @@ import {
   SPACING 
 } from '../utils/deviceUtils';
 
+<<<<<<< HEAD
 const API_URL = 'http://192.168.70.139:5000/api';
+=======
+const API_URL = 'http://192.168.104.188:5000/api';
+>>>>>>> 5b1e092b48191a9f44b616b6b96a360b398d3789
 
 interface ApiResponse {
   success: boolean;

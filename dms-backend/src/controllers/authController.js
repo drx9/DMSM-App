@@ -223,6 +223,10 @@ const getUserById = async (req, res) => {
   }
 };
 
+const googleLogin = async (req, res) => {
+  // Implementation of googleLogin function
+};
+
 module.exports = {
   login,
   verifyOTP,
@@ -230,4 +234,5 @@ module.exports = {
   register,
   adminPasswordLogin,
   getUserById,
+  googleLogin,
 }; 

@@ -106,4 +106,6 @@ router.post(
 
 router.get('/user/:userId', authController.getUserById);
 
+router.post('/google', authController.googleLogin);
+
 module.exports = router; 

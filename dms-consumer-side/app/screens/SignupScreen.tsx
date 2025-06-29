@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -21,8 +21,12 @@ import axios, { AxiosError } from 'axios';
 import { useLanguage } from '../context/LanguageContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
-import { API_URL } from '../config';
-import { SPACING, SAFE_AREA_TOP, getResponsiveFontSize, getResponsiveWidth } from '../../utils/deviceUtils';
+import { API_URL } from '../config'; // Import from central config
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
+import { AntDesign, FontAwesome } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SPACING } from '../../utils/deviceUtils';
 
 // Create axios instance with default config
 const api = axios.create({
@@ -40,6 +44,8 @@ interface ApiResponse {
   userId?: string;
   errors?: Array<{ msg: string; param: string }>;
 }
+
+WebBrowser.maybeCompleteAuthSession();
 
 const SignupScreen = () => {
   const params = useLocalSearchParams();
@@ -61,6 +67,38 @@ const SignupScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { t } = useLanguage();
+
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    clientId: 'YOUR_EXPO_CLIENT_ID',
+    iosClientId: 'YOUR_IOS_CLIENT_ID',
+    androidClientId: 'YOUR_ANDROID_CLIENT_ID',
+    webClientId: 'YOUR_WEB_CLIENT_ID',
+  });
+
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { id_token } = response.params;
+      if (id_token) {
+        axios.post(`${API_URL}/auth/google`, { token: id_token })
+          .then(async (res) => {
+            if (res.data.success && res.data.token && res.data.user) {
+              await AsyncStorage.setItem('userId', res.data.user.id);
+              // await AsyncStorage.setItem('userToken', res.data.token);
+              Alert.alert('Success', 'Logged in with Google!');
+              router.replace('/(tabs)');
+            } else if (res.data.redirectToRegister && res.data.email) {
+              setEmail(res.data.email); // Prefill email field
+            } else {
+              Alert.alert('Error', res.data.message || 'Google login failed');
+            }
+          })
+          .catch((err) => {
+            console.error('Google login backend error:', err);
+            Alert.alert('Error', 'Google login failed');
+          });
+      }
+    }
+  }, [response]);
 
   const handleSignup = async () => {
     if (!name || (!phoneNumber && !email) || !password) {
@@ -196,7 +234,7 @@ const SignupScreen = () => {
             <View style={styles.phoneInputContainer}>
               <Text style={styles.countryCode}>+91</Text>
               <TextInput
-                style={styles.input}
+                style={styles.phoneInput}
                 placeholder={t('enterYourPhoneNumber')}
                 keyboardType="phone-pad"
                 value={phoneNumber}
@@ -284,7 +322,7 @@ const SignupScreen = () => {
           <View style={styles.inputContainer}>
             <Text style={styles.label}>{t('dateOfBirth')}</Text>
             <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.input}>
-              <Text style={{ color: dateOfBirth ? '#1A1A1A' : '#999999' }}>
+              <Text style={{ color: dateOfBirth ? '#1F2937' : '#9CA3AF', fontSize: 13 }}>
                 {dateOfBirth ? dateOfBirth.toISOString().split('T')[0] : t('enterDateOfBirth')}
               </Text>
             </TouchableOpacity>
@@ -352,101 +390,126 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flexGrow: 1,
-    padding: SPACING.md,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
   header: {
     alignItems: 'center',
-    marginTop: SAFE_AREA_TOP + SPACING.xl,
-    marginBottom: SPACING.xl,
+    marginTop: 20,
+    marginBottom: 24,
   },
   logo: {
-    width: getResponsiveWidth(30),
-    height: getResponsiveWidth(30),
-    marginBottom: SPACING.md,
+    width: 80,
+    height: 80,
+    marginBottom: 12,
   },
   welcomeText: {
-    fontSize: getResponsiveFontSize(24),
-    fontWeight: 'bold',
-    color: '#1A1A1A',
-    marginBottom: SPACING.sm,
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#1F2937',
+    marginBottom: 4,
+    letterSpacing: -0.2,
   },
   subtitle: {
-    fontSize: getResponsiveFontSize(16),
-    color: '#666666',
+    fontSize: 12,
+    color: '#6B7280',
     textAlign: 'center',
+    fontWeight: '400',
   },
   formContainer: {
     width: '100%',
   },
   inputContainer: {
-    marginBottom: SPACING.md,
+    marginBottom: 14,
   },
   label: {
-    fontSize: getResponsiveFontSize(14),
-    color: '#666666',
-    marginBottom: SPACING.sm,
+    fontSize: 11,
+    color: '#6B7280',
+    marginBottom: 6,
+    fontWeight: '500',
   },
   phoneInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#F9FAFB',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    paddingHorizontal: SPACING.sm,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingHorizontal: 14,
   },
   countryCode: {
-    fontSize: getResponsiveFontSize(16),
-    color: '#1A1A1A',
-    marginRight: SPACING.sm,
+    fontSize: 13,
+    color: '#6B7280',
+    marginRight: 8,
+    fontWeight: '500',
+  },
+  phoneInput: {
+    flex: 1,
+    height: 42,
+    fontSize: 13,
+    color: '#1F2937',
   },
   input: {
-    flex: 1,
-    height: 50,
-    fontSize: getResponsiveFontSize(16),
-    color: '#1A1A1A',
+    height: 42,
+    fontSize: 13,
+    color: '#1F2937',
+    backgroundColor: '#F9FAFB',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    paddingHorizontal: SPACING.sm,
-    justifyContent: 'center', // for date picker text vertical alignment
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    paddingHorizontal: 14,
+    justifyContent: 'center',
   },
   signupButton: {
-    backgroundColor: '#FF6B6B',
-    height: 50,
-    borderRadius: 8,
+    backgroundColor: '#10B981',
+    height: 44,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SPACING.lg,
+    marginTop: 8,
+    marginBottom: 20,
+    shadowColor: '#10B981',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
   },
   signupButtonDisabled: {
-    backgroundColor: '#FFB6B6',
+    backgroundColor: '#9CA3AF',
+    shadowOpacity: 0,
+    elevation: 0,
   },
   signupButtonText: {
     color: '#FFFFFF',
-    fontSize: getResponsiveFontSize(18),
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '700',
+    letterSpacing: 0.2,
   },
   footer: {
     alignItems: 'center',
     marginTop: SPACING.md,
   },
   footerText: {
-    fontSize: getResponsiveFontSize(14),
-    color: '#666666',
+    fontSize: 11,
+    color: '#6B7280',
+    fontWeight: '400',
   },
   loginText: {
-    color: '#FF6B6B',
-    fontWeight: 'bold',
+    color: '#10B981',
+    fontWeight: '600',
   },
   pickerContainer: {
+    backgroundColor: '#F9FAFB',
     borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    overflow: 'hidden',
   },
   picker: {
-    height: 50,
+    height: 42,
     width: '100%',
+    color: '#1F2937',
   },
 });
 
-export default SignupScreen; 
+export default SignupScreen;
