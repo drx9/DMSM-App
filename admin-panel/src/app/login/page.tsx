@@ -7,6 +7,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
 import axios from 'axios';
+import { FcGoogle } from 'react-icons/fc';
+import { FaFacebook, FaEnvelope } from 'react-icons/fa';
+import { signIn } from 'next-auth/react';
 
 const loginSchema = z.object({
     email: z.string().email('Invalid email address'),
@@ -107,6 +110,32 @@ export default function LoginPage() {
                         </button>
                     </div>
                 </form>
+                <div className="flex flex-col items-center mt-6 space-y-2">
+                    <span className="text-gray-500">or sign in with</span>
+                    <div className="flex gap-4 mt-2">
+                        <button
+                            type="button"
+                            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded hover:bg-gray-100"
+                            onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
+                        >
+                            <FcGoogle size={24} /> Google
+                        </button>
+                        <button
+                            type="button"
+                            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded hover:bg-gray-100"
+                            disabled
+                        >
+                            <FaFacebook size={24} color="#1877F3" /> Facebook
+                        </button>
+                        <button
+                            type="button"
+                            className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded hover:bg-gray-100"
+                            onClick={() => document.getElementById('email')?.focus()}
+                        >
+                            <FaEnvelope size={24} color="#EA4335" /> Email
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     );
