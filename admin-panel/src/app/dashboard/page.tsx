@@ -133,7 +133,7 @@ export default function DashboardPage() {
         },
         {
             title: 'Total Revenue',
-            value: `₹${stats.totalRevenue.toLocaleString()}`,
+            value: `₹${stats.totalRevenue?.toLocaleString() || 0}`,
             icon: CurrencyDollarIcon,
             gradient: 'from-green-500 to-green-600',
             shadow: 'shadow-green-500/25',

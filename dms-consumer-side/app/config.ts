@@ -1,4 +1,4 @@
-export const API_URL = 'http://192.168.67.188:5000/api';
+export const API_URL = 'http://192.168.70.139:5000/api';
 
 export const APP_CONFIG = {
     APP_NAME: 'DMS Mart',

@@ -21,7 +21,7 @@ import {
   SPACING 
 } from '../utils/deviceUtils';
 
-const API_URL = 'http://192.168.2.100:3000/api';
+const API_URL = 'http://192.168.70.139:5000/api';
 
 interface ApiResponse {
   success: boolean;

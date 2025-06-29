@@ -33,6 +33,7 @@ const HomeScreen = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [popularProducts, setPopularProducts] = useState<Product[]>([]);
   const [newArrivals, setNewArrivals] = useState<Product[]>([]);
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [error, setError] = useState<string | null>(null);
   const { t } = useLanguage();
   const router = useRouter();
@@ -342,6 +343,27 @@ const styles = StyleSheet.create({
   profileButton: {
     padding: 8,
   },
+  profileIconContainer: {
+    alignItems: 'center',
+    padding: 8,
+  },
+  profileIcon: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+  },
+  profileIconText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    marginTop: 2,
+  },
+  searchBarContainer: {
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
   searchContainer: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 16,
@@ -387,6 +409,25 @@ const styles = StyleSheet.create({
     marginRight: 16,
     width: 80,
   },
+  categoryImageContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#F8F9FA',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  categoryImage: {
+    width: 40,
+    height: 40,
+    resizeMode: 'contain',
+  },
+  categoryName: {
+    fontSize: 12,
+    color: '#1A1A1A',
+    textAlign: 'center',
+  },
   productGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -394,7 +435,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   productCard: {
-    width: (width - 48) / 2,
     backgroundColor: '#FFFFFF',
     width: PRODUCT_CARD_WIDTH,
     borderRadius: 8,
@@ -421,8 +461,59 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#1C1C1C',
     marginBottom: 4,
+    paddingHorizontal: 8,
   },
   productDetailsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    marginBottom: 8,
+  },
+  productPrice: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#CB202D',
+  },
+  discountText: {
+    fontSize: 12,
+    color: '#CB202D',
+    fontWeight: '600',
+  },
+  discountBadge: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#CB202D',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  productInfo: {
+    padding: 8,
+  },
+  priceContainer: {
+    marginBottom: 8,
+  },
+  addButton: {
+    backgroundColor: '#CB202D',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    alignItems: 'center',
+  },
+  addButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  offersContainer: {
+    paddingHorizontal: 16,
+  },
+  offerCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 16,
     flexDirection: 'row',
     alignItems: 'center',
     shadowColor: '#000',
