@@ -15,6 +15,7 @@ import { useRouter } from 'expo-router';
 import axios, { AxiosError } from 'axios';
 import { useLanguage } from '../context/LanguageContext';
 import { API_URL } from '../config';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // TODO: Add token storage mechanism (e.g., AsyncStorage)
 // import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -101,9 +102,10 @@ const LoginScreen = () => {
         password,
       });
 
-      if (response.data.success && response.data.token) {
-        // TODO: Store token securely
-        // await AsyncStorage.setItem('userToken', response.data.token);
+      if (response.data.success && response.data.token && response.data.user) {
+        // Store token and userId
+        await AsyncStorage.setItem('userId', response.data.user.id);
+        // await AsyncStorage.setItem('userToken', response.data.token); // if you want to store token
         Alert.alert(t('success'), t('loginSuccessful'));
         router.replace('/(tabs)');
       } else {
@@ -255,12 +257,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   welcomeText: {
-    fontSize: 28,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#1A1A1A',
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#666666',
     marginTop: 8,
   },
@@ -285,7 +287,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#007AFF',
   },
   modeButtonText: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: '#1A1A1A',
   },
@@ -296,7 +298,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   label: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#666666',
     marginBottom: 8,
     fontWeight: '500',
@@ -305,7 +307,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F5F5F5',
     borderRadius: 8,
     padding: 16,
-    fontSize: 16,
+    fontSize: 14,
     color: '#1A1A1A',
     borderWidth: 1,
     borderColor: '#E0E0E0',
@@ -320,7 +322,7 @@ const styles = StyleSheet.create({
   },
   countryCode: {
     paddingLeft: 16,
-    fontSize: 16,
+    fontSize: 14,
     color: '#666666',
   },
   loginButton: {
@@ -335,7 +337,7 @@ const styles = StyleSheet.create({
   },
   loginButtonText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
   },
   forgotPasswordButton: {
@@ -344,7 +346,7 @@ const styles = StyleSheet.create({
   },
   forgotPasswordText: {
     color: '#007AFF',
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '500',
   },
   footer: {
@@ -354,7 +356,7 @@ const styles = StyleSheet.create({
     marginTop: 32,
   },
   footerText: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#666666',
   },
   signUpText: {

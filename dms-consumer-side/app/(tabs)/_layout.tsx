@@ -35,13 +35,6 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <Ionicons name="search" size={28} color={color} as const />,
-        }}
-      />
-      <Tabs.Screen
         name="cart"
         options={{
           title: 'Bag',

@@ -358,13 +358,13 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   welcomeText: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#1A1A1A',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#666666',
     textAlign: 'center',
   },
@@ -375,7 +375,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   label: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#666666',
     marginBottom: 8,
   },
@@ -388,14 +388,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
   },
   countryCode: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#1A1A1A',
     marginRight: 8,
   },
   input: {
     flex: 1,
     height: 50,
-    fontSize: 16,
+    fontSize: 14,
     color: '#1A1A1A',
     borderWidth: 1,
     borderColor: '#E0E0E0',
@@ -416,14 +416,14 @@ const styles = StyleSheet.create({
   },
   signupButtonText: {
     color: '#FFFFFF',
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
   },
   footer: {
     alignItems: 'center',
   },
   footerText: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#666666',
   },
   loginText: {

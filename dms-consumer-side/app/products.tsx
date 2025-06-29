@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -56,8 +56,9 @@ const ProductsScreen = () => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [totalProducts, setTotalProducts] = useState(0);
-  const [sortBy, setSortBy] = useState<string>(SORT_OPTIONS[2].value);
+  const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'created_at_desc' | 'created_at_asc' | 'rating_desc' | undefined>(undefined);
   const [filters, setFilters] = useState<FilterOption[]>([]);
+  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchProducts = async (isRefreshing = false) => {
     try {
@@ -70,21 +71,21 @@ const ProductsScreen = () => {
 
       setLoading(true);
       // Map frontend sort option to backend
-      let sort = 'createdAt';
+      let sort: 'price_asc' | 'price_desc' | 'created_at_desc' | 'created_at_asc' | 'rating_desc' = 'created_at_desc';
       let order: 'ASC' | 'DESC' = 'DESC';
-      switch (sortBy as string) {
+      switch (sortBy) {
         case 'price_asc':
-          sort = 'price'; order = 'ASC'; break;
+          sort = 'price_asc'; order = 'ASC'; break;
         case 'price_desc':
-          sort = 'price'; order = 'DESC'; break;
+          sort = 'price_desc'; order = 'DESC'; break;
         case 'created_at_asc':
-          sort = 'createdAt'; order = 'ASC'; break;
+          sort = 'created_at_asc'; order = 'ASC'; break;
         case 'created_at_desc':
-          sort = 'createdAt'; order = 'DESC'; break;
+          sort = 'created_at_desc'; order = 'DESC'; break;
         case 'rating_desc':
-          sort = 'rating'; order = 'DESC'; break;
+          sort = 'rating_desc'; order = 'DESC'; break;
         default:
-          sort = 'createdAt'; order = 'DESC';
+          sort = 'created_at_desc'; order = 'DESC';
       }
 
       const response = await productService.getProducts({
@@ -102,8 +103,9 @@ const ProductsScreen = () => {
         image: product.images[0] || '',
         price: typeof product.price === 'string' ? parseFloat(product.price) : product.price,
         discount: typeof product.discount === 'string' ? parseFloat(product.discount) : product.discount,
-        isOutOfStock: product.isOutOfStock ?? product.is_out_of_stock,
-        isActive: product.isActive ?? product.is_active,
+        rating: typeof product.rating === 'number' ? product.rating : 0,
+        isOutOfStock: product.isOutOfStock ?? product.isOutOfStock,
+        isActive: product.isActive ?? product.isActive,
       }));
 
       setProducts(isRefreshing ? formattedProducts : [...products, ...formattedProducts]);
@@ -130,11 +132,15 @@ const ProductsScreen = () => {
 
   const handleSearch = (text: string) => {
     setSearchQuery(text);
+    if (searchTimeout.current) clearTimeout(searchTimeout.current);
+    searchTimeout.current = setTimeout(() => {
+      fetchProducts(true);
+    }, 400); // 400ms debounce
   };
 
   const handleSort = (sortOption: string) => {
     setSelectedSort(sortOption);
-    setSortBy(sortOption as string);
+    setSortBy(sortOption as 'price_asc' | 'price_desc' | 'created_at_desc' | 'created_at_asc' | 'rating_desc' | undefined);
     setShowSortModal(false);
   };
 
@@ -151,7 +157,7 @@ const ProductsScreen = () => {
   };
 
   const handleSortChange = (sort: SortOption) => {
-    setSortBy(sort as string);
+    setSortBy(sort as 'price_asc' | 'price_desc' | 'created_at_desc' | 'created_at_asc' | 'rating_desc' | undefined);
   };
 
   const handleFilterToggle = (filter: FilterOption) => {
@@ -229,56 +235,18 @@ const ProductsScreen = () => {
   );
 
   const renderHeader = () => (
-    <View style={styles.header}>
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#666666" style={styles.searchIcon} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search products..."
-          value={searchQuery}
-          onChangeText={handleSearch}
-        />
-      </View>
-      <View style={styles.filterContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <TouchableOpacity
-            style={[
-              styles.filterButton,
-              sortBy === SORT_OPTIONS[0].value && styles.filterButtonActive,
-            ]}
-            onPress={() => handleSortChange(SORT_OPTIONS[0].value)}
-          >
-            <Text style={styles.filterButtonText}>Price: Low to High</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.filterButton,
-              sortBy === SORT_OPTIONS[1].value && styles.filterButtonActive,
-            ]}
-            onPress={() => handleSortChange(SORT_OPTIONS[1].value)}
-          >
-            <Text style={styles.filterButtonText}>Price: High to Low</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.filterButton,
-              filters.includes(FILTER_OPTIONS[0].value) && styles.filterButtonActive,
-            ]}
-            onPress={() => handleFilterToggle(FILTER_OPTIONS[0].value)}
-          >
-            <Text style={styles.filterButtonText}>In Stock</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[
-              styles.filterButton,
-              filters.includes(FILTER_OPTIONS[1].value) && styles.filterButtonActive,
-            ]}
-            onPress={() => handleFilterToggle(FILTER_OPTIONS[1].value)}
-          >
-            <Text style={styles.filterButtonText}>On Sale</Text>
-          </TouchableOpacity>
-        </ScrollView>
-      </View>
+    <View style={styles.searchContainer}>
+      <TextInput
+        style={styles.searchInput}
+        placeholder="Search products..."
+        value={searchQuery}
+        onChangeText={handleSearch}
+        onSubmitEditing={() => fetchProducts(true)}
+        returnKeyType="search"
+      />
+      <TouchableOpacity onPress={() => fetchProducts(true)} style={styles.searchButton}>
+        <Ionicons name="search" size={20} color="#FFF" />
+      </TouchableOpacity>
     </View>
   );
 
@@ -305,6 +273,8 @@ const ProductsScreen = () => {
             />
           )}
           keyExtractor={(item) => item.id}
+          numColumns={2}
+          columnWrapperStyle={styles.productRow}
           contentContainerStyle={styles.productList}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -330,29 +300,34 @@ const ProductsScreen = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F5F5F5',
-  },
-  header: {
-    padding: 16,
     backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F5F5F5',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    marginBottom: 12,
-  },
-  searchIcon: {
-    marginRight: 8,
+    padding: 6,
+    backgroundColor: '#FFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
   },
   searchInput: {
     flex: 1,
-    height: 40,
-    fontSize: 16,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    fontSize: 13,
+    marginRight: 6,
+  },
+  searchButton: {
+    backgroundColor: '#CB202D',
+    padding: 10,
+    borderRadius: 8,
   },
   filterContainer: {
     marginBottom: 8,
@@ -421,7 +396,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#EEEEEE',
   },
   sortOptionText: {
-    fontSize: 16,
+    fontSize: 12,
     color: '#333333',
   },
   filterOption: {
@@ -433,12 +408,16 @@ const styles = StyleSheet.create({
     borderBottomColor: '#EEEEEE',
   },
   filterOptionText: {
-    fontSize: 16,
+    fontSize: 12,
     color: '#333333',
   },
   footer: {
     paddingVertical: 20,
     alignItems: 'center',
+  },
+  productRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
 });
 

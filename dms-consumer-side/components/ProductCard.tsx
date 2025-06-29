@@ -42,10 +42,10 @@ const ProductCard: React.FC<ProductCardProps> = ({
     if (onPress) {
       onPress();
     } else {
-        router.push({
-            pathname: '/product/[id]',
-            params: { id }
-          });
+      router.push({
+        pathname: '/product/[id]',
+        params: { id }
+      });
     }
   };
 
@@ -89,7 +89,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
         <View style={styles.ratingContainer}>
           <Ionicons name="star" size={16} color="#FFD700" />
-          <Text style={styles.rating}>{rating.toFixed(1)}</Text>
+          <Text style={styles.rating}>{(typeof rating === 'number' ? rating : 0).toFixed(1)}</Text>
           <Text style={styles.reviewCount}>({reviewCount})</Text>
         </View>
       </View>
@@ -134,7 +134,7 @@ const styles = StyleSheet.create({
   },
   discountText: {
     color: '#FFFFFF',
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: 'bold',
   },
   outOfStockOverlay: {
@@ -149,14 +149,14 @@ const styles = StyleSheet.create({
   },
   outOfStockText: {
     color: '#FFFFFF',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
   },
   detailsContainer: {
     padding: 12,
   },
   name: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '500',
     marginBottom: 4,
     color: '#333333',
@@ -167,12 +167,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   price: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: 'bold',
     color: '#333333',
   },
   originalPrice: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#999999',
     textDecorationLine: 'line-through',
     marginLeft: 8,
@@ -182,12 +182,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   rating: {
-    fontSize: 14,
+    fontSize: 12,
     color: '#333333',
     marginLeft: 4,
   },
   reviewCount: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#999999',
     marginLeft: 4,
   },

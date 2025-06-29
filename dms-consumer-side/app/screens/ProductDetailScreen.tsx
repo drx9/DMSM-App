@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,219 +8,426 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
+  FlatList,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import { API_URL } from '../config';
 
-interface Review {
-  id: string;
-  userId: string;
-  userName: string;
-  rating: number;
-  comment: string;
-  date: string;
-}
+const FREE_DELIVERY_THRESHOLD = 399; // Example value, adjust as needed
 
-interface ProductDetailScreenProps {
+interface Variant {
   id: string;
   name: string;
   price: number;
-  image: string;
-  description: string;
-  rating: number;
-  reviewCount: number;
   discount: number;
-  isOutOfStock: boolean;
-  reviews: Review[];
+  stock: number;
 }
 
-const ProductDetailScreen = ({
-  id,
-  name,
-  price,
-  image,
-  description,
-  rating,
-  reviewCount,
-  discount,
-  isOutOfStock,
-  reviews,
-}: ProductDetailScreenProps) => {
+interface Product {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  discount: number;
+  stock: number;
+  images: string[];
+  rating: number;
+  reviewCount: number;
+  isOutOfStock: boolean;
+  details?: {
+    packOf?: string;
+    brand?: string;
+    modelName?: string;
+    type?: string;
+    quantity?: string;
+    shelfLife?: string;
+    foodPreference?: string;
+    flavour?: string;
+  };
+}
+
+const ProductDetailScreen = () => {
   const { t } = useLanguage();
   const router = useRouter();
+  const { id } = useLocalSearchParams();
+  const [product, setProduct] = useState<Product | null>(null);
+  const [variants, setVariants] = useState<Variant[]>([]);
+  const [selectedVariant, setSelectedVariant] = useState<Variant | null>(null);
   const [quantity, setQuantity] = useState(1);
+  const [cartTotal, setCartTotal] = useState(0);
+  const [similarProducts, setSimilarProducts] = useState<Product[]>([]);
+  const [boughtTogether, setBoughtTogether] = useState<Product[]>([]);
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState('');
+  const [cartCount, setCartCount] = useState(0);
 
-  const handleAddToCart = () => {
-    // Implement add to cart logic here
-    Alert.alert('Success', 'Product added to cart');
+  useEffect(() => {
+    fetchProductDetails();
+    fetchCartTotal();
+    fetchCartCount();
+  }, [id]);
+
+  const fetchProductDetails = async () => {
+    try {
+      const res = await axios.get(`${API_URL}/products/${id}/details`);
+      setProduct(res.data.product);
+      setVariants(res.data.variants);
+      setSelectedVariant(res.data.variants[0] || null);
+      setSimilarProducts(res.data.similarProducts);
+      setBoughtTogether(res.data.boughtTogether);
+    } catch (err) {
+      Alert.alert('Error', 'Failed to load product details');
+    }
   };
 
-  const handleSubmitReview = () => {
-    // Implement review submission logic here
-    setShowReviewForm(false);
-    setReviewRating(0);
-    setReviewComment('');
-    Alert.alert('Success', 'Review submitted successfully');
+  const fetchCartTotal = async () => {
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      if (!userId) return;
+      const res = await axios.get(`${API_URL}/cart/total/${userId}`);
+      setCartTotal(res.data.total || 0);
+    } catch (err) {
+      setCartTotal(0);
+    }
   };
 
-  const renderStars = (rating: number) => {
-    return (
-      <View style={styles.starsContainer}>
-        {[1, 2, 3, 4, 5].map((star) => (
-          <Ionicons
-            key={star}
-            name={star <= rating ? 'star' : 'star-outline'}
-            size={20}
-            color="#FFD700"
-          />
-        ))}
-      </View>
-    );
+  const fetchCartCount = async () => {
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      if (!userId) return;
+      const res = await axios.get(`${API_URL}/cart/count/${userId}`);
+      setCartCount(res.data.count || 0);
+    } catch (err) {
+      setCartCount(0);
+    }
   };
+
+  const handleAddToCart = async () => {
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      if (!userId) {
+        Alert.alert('Error', 'Please log in to add items to your cart.');
+        return;
+      }
+      await axios.post(`${API_URL}/cart`, {
+        userId,
+        productId: product!.id,
+        variantId: selectedVariant?.id,
+        quantity,
+      });
+      Alert.alert('Success', 'Product added to cart');
+      fetchCartTotal();
+      fetchCartCount();
+    } catch (error) {
+      Alert.alert('Error', 'Failed to add product to cart');
+    }
+  };
+
+  const renderStars = (rating: number) => (
+    <View style={styles.starsContainer}>
+      {[1, 2, 3, 4, 5].map((star) => (
+        <Ionicons
+          key={star}
+          name={star <= rating ? 'star' : 'star-outline'}
+          size={14}
+          color="#4CAF50"
+        />
+      ))}
+    </View>
+  );
+
+  // Add this before the return statement
+  const detailsFields = [
+    { key: 'packOf', label: 'Pack of' },
+    { key: 'brand', label: 'Brand' },
+    { key: 'modelName', label: 'Model Name' },
+    { key: 'type', label: 'Type' },
+    { key: 'quantity', label: 'Quantity' },
+    { key: 'shelfLife', label: 'Maximum Shelf Life' },
+    { key: 'foodPreference', label: 'Food Preference' },
+    { key: 'flavour', label: 'Flavour' },
+  ];
+
+  // --- UI ---
+  if (!product) return <View style={styles.loading}><Text>Loading...</Text></View>;
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView>
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.backButton}
-            onPress={() => router.back()}
-          >
-            <Ionicons name="arrow-back" size={24} color="#333" />
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.shareButton}>
-            <Ionicons name="share-outline" size={24} color="#333" />
+      {/* Top Bar */}
+      <View style={styles.topBar}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#333" />
+        </TouchableOpacity>
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={16} color="#999" />
+          <Text style={styles.searchPlaceholder}>Search for products</Text>
+        </View>
+        <TouchableOpacity onPress={() => router.push('/cart')} style={styles.cartIconWrap}>
+          <Ionicons name="bag-outline" size={24} color="#333" />
+          {cartCount > 0 && (
+            <View style={styles.cartBadge}>
+              <Text style={styles.cartBadgeText}>{cartCount}</Text>
+            </View>
+          )}
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
+        {/* Product Image */}
+        <View style={styles.imageContainer}>
+          <Image
+            source={{ uri: product!.images && product!.images.length > 0 ? product!.images[0] : '' }}
+            style={styles.productImage}
+          />
+          <View style={styles.imageDots}>
+            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].map((dot, index) => (
+              <View key={index} style={[styles.dot, index === 0 && styles.activeDot]} />
+            ))}
+          </View>
+        </View>
+
+        {/* Product Info */}
+        <View style={styles.productInfo}>
+          <Text style={styles.productName}>{product!.name}</Text>
+          <Text style={styles.discountBadge}>{selectedVariant?.discount || product!.discount}% off</Text>
+
+          <View style={styles.priceRow}>
+            <View style={styles.priceSection}>
+              <View style={styles.priceTag}>
+                <Text style={styles.priceLabel}>Kilos</Text>
+                <Text style={styles.price}>₹{selectedVariant ? selectedVariant.price : product!.price}</Text>
+              </View>
+              <Text style={styles.mrpLabel}>MRP</Text>
+              <Text style={styles.originalPrice}>₹{Math.round((selectedVariant ? selectedVariant.price : product!.price) * 1.15)}</Text>
+            </View>
+            <TouchableOpacity style={styles.addButton} onPress={handleAddToCart}>
+              <Text style={styles.addButtonText}>Add</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Free Delivery Progress */}
+        <View style={styles.deliverySection}>
+          <Text style={styles.deliveryText}>
+            Add ₹{FREE_DELIVERY_THRESHOLD - cartTotal} for FREE delivery
+          </Text>
+          <TouchableOpacity>
+            <Ionicons name="chevron-up" size={20} color="#333" />
           </TouchableOpacity>
         </View>
 
-        <Image source={{ uri: image }} style={styles.productImage} />
+        {/* Expiry and Social Proof */}
+        <View style={styles.infoCard}>
+          <Text style={styles.expiryTitle}>Expiry Date 31 Dec 2025</Text>
+          <Text style={styles.manufactureDate}>Manufactured date 01 Apr 2025</Text>
+        </View>
 
-        <View style={styles.content}>
-          <Text style={styles.productName}>{name}</Text>
-          
-          <View style={styles.priceContainer}>
-            <Text style={styles.price}>₹{price}</Text>
-            {discount > 0 && (
-              <View style={styles.discountContainer}>
-                <Text style={styles.originalPrice}>
-                  ₹{Math.round(price * (1 + discount / 100))}
-                </Text>
-                <Text style={styles.discount}>{discount}% OFF</Text>
-              </View>
-            )}
-          </View>
+        <View style={styles.socialProof}>
+          <Ionicons name="trending-up" size={16} color="#4CAF50" />
+          <Text style={styles.socialProofText}>3,000+ people ordered this in the last 15 days</Text>
+        </View>
 
-          <View style={styles.ratingContainer}>
-            {renderStars(rating)}
-            <Text style={styles.reviewCount}>({reviewCount} reviews)</Text>
-          </View>
-
-          <Text style={styles.description}>{description}</Text>
-
-          <View style={styles.quantityContainer}>
-            <Text style={styles.quantityLabel}>Quantity:</Text>
-            <View style={styles.quantityControls}>
+        {/* Variant Selection */}
+        {variants.length > 0 && (
+          <View style={styles.variantsSection}>
+            <Text style={styles.sectionTitle}>Select Variant</Text>
+            {variants.map((variant, index) => (
               <TouchableOpacity
-                style={styles.quantityButton}
-                onPress={() => setQuantity(Math.max(1, quantity - 1))}
+                key={variant.id}
+                style={[
+                  styles.variantCard,
+                  selectedVariant?.id === variant.id && styles.selectedVariantCard
+                ]}
+                onPress={() => setSelectedVariant(variant)}
               >
-                <Ionicons name="remove" size={20} color="#333" />
-              </TouchableOpacity>
-              <Text style={styles.quantity}>{quantity}</Text>
-              <TouchableOpacity
-                style={styles.quantityButton}
-                onPress={() => setQuantity(quantity + 1)}
-              >
-                <Ionicons name="add" size={20} color="#333" />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <TouchableOpacity
-            style={[styles.addToCartButton, isOutOfStock && styles.disabledButton]}
-            onPress={handleAddToCart}
-            disabled={isOutOfStock}
-          >
-            <Text style={styles.addToCartText}>
-              {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
-            </Text>
-          </TouchableOpacity>
-
-          <View style={styles.reviewsSection}>
-            <View style={styles.reviewsHeader}>
-              <Text style={styles.reviewsTitle}>Customer Reviews</Text>
-              <TouchableOpacity
-                style={styles.writeReviewButton}
-                onPress={() => setShowReviewForm(true)}
-              >
-                <Text style={styles.writeReviewText}>Write a Review</Text>
-              </TouchableOpacity>
-            </View>
-
-            {reviews.map((review) => (
-              <View key={review.id} style={styles.reviewItem}>
-                <View style={styles.reviewHeader}>
-                  <Text style={styles.reviewerName}>{review.userName}</Text>
-                  <Text style={styles.reviewDate}>{review.date}</Text>
+                <View style={styles.variantLeft}>
+                  <View style={[styles.radioButton, selectedVariant?.id === variant.id && styles.selectedRadio]}>
+                    {selectedVariant?.id === variant.id && <View style={styles.radioInner} />}
+                  </View>
+                  <View>
+                    <Text style={styles.discountText}>{variant.discount}% off</Text>
+                    <View style={styles.variantPriceContainer}>
+                      <View style={styles.priceTag}>
+                        <Text style={styles.priceLabel}>Kilos</Text>
+                        <Text style={styles.variantPrice}>₹{variant.price}</Text>
+                      </View>
+                      <Text style={styles.mrpLabel}>MRP</Text>
+                      <Text style={styles.variantOriginalPrice}>₹{Math.round(variant.price * 1.15)}</Text>
+                    </View>
+                    <Text style={styles.paymentOption}>Or Pay ₹{Math.round(variant.price * 0.9)} + ⚡{Math.round(variant.price * 0.1)}</Text>
+                  </View>
                 </View>
-                {renderStars(review.rating)}
-                <Text style={styles.reviewComment}>{review.comment}</Text>
+                <View style={styles.variantRight}>
+                  <Text style={styles.variantWeight}>{variant.name}</Text>
+                  <Text style={styles.variantRate}>@ ₹{(variant.price / parseFloat(variant.name.replace(/\D/g, '')) * 250).toFixed(1)}/250g</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+
+        {/* Offers Section */}
+        <View style={styles.offersSection}>
+          <View style={styles.offerItem}>
+            <View style={styles.offerIcon}>
+              <Ionicons name="pricetag" size={16} color="#4CAF50" />
+            </View>
+            <Text style={styles.offerText}>Buy More, Save More: Buy worth ₹499 save 10% (Minimum 2 items)</Text>
+            <Ionicons name="chevron-forward" size={16} color="#666" />
+          </View>
+
+          <View style={styles.offerItem}>
+            <View style={styles.offerIcon}>
+              <Ionicons name="card" size={16} color="#4CAF50" />
+            </View>
+            <View style={styles.offerTextContainer}>
+              <Text style={styles.offerText}>Bank Offer: 100% Cashback upto 500Rs on Axis Bank SuperMoney Rupay CC UPI transactions on super.money UPI</Text>
+              <Text style={styles.termsText}>T&C</Text>
+            </View>
+          </View>
+
+          <View style={styles.offerItem}>
+            <View style={styles.offerIcon}>
+              <Ionicons name="card" size={16} color="#4CAF50" />
+            </View>
+            <View style={styles.offerTextContainer}>
+              <Text style={styles.offerText}>Bank Offer: 5% cashback on DMSM Axis Bank Credit Card upto ₹4,000 per statement quarter</Text>
+              <Text style={styles.termsText}>T&C</Text>
+            </View>
+          </View>
+
+          <View style={styles.offerItem}>
+            <View style={styles.offerIcon}>
+              <Ionicons name="card" size={16} color="#4CAF50" />
+            </View>
+            <View style={styles.offerTextContainer}>
+              <Text style={styles.offerText}>Bank Offer: 5% cashback on Axis Bank DMSM Debit Card upto ₹750</Text>
+              <Text style={styles.termsText}>T&C</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity style={styles.moreOffers}>
+            <Text style={styles.moreOffersText}>+ 1 more offer</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Product Details */}
+        <View style={styles.productDetails}>
+          <Text style={styles.sectionTitle}>Product Details</Text>
+          <View style={styles.detailsGrid}>
+            {detailsFields.map(field => (
+              <View style={styles.detailRow} key={field.key}>
+                <Text style={styles.detailLabel}>{field.label}</Text>
+                <Text style={styles.detailValue}>{product!.details && (product!.details as any)[field.key] ? (product!.details as any)[field.key] : ''}</Text>
               </View>
             ))}
           </View>
         </View>
-      </ScrollView>
 
-      {showReviewForm && (
-        <View style={styles.reviewFormOverlay}>
-          <View style={styles.reviewForm}>
-            <View style={styles.reviewFormHeader}>
-              <Text style={styles.reviewFormTitle}>Write a Review</Text>
-              <TouchableOpacity onPress={() => setShowReviewForm(false)}>
-                <Ionicons name="close" size={24} color="#333" />
+        {/* Similar Products */}
+        <View style={styles.similarSection}>
+          <Text style={styles.sectionTitle}>Similar Products</Text>
+          <FlatList
+            data={similarProducts}
+            horizontal
+            keyExtractor={item => item.id}
+            renderItem={({ item }) => (
+              <TouchableOpacity style={styles.productCard} onPress={() => router.push(`/product/${item.id}`)}>
+                <Image source={{ uri: item.images && item.images.length > 0 ? item.images[0] : '' }} style={styles.productCardImage} />
+                <Text style={styles.productCardName} numberOfLines={2}>{item.name}</Text>
+                <Text style={styles.productCardWeight}>360 g</Text>
+                <View style={styles.productCardPriceRow}>
+                  <View style={styles.priceTag}>
+                    <Text style={styles.priceLabel}>Kilos</Text>
+                    <Text style={styles.productCardPrice}>₹{item.price}</Text>
+                  </View>
+                  <Text style={styles.productCardMRP}>MRP ₹{Math.round(item.price * 1.15)}</Text>
+                </View>
+                <TouchableOpacity style={styles.productCardAddButton}>
+                  <Text style={styles.productCardAddText}>Add</Text>
+                </TouchableOpacity>
               </TouchableOpacity>
-            </View>
+            )}
+            showsHorizontalScrollIndicator={false}
+          />
+        </View>
 
-            <View style={styles.ratingInput}>
-              <Text style={styles.ratingLabel}>Rating:</Text>
-              <View style={styles.starsInput}>
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <TouchableOpacity
-                    key={star}
-                    onPress={() => setReviewRating(star)}
-                  >
-                    <Ionicons
-                      name={star <= reviewRating ? 'star' : 'star-outline'}
-                      size={30}
-                      color="#FFD700"
-                    />
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <TextInput
-              style={styles.reviewInput}
-              placeholder="Write your review..."
-              multiline
-              value={reviewComment}
-              onChangeText={setReviewComment}
-            />
-
-            <TouchableOpacity
-              style={styles.submitReviewButton}
-              onPress={handleSubmitReview}
-            >
-              <Text style={styles.submitReviewText}>Submit Review</Text>
+        {/* Delivery Info */}
+        <View style={styles.deliveryInfo}>
+          <View style={styles.deliveryAddress}>
+            <Text style={styles.deliveryLabel}>Deliver to: <Text style={styles.deliveryName}>Anish..., 784001</Text> HOME</Text>
+            <TouchableOpacity>
+              <Text style={styles.changeButton}>Change</Text>
             </TouchableOpacity>
           </View>
+          <Text style={styles.deliveryFullAddress}>Railgate no 1, Chandmari, Tezpur, N...</Text>
+
+          <View style={styles.sellerInfo}>
+            <Text style={styles.sellerText}>Sold by <Text style={styles.sellerName}>Dhunumunu supermarket</Text></Text>
+            <View style={styles.ratingContainer}>
+              <Text style={styles.rating}>4.8</Text>
+              <Ionicons name="star" size={12} color="#4CAF50" />
+            </View>
+          </View>
+
+          <Text style={styles.deliveryDate}>Delivery by</Text>
+          <Text style={styles.deliveryDateValue}>27 Jun, Friday</Text>
+
+          <View style={styles.deliveryFeatures}>
+            <Text style={styles.featureText}>• Schedule Your Delivery</Text>
+            <Text style={styles.featureText}>• Cash on Delivery</Text>
+            <Text style={styles.featureText}>• Easy Doorstep Return</Text>
+          </View>
+
+          <TouchableOpacity>
+            <Text style={styles.viewDetailsButton}>View Details</Text>
+          </TouchableOpacity>
         </View>
-      )}
+
+        {/* Bought Together */}
+        <View style={styles.similarSection}>
+          <Text style={styles.sectionTitle}>Bought Together</Text>
+          <FlatList
+            data={boughtTogether}
+            horizontal
+            keyExtractor={item => item.id}
+            renderItem={({ item }) => (
+              <TouchableOpacity style={styles.productCard} onPress={() => router.push(`/product/${item.id}`)}>
+                <Image source={{ uri: item.images && item.images.length > 0 ? item.images[0] : '' }} style={styles.productCardImage} />
+                <Text style={styles.productCardName} numberOfLines={2}>{item.name}</Text>
+                <Text style={styles.productCardWeight}>7 x 18.57 g</Text>
+                <View style={styles.productCardPriceRow}>
+                  <View style={styles.priceTag}>
+                    <Text style={styles.priceLabel}>Kilos</Text>
+                    <Text style={styles.productCardPrice}>₹{item.price}</Text>
+                  </View>
+                  <Text style={styles.productCardMRP}>MRP ₹{Math.round(item.price * 1.15)}</Text>
+                </View>
+                <TouchableOpacity style={styles.productCardAddButton}>
+                  <Text style={styles.productCardAddText}>Add</Text>
+                </TouchableOpacity>
+              </TouchableOpacity>
+            )}
+            showsHorizontalScrollIndicator={false}
+          />
+        </View>
+
+        <View style={styles.bottomSpacing} />
+      </ScrollView>
+
+      {/* Bottom Delivery Bar */}
+      <View style={styles.bottomDeliveryBar}>
+        <Text style={styles.bottomDeliveryText}>Add ₹{FREE_DELIVERY_THRESHOLD - cartTotal} for FREE delivery</Text>
+        <TouchableOpacity>
+          <Ionicons name="chevron-up" size={20} color="#333" />
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 };
@@ -230,223 +437,515 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
-  header: {
+  loading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  topBar: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 16,
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
   },
   backButton: {
-    padding: 8,
+    padding: 4,
   },
-  shareButton: {
-    padding: 8,
+  searchBar: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginHorizontal: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+  },
+  searchPlaceholder: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#666',
+  },
+  cartIconWrap: {
+    position: 'relative',
+    padding: 4,
+  },
+  cartBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    backgroundColor: '#FF4444',
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  cartBadgeText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  scrollContainer: {
+    flex: 1,
+  },
+  imageContainer: {
+    backgroundColor: '#FFFFFF',
+    paddingVertical: 20,
+    alignItems: 'center',
   },
   productImage: {
-    width: '100%',
-    height: 300,
-    resizeMode: 'cover',
+    width: 280,
+    height: 200,
+    resizeMode: 'contain',
+    marginBottom: 16,
   },
-  content: {
+  imageDots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+  },
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#E0E0E0',
+    marginHorizontal: 2,
+  },
+  activeDot: {
+    backgroundColor: '#4CAF50',
+  },
+  productInfo: {
+    backgroundColor: '#FFFFFF',
     padding: 16,
+    marginBottom: 8,
   },
   productName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333333',
-    marginBottom: 8,
-  },
-  priceContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  price: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#CB202D',
-  },
-  discountContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginLeft: 8,
-  },
-  originalPrice: {
     fontSize: 16,
-    color: '#666666',
-    textDecorationLine: 'line-through',
-    marginRight: 8,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 4,
   },
-  discount: {
+  discountBadge: {
     fontSize: 14,
-    color: '#CB202D',
-    backgroundColor: '#FFE4E4',
+    color: '#4CAF50',
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  priceSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  priceTag: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 4,
     paddingHorizontal: 8,
     paddingVertical: 4,
+    marginRight: 8,
+  },
+  priceLabel: {
+    fontSize: 10,
+    color: '#666',
+    fontWeight: '500',
+  },
+  price: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: 'bold',
+  },
+  mrpLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginRight: 4,
+  },
+  originalPrice: {
+    fontSize: 12,
+    color: '#666',
+    textDecorationLine: 'line-through',
+  },
+  addButton: {
+    borderWidth: 1,
+    borderColor: '#8B4513',
     borderRadius: 4,
+    paddingHorizontal: 24,
+    paddingVertical: 8,
+  },
+  addButtonText: {
+    color: '#8B4513',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  deliverySection: {
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 8,
+  },
+  deliveryText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+  },
+  infoCard: {
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    marginBottom: 8,
+  },
+  expiryTitle: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  manufactureDate: {
+    fontSize: 12,
+    color: '#666',
+  },
+  socialProof: {
+    backgroundColor: '#FFFFFF',
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    marginBottom: 8,
+  },
+  socialProofText: {
+    fontSize: 14,
+    color: '#333',
+    marginLeft: 8,
+    fontWeight: '500',
+  },
+  starsContainer: {
+    flexDirection: 'row',
+  },
+  variantsSection: {
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    marginBottom: 8,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 16,
+  },
+  variantCard: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    padding: 16,
+    marginBottom: 12,
+  },
+  selectedVariantCard: {
+    borderColor: '#4CAF50',
+    backgroundColor: '#FFFFFF',
+  },
+  variantLeft: {
+    flexDirection: 'row',
+    flex: 1,
+  },
+  radioButton: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: '#E0E0E0',
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  selectedRadio: {
+    borderColor: '#4CAF50',
+  },
+  radioInner: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#4CAF50',
+  },
+  discountText: {
+    fontSize: 14,
+    color: '#4CAF50',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  variantPriceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  variantPrice: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: 'bold',
+  },
+  variantOriginalPrice: {
+    fontSize: 12,
+    color: '#666',
+    textDecorationLine: 'line-through',
+  },
+  paymentOption: {
+    fontSize: 12,
+    color: '#666',
+  },
+  variantRight: {
+    alignItems: 'flex-end',
+  },
+  variantWeight: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  variantRate: {
+    fontSize: 12,
+    color: '#666',
+  },
+  offersSection: {
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    marginBottom: 8,
+  },
+  offerItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  offerIcon: {
+    width: 24,
+    height: 24,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  offerTextContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  offerText: {
+    fontSize: 14,
+    color: '#333',
+    flex: 1,
+    lineHeight: 20,
+  },
+  termsText: {
+    fontSize: 12,
+    color: '#007AFF',
+    fontWeight: '500',
+    marginLeft: 8,
+  },
+  moreOffers: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  moreOffersText: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '500',
+  },
+  productDetails: {
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    marginBottom: 8,
+  },
+  detailsGrid: {
+    gap: 12,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  detailLabel: {
+    fontSize: 14,
+    color: '#666',
+    flex: 1,
+  },
+  detailValue: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+    textAlign: 'right',
+    flex: 1,
+  },
+  similarSection: {
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    marginBottom: 8,
+  },
+  productCard: {
+    width: 140,
+    marginRight: 12,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  productCardImage: {
+    width: '100%',
+    height: 100,
+    resizeMode: 'contain',
+    backgroundColor: '#FFFFFF',
+    marginBottom: 8,
+  },
+  productCardName: {
+    fontSize: 13,
+    color: '#333',
+    fontWeight: '500',
+    marginBottom: 4,
+    minHeight: 36,
+  },
+  productCardWeight: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 8,
+  },
+  productCardPriceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  productCardPrice: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: 'bold',
+  },
+  productCardMRP: {
+    fontSize: 11,
+    color: '#666',
+    textDecorationLine: 'line-through',
+    marginLeft: 4,
+  },
+  productCardAddButton: {
+    borderWidth: 1,
+    borderColor: '#8B4513',
+    borderRadius: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    alignItems: 'center',
+  },
+  productCardAddText: {
+    color: '#8B4513',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  deliveryInfo: {
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    marginBottom: 8,
+  },
+  deliveryAddress: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  deliveryLabel: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
+  },
+  deliveryName: {
+    fontWeight: '600',
+  },
+  changeButton: {
+    fontSize: 14,
+    color: '#007AFF',
+    fontWeight: '500',
+  },
+  deliveryFullAddress: {
+    fontSize: 13,
+    color: '#666',
+    marginBottom: 16,
+  },
+  sellerInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sellerText: {
+    fontSize: 14,
+    color: '#333',
+  },
+  sellerName: {
+    fontWeight: '600',
   },
   ratingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 16,
-  },
-  starsContainer: {
-    flexDirection: 'row',
-    marginRight: 8,
-  },
-  reviewCount: {
-    fontSize: 14,
-    color: '#666666',
-  },
-  description: {
-    fontSize: 16,
-    color: '#333333',
-    lineHeight: 24,
-    marginBottom: 16,
-  },
-  quantityContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  quantityLabel: {
-    fontSize: 16,
-    color: '#333333',
-    marginRight: 16,
-  },
-  quantityControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  quantityButton: {
-    padding: 8,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 4,
   },
-  quantity: {
+  rating: {
+    fontSize: 12,
+    color: '#4CAF50',
+    fontWeight: '600',
+    marginRight: 4,
+  },
+  deliveryDate: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 4,
+  },
+  deliveryDateValue: {
     fontSize: 16,
-    color: '#333333',
-    marginHorizontal: 16,
-  },
-  addToCartButton: {
-    backgroundColor: '#CB202D',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  disabledButton: {
-    backgroundColor: '#CCCCCC',
-  },
-  addToCartText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  reviewsSection: {
-    marginTop: 24,
-  },
-  reviewsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    color: '#333',
+    fontWeight: '600',
     marginBottom: 16,
   },
-  reviewsTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333333',
-  },
-  writeReviewButton: {
-    padding: 8,
-  },
-  writeReviewText: {
-    color: '#CB202D',
-    fontSize: 14,
-  },
-  reviewItem: {
+  deliveryFeatures: {
     marginBottom: 16,
-    padding: 16,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 8,
   },
-  reviewHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
-  },
-  reviewerName: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333333',
-  },
-  reviewDate: {
+  featureText: {
     fontSize: 14,
-    color: '#666666',
+    color: '#333',
+    marginBottom: 4,
   },
-  reviewComment: {
+  viewDetailsButton: {
     fontSize: 14,
-    color: '#333333',
-    marginTop: 8,
+    color: '#007AFF',
+    fontWeight: '500',
+    textAlign: 'center',
   },
-  reviewFormOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  bottomSpacing: {
+    height: 80,
   },
-  reviewForm: {
+  bottomDeliveryBar: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 24,
-    width: '90%',
-    maxHeight: '80%',
-  },
-  reviewFormHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
   },
-  reviewFormTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333333',
-  },
-  ratingInput: {
-    marginBottom: 16,
-  },
-  ratingLabel: {
-    fontSize: 16,
-    color: '#333333',
-    marginBottom: 8,
-  },
-  starsInput: {
-    flexDirection: 'row',
-  },
-  reviewInput: {
-    borderWidth: 1,
-    borderColor: '#EEEEEE',
-    borderRadius: 8,
-    padding: 12,
-    height: 120,
-    textAlignVertical: 'top',
-    marginBottom: 24,
-  },
-  submitReviewButton: {
-    backgroundColor: '#CB202D',
-    padding: 16,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  submitReviewText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: 'bold',
+  bottomDeliveryText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '500',
   },
 });
 
-export default ProductDetailScreen; 
+export default ProductDetailScreen;
