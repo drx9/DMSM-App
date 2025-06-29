@@ -13,20 +13,16 @@ import {
   Switch,
   SafeAreaView,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import {
+  useRouter,
+  useLocalSearchParams
+} from 'expo-router';
 import axios, { AxiosError } from 'axios';
 import { useLanguage } from '../context/LanguageContext';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Picker } from '@react-native-picker/picker';
-import { 
-  getResponsiveFontSize, 
-  getResponsiveWidth, 
-  getResponsiveHeight,
-  SAFE_AREA_TOP,
-  SPACING 
-} from '../../utils/deviceUtils';
-
-const API_URL = 'http://192.168.2.100:3000/api'; // Ensure this matches your backend IP
+import { API_URL } from '../config';
+import { SPACING, SAFE_AREA_TOP, getResponsiveFontSize, getResponsiveWidth } from '../../utils/deviceUtils';
 
 // Create axios instance with default config
 const api = axios.create({
@@ -46,8 +42,12 @@ interface ApiResponse {
 }
 
 const SignupScreen = () => {
+  const params = useLocalSearchParams();
+  const {
+    phoneNumber: initialPhoneNumber
+  } = params;
   const [name, setName] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState((initialPhoneNumber as string) || '');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [address, setAddress] = useState('');
@@ -146,9 +146,9 @@ const SignupScreen = () => {
       } else if (axiosError.code === 'ERR_NETWORK') {
         errorMessage = t('networkError');
       } else {
-        errorMessage = axiosError.response?.data?.message || 
-                      axiosError.response?.data?.errors?.[0]?.msg || 
-                      t('failedToRegister');
+        errorMessage = axiosError.response?.data?.message ||
+          axiosError.response?.data?.errors?.[0]?.msg ||
+          t('failedToRegister');
       }
       Alert.alert(t('error'), errorMessage);
     } finally {
@@ -172,7 +172,7 @@ const SignupScreen = () => {
       <ScrollView contentContainerStyle={styles.scrollContainer}>
         <View style={styles.header}>
           <Image
-             source={require('../../assets/images/dms-logo.png')}
+            source={require('../../assets/images/dms-logo.png')}
             style={styles.logo}
             resizeMode="contain"
           />

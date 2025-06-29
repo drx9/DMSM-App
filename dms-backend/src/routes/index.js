@@ -5,6 +5,8 @@ const authRoutes = require('./authRoutes');
 const productRoutes = require('./productRoutes');
 const categoryRoutes = require('./categoryRoutes');
 const userRoutes = require('./userRoutes');
+const dashboardRoutes = require('./dashboardRoutes');
+const orderRoutes = require('./orderRoutes');
 
 // Health check endpoint
 router.get('/health', (req, res) => {
@@ -16,5 +18,7 @@ router.use('/auth', authRoutes);
 router.use('/products', productRoutes);
 router.use('/categories', categoryRoutes);
 router.use('/user', userRoutes);
+router.use('/dashboard', dashboardRoutes);
+router.use('/orders', orderRoutes);
 
 module.exports = router; 

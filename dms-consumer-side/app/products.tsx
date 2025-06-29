@@ -32,6 +32,16 @@ interface Product {
   isOutOfStock: boolean;
 }
 
+interface GetProductsParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+  category?: string;
+  sort?: string;
+  order?: string;
+  filters?: string;
+}
+
 const ProductsScreen = () => {
   const { t } = useLanguage();
   const router = useRouter();
@@ -46,7 +56,7 @@ const ProductsScreen = () => {
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [totalProducts, setTotalProducts] = useState(0);
-  const [sortBy, setSortBy] = useState<SortOption>(SORT_OPTIONS[2].value);
+  const [sortBy, setSortBy] = useState<string>(SORT_OPTIONS[2].value);
   const [filters, setFilters] = useState<FilterOption[]>([]);
 
   const fetchProducts = async (isRefreshing = false) => {
@@ -59,18 +69,41 @@ const ProductsScreen = () => {
       if (!hasMore && !isRefreshing) return;
 
       setLoading(true);
+      // Map frontend sort option to backend
+      let sort = 'createdAt';
+      let order: 'ASC' | 'DESC' = 'DESC';
+      switch (sortBy as string) {
+        case 'price_asc':
+          sort = 'price'; order = 'ASC'; break;
+        case 'price_desc':
+          sort = 'price'; order = 'DESC'; break;
+        case 'created_at_asc':
+          sort = 'createdAt'; order = 'ASC'; break;
+        case 'created_at_desc':
+          sort = 'createdAt'; order = 'DESC'; break;
+        case 'rating_desc':
+          sort = 'rating'; order = 'DESC'; break;
+        default:
+          sort = 'createdAt'; order = 'DESC';
+      }
+
       const response = await productService.getProducts({
         page: isRefreshing ? 1 : page,
         limit: PAGINATION.DEFAULT_PAGE_SIZE,
         search: searchQuery,
         category: selectedCategory || undefined,
-        sort: sortBy,
+        sort,
+        order,
         filters: filters.length > 0 ? filters.join(',') : undefined,
       });
 
       const formattedProducts = response.products.map((product) => ({
         ...product,
         image: product.images[0] || '',
+        price: typeof product.price === 'string' ? parseFloat(product.price) : product.price,
+        discount: typeof product.discount === 'string' ? parseFloat(product.discount) : product.discount,
+        isOutOfStock: product.isOutOfStock ?? product.is_out_of_stock,
+        isActive: product.isActive ?? product.is_active,
       }));
 
       setProducts(isRefreshing ? formattedProducts : [...products, ...formattedProducts]);
@@ -101,7 +134,7 @@ const ProductsScreen = () => {
 
   const handleSort = (sortOption: string) => {
     setSelectedSort(sortOption);
-    setSortBy(sortOption as SortOption);
+    setSortBy(sortOption as string);
     setShowSortModal(false);
   };
 
@@ -118,7 +151,7 @@ const ProductsScreen = () => {
   };
 
   const handleSortChange = (sort: SortOption) => {
-    setSortBy(sort);
+    setSortBy(sort as string);
   };
 
   const handleFilterToggle = (filter: FilterOption) => {

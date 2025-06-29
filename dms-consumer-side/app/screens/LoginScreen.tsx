@@ -15,83 +15,125 @@ import {
 import { useRouter } from 'expo-router';
 import axios, { AxiosError } from 'axios';
 import { useLanguage } from '../context/LanguageContext';
-import { 
-  getResponsiveFontSize, 
-  getResponsiveWidth, 
+import { API_URL } from '../config';
+
+import {
+  getResponsiveFontSize,
+  getResponsiveWidth,
   getResponsiveHeight,
   SAFE_AREA_TOP,
-  SPACING 
+  SPACING
 } from '../../utils/deviceUtils';
 
-const API_URL = 'http://192.168.2.100:3000/api';
-
-interface ApiResponse {
+interface PhoneLoginResponse {
   success: boolean;
   message?: string;
   userId?: string;
   userExists?: boolean;
 }
 
+interface EmailLoginResponse {
+  success: boolean;
+  message?: string;
+  token?: string;
+  user?: {
+    id: string;
+    name: string;
+    email: string;
+  };
+}
+
+type ApiResponse = PhoneLoginResponse | EmailLoginResponse;
+
 const LoginScreen = () => {
+  const [loginMode, setLoginMode] = useState<'phone' | 'email'>('phone');
   const [phoneNumber, setPhoneNumber] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { t } = useLanguage();
 
   const handleLogin = async () => {
+    setIsLoading(true);
+    if (loginMode === 'phone') {
+      await handlePhoneLogin();
+    } else {
+      await handleEmailLogin();
+    }
+    setIsLoading(false);
+  };
+
+  const handlePhoneLogin = async () => {
     if (!phoneNumber || phoneNumber.length !== 10) {
       Alert.alert(t('error'), t('pleaseEnterAValid10DigitPhoneNumber'));
       return;
     }
 
     try {
-      setIsLoading(true);
-      console.log('Attempting to login with phone number:', phoneNumber);
-      const response = await axios.post<ApiResponse>(`${API_URL}/auth/login`, {
+      const response = await axios.post<PhoneLoginResponse>(`${API_URL}/auth/login`, {
         phoneNumber: phoneNumber,
       });
 
-      console.log('Login response:', response.data);
-
       if (response.data.success) {
         if (response.data.userExists) {
-          // Navigate to OTP verification screen
           router.push({
             pathname: '/verify-otp',
-            params: { userId: response.data.userId }
+            params: { userId: response.data.userId },
           });
         } else {
-          // Navigate to signup screen with phone number
           router.push({
             pathname: '/signup',
-            params: { phoneNumber: phoneNumber }
+            params: { phoneNumber: phoneNumber },
           });
         }
       } else {
         Alert.alert(t('error'), response.data.message || t('failedToInitiateLogin'));
       }
     } catch (error) {
-      console.error('Login error:', error);
-      const axiosError = error as AxiosError<ApiResponse>;
-      console.error('Detailed error:', {
-        message: axiosError.message,
-        code: axiosError.code,
-        response: axiosError.response?.data,
-        status: axiosError.response?.status,
-        config: {
-          url: axiosError.config?.url,
-          method: axiosError.config?.method,
-          data: axiosError.config?.data,
-          headers: axiosError.config?.headers
-        }
-      });
-      Alert.alert(
-        t('error'),
-        axiosError.response?.data?.message || t('failedToInitiateLogin')
-      );
-    } finally {
-      setIsLoading(false);
+      handleApiError(error);
     }
+  };
+
+  const handleEmailLogin = async () => {
+    if (!email || !password) {
+      Alert.alert(t('error'), t('pleaseEnterEmailAndPassword'));
+      return;
+    }
+
+    try {
+      const response = await axios.post<EmailLoginResponse>(`${API_URL}/auth/login`, {
+        email,
+        password,
+      });
+
+      if (response.data.success && response.data.token) {
+        // TODO: Store token securely
+        // await AsyncStorage.setItem('userToken', response.data.token);
+        Alert.alert(t('success'), t('loginSuccessful'));
+        router.replace('/(tabs)');
+      } else {
+        Alert.alert(t('error'), response.data.message || t('loginFailed'));
+      }
+    } catch (error) {
+      handleApiError(error);
+    }
+  };
+
+  const handleApiError = (error: any) => {
+    console.error('API Error:', error);
+    const axiosError = error as AxiosError<ApiResponse>;
+    const message =
+      (axiosError.response?.data as any)?.message ||
+      t('anErrorOccurred');
+    Alert.alert(t('error'), message);
+  };
+
+  const isButtonDisabled = () => {
+    if (isLoading) return true;
+    if (loginMode === 'phone') return !phoneNumber;
+    if (loginMode === 'email') return !email || !password;
+    return true;
   };
 
   return (
@@ -100,10 +142,10 @@ const LoginScreen = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={styles.keyboardContainer}
     >
-      <ScrollView contentContainerStyle={styles.scrollContainer}>
+      <ScrollView contentContainerStyle={styles.scrollContainer} keyboardShouldPersistTaps="handled">
         <View style={styles.header}>
           <Image
-             source={require('../../assets/images/dms-logo.png')}
+            source={require('../../assets/images/dms-logo.png')}
             style={styles.logo}
             resizeMode="contain"
           />
@@ -112,53 +154,87 @@ const LoginScreen = () => {
         </View>
 
         <View style={styles.formContainer}>
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>{t('phoneNumber')}</Text>
-            <View style={styles.phoneInputContainer}>
-              <Text style={styles.countryCode}>+91</Text>
-              <TextInput
-                style={styles.input}
-                placeholder={t('enterYourPhoneNumber')}
-                keyboardType="phone-pad"
-                value={phoneNumber}
-                onChangeText={setPhoneNumber}
-                maxLength={10}
-              />
-            </View>
+          <View style={styles.modeSelector}>
+            <TouchableOpacity
+              style={[styles.modeButton, loginMode === 'phone' && styles.modeButtonActive]}
+              onPress={() => setLoginMode('phone')}
+            >
+              <Text style={[styles.modeButtonText, loginMode === 'phone' && styles.modeButtonTextActive]}>
+                {t('phone')}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modeButton, loginMode === 'email' && styles.modeButtonActive]}
+              onPress={() => setLoginMode('email')}
+            >
+              <Text style={[styles.modeButtonText, loginMode === 'email' && styles.modeButtonTextActive]}>
+                {t('email')}
+              </Text>
+            </TouchableOpacity>
           </View>
 
+          {loginMode === 'phone' ? (
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>{t('phoneNumber')}</Text>
+              <View style={styles.phoneInputContainer}>
+                <Text style={styles.countryCode}>+91</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder={t('enterYourPhoneNumber')}
+                  keyboardType="phone-pad"
+                  value={phoneNumber}
+                  onChangeText={setPhoneNumber}
+                  maxLength={10}
+                />
+              </View>
+            </View>
+          ) : (
+            <>
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>{t('emailAddress')}</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder={t('enterYourEmail')}
+                  keyboardType="email-address"
+                  value={email}
+                  onChangeText={setEmail}
+                  autoCapitalize="none"
+                />
+              </View>
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>{t('password')}</Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder={t('enterYourPassword')}
+                  secureTextEntry
+                  value={password}
+                  onChangeText={setPassword}
+                />
+              </View>
+            </>
+          )}
+
           <TouchableOpacity
-            style={[
-              styles.loginButton,
-              (!phoneNumber || isLoading) && styles.loginButtonDisabled,
-            ]}
+            style={[styles.loginButton, isButtonDisabled() && styles.loginButtonDisabled]}
             onPress={handleLogin}
-            disabled={!phoneNumber || isLoading}
+            disabled={isButtonDisabled()}
           >
             <Text style={styles.loginButtonText}>
-              {isLoading ? t('sendingOTP') : t('continue')}
+              {isLoading ? t('loading') : t('continue')}
             </Text>
           </TouchableOpacity>
 
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>{t('or')}</Text>
-            <View style={styles.dividerLine} />
-          </View>
-
-          <TouchableOpacity style={styles.googleButton}>
-            <Image
-              source={{uri:'https://www.google.com/images/branding/googlelogo/1x/googlelogo_color_272x92dp.png'}}
-              style={styles.googleIcon}
-            />
-            <Text style={styles.googleButtonText}>{t('continueWithGoogle')}</Text>
+          <TouchableOpacity style={styles.forgotPasswordButton}>
+            <Text style={styles.forgotPasswordText}>{t('forgotPassword')}</Text>
           </TouchableOpacity>
         </View>
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>
             {t('dontHaveAnAccount')}{' '}
-            <Text style={styles.signUpText}>{t('signUp')}</Text>
+            <TouchableOpacity onPress={() => router.push('/signup')}>
+              <Text style={styles.signUpText}>{t('signUp')}</Text>
+            </TouchableOpacity>
           </Text>
         </View>
       </ScrollView>
@@ -177,46 +253,70 @@ const styles = StyleSheet.create({
   },
   scrollContainer: {
     flexGrow: 1,
-    padding: SPACING.md,
+    justifyContent: 'center',
+    padding: 24,
   },
   header: {
     alignItems: 'center',
-    marginTop: SAFE_AREA_TOP + SPACING.xl,
-    marginBottom: SPACING.xl,
+    marginBottom: 32,
   },
   logo: {
-    width: getResponsiveWidth(30),
-    height: getResponsiveWidth(30),
-    marginBottom: SPACING.md,
+    width: 100,
+    height: 100,
+    marginBottom: 16,
   },
   welcomeText: {
-    fontSize: getResponsiveFontSize(24),
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#1A1A1A',
-    marginBottom: SPACING.sm,
   },
   subtitle: {
-    fontSize: getResponsiveFontSize(16),
+    fontSize: 16,
     color: '#666666',
   },
   formContainer: {
     width: '100%',
   },
+  modeSelector: {
+    flexDirection: 'row',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    marginBottom: 24,
+    overflow: 'hidden',
+  },
+  modeButton: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    backgroundColor: '#F5F5F5',
+  },
+  modeButtonActive: {
+    backgroundColor: '#007AFF',
+  },
+  modeButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1A1A1A',
+  },
+  modeButtonTextActive: {
+    color: '#FFFFFF',
+  },
   inputContainer: {
-    marginBottom: SPACING.lg,
+    marginBottom: 16,
   },
   label: {
     fontSize: getResponsiveFontSize(14),
     color: '#666666',
-    marginBottom: SPACING.sm,
+    marginBottom: 8,
   },
   phoneInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#F5F5F5',
+    borderRadius: 8,
     borderWidth: 1,
     borderColor: '#E0E0E0',
-    borderRadius: 8,
-    paddingHorizontal: SPACING.sm,
   },
   countryCode: {
     fontSize: getResponsiveFontSize(16),
@@ -230,65 +330,41 @@ const styles = StyleSheet.create({
     color: '#1A1A1A',
   },
   loginButton: {
-    backgroundColor: '#FF6B6B',
-    height: 50,
+    backgroundColor: '#007AFF',
     borderRadius: 8,
-    justifyContent: 'center',
+    paddingVertical: 16,
     alignItems: 'center',
-    marginBottom: SPACING.lg,
+    marginTop: 16,
   },
   loginButtonDisabled: {
-    backgroundColor: '#FFB6B6',
+    backgroundColor: '#A9A9A9',
   },
   loginButtonText: {
     color: '#FFFFFF',
     fontSize: getResponsiveFontSize(16),
     fontWeight: 'bold',
   },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: SPACING.lg,
+  forgotPasswordButton: {
+    alignSelf: 'flex-end',
+    marginTop: 12,
   },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#E0E0E0',
-  },
-  dividerText: {
-    marginHorizontal: SPACING.md,
-    color: '#666666',
-  },
-  googleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: 50,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 8,
-    marginBottom: SPACING.lg,
-  },
-  googleIcon: {
-    width: 24,
-    height: 24,
-    marginRight: SPACING.sm,
-  },
-  googleButtonText: {
-    fontSize: getResponsiveFontSize(16),
-    color: '#1A1A1A',
+  forgotPasswordText: {
+    color: '#007AFF',
+    fontSize: 14,
+    fontWeight: '500',
   },
   footer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 'auto',
-    marginBottom: SPACING.md,
+    marginTop: 32,
   },
   footerText: {
     fontSize: getResponsiveFontSize(14),
     color: '#666666',
   },
   signUpText: {
-    color: '#FF6B6B',
+    color: '#007AFF',
     fontWeight: 'bold',
   },
 });

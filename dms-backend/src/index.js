@@ -25,13 +25,14 @@ const startServer = async () => {
     // Test database connection
     await sequelize.authenticate();
     console.log('Database connection established successfully.');
-    
-    // Sync models in correct order
-    await syncModels();
+
+    // Sync all models
+    await sequelize.sync({ alter: true });
+    console.log('All models were synchronized successfully.');
 
     // Start server
-    app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`Server is running on http://0.0.0.0:${PORT}`);
     });
   } catch (error) {
     console.error('Unable to start server:', error);

@@ -39,8 +39,12 @@ const genderValidation = body('gender').optional().isIn(['Male', 'Female', 'Othe
 // Routes
 router.post(
   '/login',
-  [phoneValidation, emailValidation],
-  authController.initiateLogin
+  [
+    body('phoneNumber').optional().isString(),
+    body('email').optional().isEmail(),
+    body('password').optional().isString()
+  ],
+  authController.login
 );
 
 router.post(
@@ -89,6 +93,15 @@ router.post(
     }),
   ],
   authController.register
+);
+
+router.post(
+  '/admin-login',
+  [
+    body('email').isEmail().withMessage('Invalid email format'),
+    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long')
+  ],
+  authController.adminPasswordLogin
 );
 
 module.exports = router; 

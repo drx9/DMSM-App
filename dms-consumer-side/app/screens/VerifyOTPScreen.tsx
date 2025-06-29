@@ -13,8 +13,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useLanguage } from '../context/LanguageContext';
-
-const API_URL = 'http://192.168.2.100:3000/api';
+import { API_URL } from '../config';
 
 // Create axios instance with default config
 const api = axios.create({
@@ -127,7 +126,7 @@ const VerifyOTPScreen = () => {
       console.log('Request payload:', { userId });
 
       const response = await api.post<ApiResponse>('/auth/resend-otp', { userId });
-      
+
       console.log('Resend OTP response:', response.data);
 
       if (response.data.success) {
