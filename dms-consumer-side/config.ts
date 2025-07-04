@@ -1,4 +1,4 @@
-export const API_URL = 'http://192.168.33.188:5000/api';
+export const API_URL = "http://192.168.31.25:5000/api";
 
 export const PAGINATION = {
   DEFAULT_PAGE_SIZE: 10,

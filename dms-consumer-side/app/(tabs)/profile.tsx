@@ -1,3 +1,4 @@
+'use client'
 import React, { useEffect, useState } from 'react';
 import {
   View,
@@ -17,17 +18,19 @@ import { useRouter } from 'expo-router';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../config';
+import AddressManagerModal, { Address } from '../../components/AddressManagerModal';
+import LocationSelectionScreen from '../location/LocationSelectionScreen';
 
 const ProfileScreen = () => {
   const router = useRouter();
   const [orders, setOrders] = useState<any[]>([]);
-  const [addresses, setAddresses] = useState<any[]>([]);
+  const [addresses, setAddresses] = useState<Address[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [loadingAddresses, setLoadingAddresses] = useState(true);
-  const [showAddressModal, setShowAddressModal] = useState(false);
-  const [newAddress, setNewAddress] = useState({ line1: '', city: '', state: '', postalCode: '', country: 'India' });
-  const [addingAddress, setAddingAddress] = useState(false);
+  const [primaryAddress, setPrimaryAddress] = useState<Address | null>(null);
+  const [showAddressManager, setShowAddressManager] = useState(false);
+  const [showLocationSelector, setShowLocationSelector] = useState(false);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -58,25 +61,66 @@ const ProfileScreen = () => {
     try {
       const res = await axios.get(`${API_URL}/addresses/${uid}`);
       setAddresses(res.data);
+      const primary = res.data.find((a: Address) => a.isDefault) || res.data[0] || null;
+      setPrimaryAddress(primary);
+      if (primary) await AsyncStorage.setItem('userAddress', JSON.stringify(primary));
     } catch (err) {
       setAddresses([]);
+      setPrimaryAddress(null);
     } finally {
       setLoadingAddresses(false);
     }
   };
 
-  const handleAddAddress = async () => {
-    if (!userId) return;
-    setAddingAddress(true);
+  const handleSetPrimary = async (id: string) => {
     try {
-      const res = await axios.post(`${API_URL}/addresses`, { ...newAddress, userId });
-      setAddresses(prev => [...prev, res.data]);
-      setShowAddressModal(false);
-      setNewAddress({ line1: '', city: '', state: '', postalCode: '', country: 'India' });
+      await axios.post(`${API_URL}/addresses/set-default/${id}`);
+      const updated = addresses.map(a => ({ ...a, isDefault: a.id === id }));
+      setAddresses(updated);
+      const primary = updated.find(a => a.isDefault) || updated[0] || null;
+      setPrimaryAddress(primary);
+      if (primary) await AsyncStorage.setItem('userAddress', JSON.stringify(primary));
     } catch (err) {
       // handle error
-    } finally {
-      setAddingAddress(false);
+    }
+  };
+
+  const handleAddAddress = async (address: Omit<Address, 'id' | 'isDefault'>) => {
+    try {
+      const uid = userId || (await AsyncStorage.getItem('userId'));
+      const res = await axios.post(`${API_URL}/addresses`, { ...address, userId: uid });
+      setAddresses(prev => [...prev, res.data]);
+      if (addresses.length === 0) {
+        // If first address, set as primary
+        await handleSetPrimary(res.data.id);
+      }
+    } catch (err) {
+      // handle error
+    }
+  };
+
+  const handleEditAddress = async (id: string, address: Omit<Address, 'id' | 'isDefault'>) => {
+    try {
+      await axios.put(`${API_URL}/addresses/${id}`, address);
+      setAddresses(prev => prev.map(a => (a.id === id ? { ...a, ...address } : a)));
+    } catch (err) {
+      // handle error
+    }
+  };
+
+  const handleDeleteAddress = async (id: string) => {
+    try {
+      await axios.delete(`${API_URL}/addresses/${id}`);
+      const updated = addresses.filter(a => a.id !== id);
+      setAddresses(updated);
+      if (primaryAddress?.id === id) {
+        const newPrimary = updated[0] || null;
+        setPrimaryAddress(newPrimary);
+        if (newPrimary) await handleSetPrimary(newPrimary.id);
+        else await AsyncStorage.removeItem('userAddress');
+      }
+    } catch (err) {
+      // handle error
     }
   };
 
@@ -97,6 +141,18 @@ const ProfileScreen = () => {
     }
   };
 
+  const handleRequestLocation = () => {
+    setShowAddressManager(false);
+    setShowLocationSelector(true);
+  };
+
+  const handleLocationSelected = async (address: any) => {
+    setShowLocationSelector(false);
+    await handleAddAddress(address);
+    // Optionally, refresh addresses
+    if (userId) fetchAddresses(userId);
+  };
+
   const profileFeatures = [
     { id: 1, name: 'Account Details', icon: 'person-outline', screen: 'account-details' },
     { id: 2, name: 'Order Updates', icon: 'receipt-outline', screen: 'order-updates' },
@@ -106,6 +162,16 @@ const ProfileScreen = () => {
     { id: 6, name: 'Payment Options', icon: 'card-outline', screen: 'payment-options' },
     { id: 7, name: 'Add Gift Card', icon: 'gift-outline', screen: 'add-gift-card' },
   ];
+
+  if (showLocationSelector) {
+    return (
+      <LocationSelectionScreen
+        onLocationSelected={handleLocationSelected}
+        userId={userId}
+        onBack={() => setShowLocationSelector(false)}
+      />
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -148,73 +214,35 @@ const ProfileScreen = () => {
         )}
         {/* Addresses Section */}
         <Text style={styles.sectionTitle}>Saved Addresses</Text>
-        {loadingAddresses ? (
-          <ActivityIndicator size="small" color="#CB202D" />
-        ) : addresses.length === 0 ? (
-          <Text style={styles.emptyText}>No addresses found.</Text>
-        ) : (
-          <FlatList
-            data={addresses}
-            keyExtractor={item => item.id}
-            renderItem={({ item }) => (
-              <View style={styles.addressCard}>
-                <Text style={styles.addressLine}>{item.line1}, {item.city}, {item.state}, {item.postalCode}</Text>
-                <Text style={styles.addressCountry}>{item.country}</Text>
-                <TouchableOpacity style={styles.changeButton} onPress={() => setShowAddressModal(true)}>
-                  <Text style={styles.changeButtonText}>Change</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ marginBottom: 20 }}
-          />
-        )}
-        <TouchableOpacity style={styles.addAddressButton} onPress={() => setShowAddressModal(true)}>
-          <Ionicons name="add-circle-outline" size={20} color="#CB202D" />
-          <Text style={styles.addAddressText}>Add New Address</Text>
+        <TouchableOpacity style={styles.addAddressButton} onPress={() => setShowAddressManager(true)}>
+          <Ionicons name="location-outline" size={20} color="#CB202D" />
+          <Text style={styles.addAddressText}>Manage Addresses</Text>
         </TouchableOpacity>
-        {/* Address Modal */}
-        <Modal visible={showAddressModal} animationType="slide" transparent>
-          <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-              <Text style={styles.modalTitle}>Add New Address</Text>
-              <TextInput
-                style={styles.input}
-                placeholder="Address Line 1"
-                value={newAddress.line1}
-                onChangeText={text => setNewAddress({ ...newAddress, line1: text })}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="City"
-                value={newAddress.city}
-                onChangeText={text => setNewAddress({ ...newAddress, city: text })}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="State"
-                value={newAddress.state}
-                onChangeText={text => setNewAddress({ ...newAddress, state: text })}
-              />
-              <TextInput
-                style={styles.input}
-                placeholder="Postal Code"
-                value={newAddress.postalCode}
-                onChangeText={text => setNewAddress({ ...newAddress, postalCode: text })}
-                keyboardType="numeric"
-              />
-              <View style={styles.modalButtons}>
-                <TouchableOpacity style={styles.modalButton} onPress={() => setShowAddressModal(false)}>
-                  <Text style={styles.modalButtonText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={styles.modalButton} onPress={handleAddAddress} disabled={addingAddress}>
-                  <Text style={styles.modalButtonText}>{addingAddress ? 'Adding...' : 'Add'}</Text>
-                </TouchableOpacity>
-              </View>
+        <FlatList
+          data={addresses}
+          keyExtractor={item => item.id}
+          renderItem={({ item }) => (
+            <View style={styles.addressCard}>
+              <Text style={styles.addressLine}>{item.line1}, {item.city}, {item.state}, {item.postalCode}</Text>
+              <Text style={styles.addressCountry}>{item.country}</Text>
+              {item.isDefault && <Text style={styles.primaryLabel}>Primary</Text>}
             </View>
-          </View>
-        </Modal>
+          )}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={{ marginBottom: 20 }}
+        />
+        <AddressManagerModal
+          visible={showAddressManager}
+          onClose={() => setShowAddressManager(false)}
+          addresses={addresses}
+          onSetPrimary={handleSetPrimary}
+          onAdd={handleAddAddress}
+          onEdit={handleEditAddress}
+          onDelete={handleDeleteAddress}
+          loading={loadingAddresses}
+          onRequestLocation={handleRequestLocation}
+        />
         {/* Profile Features */}
         <Text style={styles.sectionTitle}>Account</Text>
         {profileFeatures.map((feature) => (
@@ -328,20 +356,6 @@ const styles = StyleSheet.create({
     color: '#999',
     marginBottom: 4,
   },
-  changeButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: '#1976D2',
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-    marginTop: 6,
-  },
-  changeButtonText: {
-    color: '#1976D2',
-    fontSize: 12,
-    fontWeight: '500',
-  },
   addAddressButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -353,52 +367,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 6,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modalContent: {
-    backgroundColor: '#FFF',
-    borderRadius: 12,
-    padding: 20,
-    width: '85%',
-    alignItems: 'center',
-  },
-  modalTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#CB202D',
-    marginBottom: 16,
-  },
-  input: {
-    width: '100%',
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    borderRadius: 6,
-    padding: 10,
-    marginBottom: 10,
-    fontSize: 13,
-  },
-  modalButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    width: '100%',
-    marginTop: 10,
-  },
-  modalButton: {
-    flex: 1,
-    padding: 10,
-    backgroundColor: '#CB202D',
-    borderRadius: 6,
-    marginHorizontal: 5,
-    alignItems: 'center',
-  },
-  modalButtonText: {
-    color: '#FFF',
-    fontWeight: 'bold',
-    fontSize: 13,
+  primaryLabel: {
+    fontSize: 10,
+    color: '#999',
+    marginTop: 4,
   },
   featureItem: {
     flexDirection: 'row',

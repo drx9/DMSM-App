@@ -20,10 +20,13 @@ import axios from 'axios';
 import { API_URL } from '../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Swipeable } from 'react-native-gesture-handler';
+import { useCart } from '../context/CartContext';
 
 // Cart Item Interface
 interface CartItem {
   id: number;
+  productId: string;
   name: string;
   price: number;
   quantity: number;
@@ -44,6 +47,7 @@ const CartScreen = () => {
   const router = useRouter();
   const { t } = useLanguage();
   const insets = useSafeAreaInsets();
+  const { removeFromCart } = useCart();
 
   // Free delivery threshold
   const FREE_DELIVERY_THRESHOLD = 399;
@@ -89,6 +93,7 @@ const CartScreen = () => {
       const response = await axios.get(`${API_URL}/cart/${userId}`);
       const items = response.data.map((item: any) => ({
         id: item.id,
+        productId: item.productId.toString(),
         name: item.Product?.name || '',
         price: item.Product?.price || 0,
         quantity: item.quantity,
@@ -126,20 +131,20 @@ const CartScreen = () => {
     }, 0);
   };
 
-  const handleQuantityChange = async (itemId: number, newQuantity: number) => {
+  const handleQuantityChange = async (productId: string, newQuantity: number) => {
     if (newQuantity < 1) return;
 
     try {
       // Update local state immediately for better UX
       setCartItems(prevItems =>
         prevItems.map(item =>
-          item.id === itemId ? { ...item, quantity: newQuantity } : item
+          item.productId === productId ? { ...item, quantity: newQuantity } : item
         )
       );
 
       // Update on server
       if (userId) {
-        await axios.put(`${API_URL}/cart/${userId}/${itemId}`, {
+        await axios.put(`${API_URL}/cart/${userId}/${productId}`, {
           quantity: newQuantity
         });
       }
@@ -150,13 +155,13 @@ const CartScreen = () => {
     }
   };
 
-  const handleRemoveItem = async (itemId: number) => {
+  const handleRemoveItem = async (productId: string) => {
     try {
-      setCartItems(prevItems => prevItems.filter(item => item.id !== itemId));
-
+      setCartItems(prevItems => prevItems.filter(item => item.productId !== productId));
       if (userId) {
-        await axios.delete(`${API_URL}/cart/${userId}/${itemId}`);
+        await axios.delete(`${API_URL}/cart/${userId}/${productId}`);
       }
+      removeFromCart(productId);
     } catch (error) {
       console.error('Failed to remove item:', error);
       fetchCartItems(userId!);
@@ -176,36 +181,58 @@ const CartScreen = () => {
   };
 
   const renderInStockItem = ({ item }: { item: CartItem }) => (
-    <View style={styles.cartItemCard}>
-      <Image source={{ uri: item.image }} style={styles.cartItemImage} />
-      <View style={styles.cartItemDetails}>
-        <Text style={styles.cartItemName} numberOfLines={2}>{item.name}</Text>
-        <Text style={styles.cartItemWeight}>{item.weight}</Text>
-        <View style={styles.priceContainer}>
-          <Text style={styles.currentPrice}>₹{item.price}</Text>
-          <Text style={styles.originalPrice}>₹{item.originalPrice}</Text>
+    <Swipeable
+      renderRightActions={() => (
+        <TouchableOpacity
+          style={styles.swipeRemoveButton}
+          onPress={() => handleRemoveItem(item.productId)}
+        >
+          <Text style={styles.swipeRemoveText}>Remove</Text>
+        </TouchableOpacity>
+      )}
+    >
+      <View style={styles.cartItemCard}>
+        <Image source={{ uri: item.image }} style={styles.cartItemImage} />
+        <View style={styles.cartItemDetails}>
+          <Text style={styles.cartItemName} numberOfLines={2}>{item.name}</Text>
+          <Text style={styles.cartItemWeight}>{item.weight}</Text>
+          <View style={styles.priceContainer}>
+            <Text style={styles.currentPrice}>₹{item.price}</Text>
+            <Text style={styles.originalPrice}>₹{item.originalPrice}</Text>
+          </View>
+          <Text style={styles.coinReward}>Or Pay ₹{item.price - 2} + 🪙 2</Text>
         </View>
-        <Text style={styles.coinReward}>Or Pay ₹{item.price - 2} + 🪙 2</Text>
-      </View>
-      <View style={styles.rightSection}>
-        <View style={styles.quantityControls}>
+        <View style={styles.rightSection}>
+          <View style={styles.quantityControls}>
+            <TouchableOpacity
+              style={styles.quantityButton}
+              onPress={() => {
+                if (item.quantity === 1) {
+                  handleRemoveItem(item.productId);
+                } else {
+                  handleQuantityChange(item.productId, item.quantity - 1);
+                }
+              }}
+            >
+              <Text style={styles.quantityButtonText}>−</Text>
+            </TouchableOpacity>
+            <Text style={styles.quantityText}>{item.quantity}</Text>
+            <TouchableOpacity
+              style={styles.quantityButton}
+              onPress={() => handleQuantityChange(item.productId, item.quantity + 1)}
+            >
+              <Text style={styles.quantityButtonText}>+</Text>
+            </TouchableOpacity>
+          </View>
           <TouchableOpacity
-            style={styles.quantityButton}
-            onPress={() => handleQuantityChange(item.id, item.quantity - 1)}
-            disabled={item.quantity === 1}
+            style={styles.removeButton}
+            onPress={() => handleRemoveItem(item.productId)}
           >
-            <Text style={styles.quantityButtonText}>−</Text>
-          </TouchableOpacity>
-          <Text style={styles.quantityText}>{item.quantity}</Text>
-          <TouchableOpacity
-            style={styles.quantityButton}
-            onPress={() => handleQuantityChange(item.id, item.quantity + 1)}
-          >
-            <Text style={styles.quantityButtonText}>+</Text>
+            <Ionicons name="trash" size={18} color="#CB202D" />
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </Swipeable>
   );
 
   const renderOutOfStockItem = ({ item }: { item: CartItem }) => (
@@ -348,7 +375,7 @@ const CartScreen = () => {
             <FlatList
               data={cartItems}
               renderItem={renderInStockItem}
-              keyExtractor={(item) => item.id.toString()}
+              keyExtractor={(item) => item.productId}
               scrollEnabled={false}
             />
           )}
@@ -1127,6 +1154,20 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '600',
+  },
+  swipeRemoveButton: {
+    backgroundColor: '#CB202D',
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: 80,
+    height: '100%',
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
+  },
+  swipeRemoveText: {
+    color: '#fff',
+    fontWeight: 'bold',
+    fontSize: 14,
   },
 });
 

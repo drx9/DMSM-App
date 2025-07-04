@@ -17,6 +17,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_URL } from '../config';
+import ProductCard from '../../components/ProductCard';
+import { useCart } from '../context/CartContext';
 
 const FREE_DELIVERY_THRESHOLD = 399; // Example value, adjust as needed
 
@@ -66,6 +68,7 @@ const ProductDetailScreen = () => {
   const [reviewRating, setReviewRating] = useState(0);
   const [reviewComment, setReviewComment] = useState('');
   const [cartCount, setCartCount] = useState(0);
+  const { addToCart } = useCart();
 
   useEffect(() => {
     fetchProductDetails();
@@ -338,21 +341,7 @@ const ProductDetailScreen = () => {
             horizontal
             keyExtractor={item => item.id}
             renderItem={({ item }) => (
-              <TouchableOpacity style={styles.productCard} onPress={() => router.push(`/product/${item.id}`)}>
-                <Image source={{ uri: item.images && item.images.length > 0 ? item.images[0] : '' }} style={styles.productCardImage} />
-                <Text style={styles.productCardName} numberOfLines={2}>{item.name}</Text>
-                <Text style={styles.productCardWeight}>360 g</Text>
-                <View style={styles.productCardPriceRow}>
-                  <View style={styles.priceTag}>
-                    <Text style={styles.priceLabel}>Kilos</Text>
-                    <Text style={styles.productCardPrice}>₹{item.price}</Text>
-                  </View>
-                  <Text style={styles.productCardMRP}>MRP ₹{Math.round(item.price * 1.15)}</Text>
-                </View>
-                <TouchableOpacity style={styles.productCardAddButton}>
-                  <Text style={styles.productCardAddText}>Add</Text>
-                </TouchableOpacity>
-              </TouchableOpacity>
+              <ProductCard id={item.id} name={item.name} price={item.price} image={item.images[0]} rating={item.rating} reviewCount={item.reviewCount} discount={item.discount} isOutOfStock={item.isOutOfStock} onPress={() => router.push(`/product/${item.id}`)} onAddToCart={() => addToCart(item.id)} />
             )}
             showsHorizontalScrollIndicator={false}
           />
@@ -398,21 +387,7 @@ const ProductDetailScreen = () => {
             horizontal
             keyExtractor={item => item.id}
             renderItem={({ item }) => (
-              <TouchableOpacity style={styles.productCard} onPress={() => router.push(`/product/${item.id}`)}>
-                <Image source={{ uri: item.images && item.images.length > 0 ? item.images[0] : '' }} style={styles.productCardImage} />
-                <Text style={styles.productCardName} numberOfLines={2}>{item.name}</Text>
-                <Text style={styles.productCardWeight}>7 x 18.57 g</Text>
-                <View style={styles.productCardPriceRow}>
-                  <View style={styles.priceTag}>
-                    <Text style={styles.priceLabel}>Kilos</Text>
-                    <Text style={styles.productCardPrice}>₹{item.price}</Text>
-                  </View>
-                  <Text style={styles.productCardMRP}>MRP ₹{Math.round(item.price * 1.15)}</Text>
-                </View>
-                <TouchableOpacity style={styles.productCardAddButton}>
-                  <Text style={styles.productCardAddText}>Add</Text>
-                </TouchableOpacity>
-              </TouchableOpacity>
+              <ProductCard id={item.id} name={item.name} price={item.price} image={item.images[0]} rating={item.rating} reviewCount={item.reviewCount} discount={item.discount} isOutOfStock={item.isOutOfStock} onPress={() => router.push(`/product/${item.id}`)} onAddToCart={() => addToCart(item.id)} />
             )}
             showsHorizontalScrollIndicator={false}
           />
@@ -792,60 +767,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     padding: 16,
     marginBottom: 8,
-  },
-  productCard: {
-    width: 140,
-    marginRight: 12,
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  productCardImage: {
-    width: '100%',
-    height: 100,
-    resizeMode: 'contain',
-    backgroundColor: '#FFFFFF',
-    marginBottom: 8,
-  },
-  productCardName: {
-    fontSize: 13,
-    color: '#333',
-    fontWeight: '500',
-    marginBottom: 4,
-    minHeight: 36,
-  },
-  productCardWeight: {
-    fontSize: 12,
-    color: '#666',
-    marginBottom: 8,
-  },
-  productCardPriceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  productCardPrice: {
-    fontSize: 14,
-    color: '#333',
-    fontWeight: 'bold',
-  },
-  productCardMRP: {
-    fontSize: 11,
-    color: '#666',
-    textDecorationLine: 'line-through',
-    marginLeft: 4,
-  },
-  productCardAddButton: {
-    borderWidth: 1,
-    borderColor: '#8B4513',
-    borderRadius: 4,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    alignItems: 'center',
-  },
-  productCardAddText: {
-    color: '#8B4513',
-    fontSize: 12,
-    fontWeight: '600',
   },
   deliveryInfo: {
     backgroundColor: '#FFFFFF',
