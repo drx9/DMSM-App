@@ -227,6 +227,83 @@ const googleLogin = async (req, res) => {
   // Implementation of googleLogin function
 };
 
+const deliveryLogin = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return res.status(400).json({ message: 'Email and password are required' });
+    }
+
+    const user = await User.findOne({ where: { email, role: 'delivery' } });
+    if (!user) {
+      return res.status(401).json({ message: 'Invalid credentials or not a delivery account' });
+    }
+
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Invalid credentials' });
+    }
+
+    const token = jwt.sign(
+      { userId: user.id, role: user.role },
+      process.env.JWT_SECRET || 'dev-secret-key',
+      { expiresIn: '24h' }
+    );
+    
+    res.json({
+      success: true,
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      }
+    });
+  } catch (error) {
+    console.error('Delivery login error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+const createDeliveryBoy = async (req, res) => {
+  try {
+    const { name, email, password, phoneNumber } = req.body;
+
+    if (!name || !email || !password || !phoneNumber) {
+      return res.status(400).json({ message: 'All fields are required' });
+    }
+
+    const existingUser = await User.findOne({ where: { email } });
+    if (existingUser) {
+      return res.status(400).json({ message: 'User with this email already exists' });
+    }
+
+    const user = await User.create({
+      name,
+      email,
+      password, // Password will be hashed by the model hook
+      phoneNumber,
+      role: 'delivery',
+      isVerified: true, // Delivery boys are created by admins, so they are pre-verified
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'Delivery boy created successfully',
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error('Create delivery boy error:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
 module.exports = {
   login,
   verifyOTP,
@@ -235,4 +312,6 @@ module.exports = {
   adminPasswordLogin,
   getUserById,
   googleLogin,
+  deliveryLogin,
+  createDeliveryBoy,
 }; 

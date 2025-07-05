@@ -153,26 +153,6 @@ const HomeScreen = () => {
   }
 
   return (
-<<<<<<< HEAD
-    <SafeAreaView style={styles.container} edges={['top', 'bottom', 'left', 'right']}>
-      <StatusBar barStyle="light-content" backgroundColor="#CB202D" />
-
-      {/* Blinkit Style Header */}
-      <View style={styles.header}>
-        <View style={styles.headerLeft}>
-          <View style={styles.brandContainer}>
-            <Text style={styles.brandText}>DMS</Text>
-            <Text style={styles.brandSubtext}>MART</Text>
-          </View>
-          <View style={styles.deliveryInfo}>
-            <Text style={styles.deliveryTime}>10 minutes</Text>
-          <View style={styles.locationContainer}>
-              <Ionicons name="location" size={16} color="#FFFFFF" />
-              <Text style={styles.locationText}>Deliver to</Text>
-              <Text style={styles.addressText}>Home - Jodhpur, Rajasthan</Text>
-            <Ionicons name="chevron-down" size={16} color="#FFFFFF" />
-            </View>
-=======
     <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
       <StatusBar translucent backgroundColor="transparent" barStyle="dark-content" />
 
@@ -208,7 +188,6 @@ const HomeScreen = () => {
               {userAddress || 'Railgate no 1, Chandmari...'}
             </Text>
             <Ionicons name="chevron-forward" size={16} color="#666" />
->>>>>>> 5b1e092b48191a9f44b616b6b96a360b398d3789
           </View>
         </View>
         <View style={styles.dateTimeContainer}>
@@ -223,19 +202,11 @@ const HomeScreen = () => {
         onPress={() => router.push('/products')}
       >
         <View style={styles.searchBar}>
-<<<<<<< HEAD
-          <Ionicons name="search" size={20} color="#666" />
-          <Text style={styles.searchText}>Search for products...</Text>
-          <TouchableOpacity style={styles.micButton}>
-            <Ionicons name="mic" size={20} color="#CB202D" />
-          </TouchableOpacity>
-=======
           <Ionicons name="search" size={18} color="#666" />
           <Text style={styles.searchText}>Search grocery products</Text>
           <View style={styles.filterIcon}>
             <Ionicons name="options-outline" size={16} color="#00A86B" />
           </View>
->>>>>>> 5b1e092b48191a9f44b616b6b96a360b398d3789
         </View>
       </TouchableOpacity>
 
@@ -270,12 +241,6 @@ const HomeScreen = () => {
                 style={styles.topPickCard}
                 onPress={() => handleProductPress(product.id)}
               >
-<<<<<<< HEAD
-                <View style={styles.categoryImageContainer}>
-                  <Image source={{ uri: category.image }} style={styles.categoryImage} />
-                </View>
-                <Text style={styles.categoryName}>{category.name}</Text>
-=======
                 <Image source={{ uri: product.images[0] }} style={styles.topPickImage} />
                 <View style={styles.ratingContainer}>
                   <Text style={styles.rating}>4.{Math.floor(Math.random() * 5) + 3}</Text>
@@ -299,41 +264,11 @@ const HomeScreen = () => {
                 <TouchableOpacity style={styles.addButton}>
                   <Ionicons name="add" size={16} color="#00A86B" />
                 </TouchableOpacity>
->>>>>>> 5b1e092b48191a9f44b616b6b96a360b398d3789
               </TouchableOpacity>
             ))}
           </ScrollView>
         </View>
 
-<<<<<<< HEAD
-        {/* Featured Products */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Featured Products</Text>
-          <View style={styles.productGrid}>
-            {featuredProducts.map((product) => (
-              <TouchableOpacity 
-                key={product.id} 
-                style={styles.productCard}
-                onPress={() => handleProductPress(product.id)}
-              >
-                <View style={styles.productImageContainer}>
-                  <Image source={{ uri: product.images[0] }} style={styles.productImage} />
-                  {product.discount > 0 && (
-                    <View style={styles.discountBadge}>
-                      <Text style={styles.discountText}>{product.discount}% OFF</Text>
-                    </View>
-                  )}
-                </View>
-                <View style={styles.productInfo}>
-                  <Text style={styles.productName} numberOfLines={2}>{product.name}</Text>
-                  <View style={styles.priceContainer}>
-                    <Text style={styles.productPrice}>₹{product.price}</Text>
-                  </View>
-                  <TouchableOpacity style={styles.addButton}>
-                  <Text style={styles.addButtonText}>ADD</Text>
-                </TouchableOpacity>
-                </View>
-=======
         {/* Mid Month Festival Banner */}
         <View style={styles.bannerContainer}>
           <View style={styles.festivalBanner}>
@@ -382,32 +317,11 @@ const HomeScreen = () => {
                 <Image source={{ uri: product.images[0] }} style={styles.gridProductImage} />
                 <Text style={styles.gridProductName} numberOfLines={2}>{product.name}</Text>
                 <Text style={styles.gridProductPrice}>₹{Number(product.price)}</Text>
->>>>>>> 5b1e092b48191a9f44b616b6b96a360b398d3789
               </TouchableOpacity>
             ))}
           </View>
         </View>
 
-<<<<<<< HEAD
-        {/* Offers Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Best Offers</Text>
-          <View style={styles.offersContainer}>
-            <TouchableOpacity style={styles.offerCard}>
-              <View style={styles.offerContent}>
-                <Text style={styles.offerTitle}>First Order</Text>
-                <Text style={styles.offerSubtitle}>Get 50% OFF</Text>
-                <Text style={styles.offerCode}>Use code: FIRST50</Text>
-              </View>
-              <View style={styles.offerImageContainer}>
-                <Ionicons name="gift" size={40} color="#CB202D" />
-        </View>
-              </TouchableOpacity>
-        </View>
-        </View>
-=======
-
->>>>>>> 5b1e092b48191a9f44b616b6b96a360b398d3789
       </ScrollView>
 
       <View style={styles.stickyDeliveryBar}>
@@ -432,13 +346,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
   },
-<<<<<<< HEAD
-  header: {
-    backgroundColor: '#CB202D',
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 12,
-=======
   appIconsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -468,7 +375,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   locationHeader: {
->>>>>>> 5b1e092b48191a9f44b616b6b96a360b398d3789
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -478,95 +384,14 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
   },
-<<<<<<< HEAD
-  headerLeft: {
-    flex: 1,
-  },
-  brandContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  brandText: {
-    color: '#FFFFFF',
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  brandSubtext: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 4,
-  },
-  deliveryInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  deliveryTime: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-    marginRight: 8,
-  },
-  locationContainer: {
-=======
   locationLeft: {
     flex: 1,
   },
   homeIconContainer: {
->>>>>>> 5b1e092b48191a9f44b616b6b96a360b398d3789
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
-<<<<<<< HEAD
-  locationText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    marginLeft: 4,
-  },
-  addressText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
-    marginLeft: 4,
-    flex: 1,
-  },
-  profileButton: {
-    padding: 8,
-  },
-  profileIconContainer: {
-    alignItems: 'center',
-    padding: 8,
-  },
-  profileIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-  },
-  profileIconText: {
-    color: '#FFFFFF',
-    fontSize: 10,
-    marginTop: 2,
-  },
-  searchBarContainer: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-  },
-  searchContainer: {
-    backgroundColor: '#FFFFFF',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E0E0E0',
-=======
   homeText: {
     fontSize: 12,
     fontWeight: 'bold',
@@ -599,25 +424,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     backgroundColor: '#FFFFFF',
->>>>>>> 5b1e092b48191a9f44b616b6b96a360b398d3789
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-<<<<<<< HEAD
-    backgroundColor: '#F8F9FA',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-  },
-  searchText: {
-    flex: 1,
-    marginLeft: 8,
-    color: '#666',
-    fontSize: 14,
-  },
-  micButton: {
-=======
     backgroundColor: '#F8F8F8',
     borderRadius: 8,
     paddingHorizontal: 12,
@@ -632,7 +442,6 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   filterIcon: {
->>>>>>> 5b1e092b48191a9f44b616b6b96a360b398d3789
     padding: 4,
   },
   scrollView: {
@@ -640,43 +449,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   section: {
-<<<<<<< HEAD
-    marginTop: 16,
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#1A1A1A',
-    marginBottom: 12,
-    paddingHorizontal: 16,
-  },
-  categoryContainer: {
-    paddingHorizontal: 16,
-  },
-  categoryCard: {
-    alignItems: 'center',
-    marginRight: 16,
-    width: 80,
-  },
-  categoryImageContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#F8F9FA',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  categoryImage: {
-    width: 40,
-    height: 40,
-    resizeMode: 'contain',
-  },
-  categoryName: {
-    fontSize: 12,
-    color: '#1A1A1A',
-    textAlign: 'center',
-=======
     paddingHorizontal: 16,
     paddingVertical: 16,
   },
@@ -853,7 +625,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 6,
     fontWeight: '500',
->>>>>>> 5b1e092b48191a9f44b616b6b96a360b398d3789
   },
   productGrid: {
     flexDirection: 'row',
@@ -868,19 +639,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#E0E0E0',
-<<<<<<< HEAD
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  productImageContainer: {
-    position: 'relative',
-=======
     padding: 8,
->>>>>>> 5b1e092b48191a9f44b616b6b96a360b398d3789
   },
   gridProductImage: {
     width: '100%',
@@ -894,13 +653,7 @@ const styles = StyleSheet.create({
     color: '#333',
     marginTop: 8,
     fontWeight: '500',
-<<<<<<< HEAD
-    color: '#1C1C1C',
-    marginBottom: 4,
-    paddingHorizontal: 8,
-=======
     lineHeight: 12,
->>>>>>> 5b1e092b48191a9f44b616b6b96a360b398d3789
   },
   gridProductPrice: {
     fontSize: 11,
@@ -911,90 +664,6 @@ const styles = StyleSheet.create({
   deliveryBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-<<<<<<< HEAD
-    justifyContent: 'space-between',
-    paddingHorizontal: 8,
-    marginBottom: 8,
-  },
-  productPrice: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#CB202D',
-  },
-  discountText: {
-    fontSize: 12,
-    color: '#CB202D',
-    fontWeight: '600',
-  },
-  discountBadge: {
-    position: 'absolute',
-    top: 8,
-    right: 8,
-    backgroundColor: '#CB202D',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  productInfo: {
-    padding: 8,
-  },
-  priceContainer: {
-    marginBottom: 8,
-  },
-  addButton: {
-    backgroundColor: '#CB202D',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 6,
-    alignItems: 'center',
-  },
-  addButtonText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  offersContainer: {
-    paddingHorizontal: 16,
-  },
-  offerCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  offerContent: {
-    flex: 1,
-  },
-  offerTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#1A1A1A',
-    marginBottom: 4,
-  },
-  offerSubtitle: {
-    fontSize: 14,
-    color: '#CB202D',
-    fontWeight: '600',
-    marginBottom: 4,
-  },
-  offerCode: {
-    fontSize: 12,
-    color: '#666',
-  },
-  offerImageContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#FFF5F5',
-    justifyContent: 'center',
-    alignItems: 'center',
-=======
     backgroundColor: '#FFF3CD',
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -1022,7 +691,6 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
     fontSize: 15,
->>>>>>> 5b1e092b48191a9f44b616b6b96a360b398d3789
   },
 });
 

@@ -18,7 +18,6 @@ export default function TabLayout() {
         name="index"
         options={{
           title: 'Home',
-<<<<<<< HEAD
           tabBarIcon: ({ color, focused }) => (
             <Ionicons 
               name={focused ? "home" : "home-outline"} 
@@ -26,16 +25,6 @@ export default function TabLayout() {
               color={color} 
             />
           ),
-=======
-          tabBarIcon: ({ color }) => <Ionicons name="home-outline" size={28} color={color} as const />,
-        }}
-      />
-      <Tabs.Screen
-        name="cart"
-        options={{
-          title: 'Bag',
-          tabBarIcon: ({ color }) => <Ionicons name="cart" size={28} color={color} as const />,
->>>>>>> 5b1e092b48191a9f44b616b6b96a360b398d3789
         }}
       />
       <Tabs.Screen
@@ -79,4 +68,4 @@ export default function TabLayout() {
       />
     </Tabs>
   );
-}
+} 

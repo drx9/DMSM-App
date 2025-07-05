@@ -30,30 +30,27 @@ export default function LoginPage() {
         resolver: zodResolver(loginSchema),
     });
 
-    const onSubmit = (data: LoginForm) => {
-        // TEMPORARY: Bypassing auth for development
-        router.push('/dashboard');
-
-        /*
+    const onSubmit = async (data: LoginForm) => {
         try {
             setIsLoading(true);
             const response = await axios.post(
-                `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/admin-login`,
+                `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/auth/admin/login`,
                 data
             );
 
             if (response.data.token) {
                 // Set cookie with token
-                document.cookie = `admin_token=${response.data.token}; path=/`;
+                document.cookie = `admin_token=${response.data.token}; path=/; max-age=86400;`; // Expires in 24 hours
                 toast.success('Login successful!');
                 router.push('/dashboard');
+            } else {
+                toast.error('Login failed: No token received');
             }
         } catch (error: any) {
             toast.error(error.response?.data?.message || 'Login failed');
         } finally {
             setIsLoading(false);
         }
-        */
     };
 
     return (

@@ -13,19 +13,10 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios, { AxiosError } from 'axios';
-import { 
-  getResponsiveFontSize, 
-  getResponsiveWidth, 
-  getResponsiveHeight,
-  SAFE_AREA_TOP,
-  SPACING 
-} from '../utils/deviceUtils';
+import { SPACING, SAFE_AREA_TOP, getResponsiveFontSize } from '../utils/deviceUtils';
 
-<<<<<<< HEAD
-const API_URL = 'http://192.168.70.139:5000/api';
-=======
-const API_URL = 'http://192.168.104.188:5000/api';
->>>>>>> 5b1e092b48191a9f44b616b6b96a360b398d3789
+const API_URL = 'http://192.168.29.116:5000/api';
+
 
 interface ApiResponse {
   success: boolean;

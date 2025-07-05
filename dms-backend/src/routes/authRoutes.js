@@ -1,6 +1,14 @@
 const express = require('express');
 const { body } = require('express-validator');
 const authController = require('../controllers/authController');
+const {
+  validateRegistration,
+  validateOTP,
+} = require('../middleware/validators');
+const {
+  authenticateToken,
+  isAdmin,
+} = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -67,31 +75,7 @@ router.post(
 
 router.post(
   '/register',
-  [
-    nameValidation,
-    body('phoneNumber').optional().matches(/^[0-9]{10}$/).withMessage('Invalid phone number format'),
-    body('email').optional().isEmail().withMessage('Invalid email format'),
-    passwordValidation,
-    addressValidation,
-    cityValidation,
-    stateValidation,
-    postalCodeValidation,
-    countryValidation,
-    dateOfBirthValidation,
-    genderValidation,
-    body('phoneNumber').custom((value, { req }) => {
-      if (!value && !req.body.email) {
-        throw new Error('Either phone number or email is required');
-      }
-      return true;
-    }),
-    body('email').custom((value, { req }) => {
-      if (!value && !req.body.phoneNumber) {
-        throw new Error('Either phone number or email is required');
-      }
-      return true;
-    }),
-  ],
+  validateRegistration,
   authController.register
 );
 
@@ -107,5 +91,12 @@ router.post(
 router.get('/user/:userId', authController.getUserById);
 
 router.post('/google', authController.googleLogin);
+
+router.post('/delivery/login', authController.deliveryLogin);
+
+router.post('/verify-otp', validateOTP, authController.verifyOTP);
+
+// New route for creating delivery boys
+router.post('/delivery-boys', authenticateToken, isAdmin, authController.createDeliveryBoy);
 
 module.exports = router; 

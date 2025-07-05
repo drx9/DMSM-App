@@ -39,7 +39,16 @@ const isAdmin = (req, res, next) => {
   }
 };
 
+const isDeliveryBoy = (req, res, next) => {
+  if (req.user && req.user.role === 'delivery') {
+    next();
+  } else {
+    res.status(403).json({ message: 'Delivery access required' });
+  }
+};
+
 module.exports = {
   authenticateToken,
-  isAdmin
+  isAdmin,
+  isDeliveryBoy,
 }; 
