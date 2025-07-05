@@ -9,6 +9,9 @@ const orderRoutes = require('./orderRoutes');
 const cartRoutes = require('./cartRoutes');
 const addressRoutes = require('./addressRoutes');
 const paymentRoutes = require('./paymentRoutes');
+const deliveryRoutes = require('./deliveryRoutes');
+const wishlistRoutes = require('./wishlistRoutes');
+const uploadRoutes = require('./uploadRoutes');
 
 // Health check endpoint
 router.get('/health', (req, res) => {
@@ -24,5 +27,8 @@ router.use('/orders', orderRoutes);
 router.use('/cart', cartRoutes);
 router.use('/addresses', addressRoutes);
 router.use('/payment-methods', paymentRoutes);
+router.use('/delivery', deliveryRoutes);
+router.use('/wishlist', wishlistRoutes);
+router.use('/upload-avatar', uploadRoutes);
 
 module.exports = router; 

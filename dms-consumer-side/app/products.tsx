@@ -15,12 +15,15 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from './context/LanguageContext';
 import { useCart } from './context/CartContext';
+import { useWishlist } from './context/WishlistContext';
 
 import ProductCard from '../components/ProductCard';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import productService from './services/productService';
 import { PAGINATION, SORT_OPTIONS, FILTER_OPTIONS, SortOption, FilterOption } from './config';
+import { getWishlist } from './services/wishlistService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface Product {
   id: string;
@@ -61,6 +64,7 @@ const ProductsScreen = () => {
   const [filters, setFilters] = useState<FilterOption[]>([]);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { addToCart } = useCart();
+  const { wishlistIds, add, remove } = useWishlist();
 
   const fetchProducts = async (isRefreshing = false) => {
     try {
@@ -170,6 +174,11 @@ const ProductsScreen = () => {
     );
   };
 
+  const handleToggleWishlist = async (product: any, wishlisted: boolean) => {
+    if (wishlisted) add(product.id, product);
+    else remove(product.id);
+  };
+
   const renderSortModal = () => (
     <Modal
       visible={showSortModal}
@@ -273,6 +282,8 @@ const ProductsScreen = () => {
               {...item}
               onPress={() => handleProductPress(item.id)}
               onAddToCart={() => addToCart(item.id)}
+              isWishlisted={wishlistIds.includes(item.id)}
+              onToggleWishlist={(wish) => handleToggleWishlist(item, wish)}
             />
           )}
           keyExtractor={(item) => item.id}

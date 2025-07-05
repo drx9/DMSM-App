@@ -29,6 +29,7 @@
     "expo-font": "~13.3.1",
     "expo-haptics": "~14.1.4",
     "expo-image": "~2.1.7",
+    "expo-image-picker": "^16.1.4",
     "expo-linking": "~7.1.5",
     "expo-random": "^14.0.1",
     "expo-router": "~5.0.6",
@@ -49,8 +50,10 @@
     "react-native-maps": "1.20.1",
     "react-native-paper": "^5.14.5",
     "react-native-reanimated": "~3.17.4",
+    "react-native-root-toast": "^4.0.1",
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.10.0",
+    "react-native-toast-message": "^2.3.3",
     "react-native-web": "~0.20.0",
     "react-native-webview": "13.13.5",
     "xlsx": "^0.18.5"

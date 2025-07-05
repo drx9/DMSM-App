@@ -9,6 +9,9 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { addToWishlist, removeFromWishlist } from '../app/services/wishlistService';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import Toast from 'react-native-root-toast';
 
 interface ProductCardProps {
   id: string;
@@ -21,6 +24,8 @@ interface ProductCardProps {
   isOutOfStock?: boolean;
   onPress?: () => void;
   onAddToCart?: () => void;
+  isWishlisted?: boolean;
+  onToggleWishlist?: (wishlisted: boolean) => void;
 }
 
 const { width } = Dimensions.get('window');
@@ -37,8 +42,12 @@ const ProductCard: React.FC<ProductCardProps> = ({
   isOutOfStock = false,
   onPress,
   onAddToCart,
+  isWishlisted = false,
+  onToggleWishlist,
 }) => {
   const router = useRouter();
+  const [wishlisted, setWishlisted] = React.useState(isWishlisted);
+  React.useEffect(() => { setWishlisted(isWishlisted); }, [isWishlisted]);
 
   const handlePress = () => {
     if (onPress) {
@@ -56,6 +65,22 @@ const ProductCard: React.FC<ProductCardProps> = ({
       onAddToCart();
     } else {
       alert('Added to cart!');
+    }
+  };
+
+  const handleWishlist = async () => {
+    const userId = await AsyncStorage.getItem('userId');
+    if (!userId) return Toast.show('Login required', { duration: 1500 });
+    if (wishlisted) {
+      await removeFromWishlist(userId, id);
+      setWishlisted(false);
+      Toast.show('Product removed from wishlist', { duration: 1500 });
+      onToggleWishlist && onToggleWishlist(false);
+    } else {
+      await addToWishlist(userId, id);
+      setWishlisted(true);
+      Toast.show('Product added to wishlist', { duration: 1500 });
+      onToggleWishlist && onToggleWishlist(true);
     }
   };
 
@@ -84,6 +109,13 @@ const ProductCard: React.FC<ProductCardProps> = ({
             <Text style={styles.outOfStockText}>Out of Stock</Text>
           </View>
         )}
+        {/* Wishlist Heart Button */}
+        <TouchableOpacity
+          style={styles.wishlistButton}
+          onPress={e => { e.stopPropagation && e.stopPropagation(); handleWishlist(); }}
+        >
+          <Ionicons name={wishlisted ? 'heart' : 'heart-outline'} size={22} color={wishlisted ? '#CB202D' : '#fff'} />
+        </TouchableOpacity>
         {/* Cart Icon Button */}
         {!isOutOfStock && (
           <TouchableOpacity
@@ -223,6 +255,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     zIndex: 2,
     elevation: 4,
+  },
+  wishlistButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 3,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 20,
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 

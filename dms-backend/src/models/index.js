@@ -15,6 +15,7 @@ const db = {
   CartItem: require('./CartItem')(sequelize),
   Address: require('./Address')(sequelize),
   Variant: require('./Variant'),
+  Wishlist: require('./Wishlist')(sequelize),
 };
 
 // Define associations
@@ -39,5 +40,7 @@ db.Address.belongsTo(db.User, { foreignKey: 'userId' });
 db.User.hasMany(db.Address, { foreignKey: 'userId' });
 
 db.Product.hasMany(db.Variant, { foreignKey: 'productId', as: 'variants' });
+
+db.Wishlist = db.Wishlist;
 
 module.exports = db; 

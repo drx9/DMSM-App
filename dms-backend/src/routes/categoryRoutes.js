@@ -6,6 +6,7 @@ const { authenticateToken } = require('../middleware/auth');
 // Public routes
 router.get('/', categoryController.getCategories);
 router.get('/:id', categoryController.getCategoryById);
+router.get('/:id/subcategories', categoryController.getSubCategories);
 
 // Protected routes
 router.post('/', authenticateToken, categoryController.createCategory);

@@ -63,6 +63,19 @@ const categoryController = {
       console.error('Error deleting category:', error);
       res.status(500).json({ message: 'Error deleting category', error: error.message });
     }
+  },
+
+  getSubCategories: async (req, res) => {
+    try {
+      const parentId = req.params.id;
+      const subCategories = await Category.findAll({
+        where: { parentId, isActive: true }
+      });
+      res.json(subCategories);
+    } catch (error) {
+      console.error('Error fetching subcategories:', error);
+      res.status(500).json({ message: 'Error fetching subcategories', error: error.message });
+    }
   }
 };
 

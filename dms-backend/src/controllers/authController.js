@@ -209,7 +209,7 @@ const adminPasswordLogin = async (req, res) => {
 const getUserById = async (req, res) => {
   try {
     const user = await User.findByPk(req.params.userId, {
-      attributes: ['id', 'name', 'email', 'phoneNumber', 'role', 'isVerified', 'isActive', 'createdAt', 'updatedAt']
+      attributes: ['id', 'name', 'email', 'phoneNumber', 'role', 'isVerified', 'isActive', 'createdAt', 'updatedAt', 'photo']
     });
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -227,6 +227,67 @@ const googleLogin = async (req, res) => {
   // Implementation of googleLogin function
 };
 
+const updateUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { name, email, phoneNumber, gender, dateOfBirth, photo } = req.body;
+    const user = await User.findByPk(userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    if (name) user.name = name;
+    if (email) user.email = email;
+    if (phoneNumber) user.phoneNumber = phoneNumber;
+    if (gender) user.gender = gender;
+    if (dateOfBirth) user.dateOfBirth = dateOfBirth;
+    if (photo) user.photo = photo;
+    await user.save();
+    res.json(user);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to update user' });
+  }
+};
+
+const changePassword = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { currentPassword, newPassword } = req.body;
+    const user = await User.findByPk(userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) return res.status(400).json({ message: 'Current password is incorrect' });
+    user.password = newPassword;
+    await user.save();
+    res.json({ message: 'Password changed successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to change password' });
+  }
+};
+
+const uploadAvatar = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
+    const user = await User.findByPk(userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    user.photo = `/uploads/avatars/${req.file.filename}`;
+    await user.save();
+    res.json({ photo: user.photo });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to upload avatar' });
+  }
+};
+
+const deleteUser = async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await User.findByPk(userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    await user.destroy();
+    res.json({ message: 'Account deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to delete account' });
+  }
+};
+
 module.exports = {
   login,
   verifyOTP,
@@ -235,4 +296,8 @@ module.exports = {
   adminPasswordLogin,
   getUserById,
   googleLogin,
+  updateUser,
+  changePassword,
+  uploadAvatar,
+  deleteUser,
 }; 

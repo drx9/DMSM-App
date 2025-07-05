@@ -139,6 +139,16 @@ const ProfileScreen = () => {
       router.push('/my-orders');
     } else if (feature.screen === 'saved-addresses') {
       router.push('/saved-addresses');
+    } else if (feature.screen === 'account-details') {
+      router.push('/account-details');
+    } else if (feature.screen === 'customer-support') {
+      router.push('/customer-support');
+    } else if (feature.screen === 'wishlist') {
+      router.push('/wishlist');
+    } else if (feature.screen === 'payment-options') {
+      router.push('/payment-options');
+    } else if (feature.screen === 'add-gift-card') {
+      router.push('/add-gift-card');
     } else {
       // Placeholder for other features
       console.log(`Navigating to ${feature.name}`);
@@ -188,65 +198,9 @@ const ProfileScreen = () => {
 
       <ScrollView style={styles.scrollViewContent}>
         {/* Orders Section */}
-        <Text style={styles.sectionTitle}>My Orders</Text>
-        {loadingOrders ? (
-          <ActivityIndicator size="small" color="#CB202D" />
-        ) : orders.length === 0 ? (
-          <Text style={styles.emptyText}>No orders found.</Text>
-        ) : (
-          <FlatList
-            data={orders}
-            keyExtractor={item => item.id}
-            renderItem={({ item }) => (
-              <View style={styles.orderCard}>
-                <Text style={styles.orderId}>Order #{item.id.slice(-6)}</Text>
-                <Text style={styles.orderStatus}>Status: {item.status}</Text>
-                <Text style={styles.orderTotal}>Total: ₹{item.totalAmount}</Text>
-                <Text style={styles.orderDate}>{new Date(item.createdAt).toLocaleString()}</Text>
-                <Text style={styles.orderItemsTitle}>Items:</Text>
-                {item.items.map((orderItem: any) => (
-                  <Text key={orderItem.id} style={styles.orderItemText}>
-                    {orderItem.product?.name} x {orderItem.quantity}
-                  </Text>
-                ))}
-              </View>
-            )}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={{ marginBottom: 20 }}
-          />
-        )}
+        {/* Removed My Orders section */}
         {/* Addresses Section */}
-        <Text style={styles.sectionTitle}>Saved Addresses</Text>
-        <TouchableOpacity style={styles.addAddressButton} onPress={() => setShowAddressManager(true)}>
-          <Ionicons name="location-outline" size={20} color="#CB202D" />
-          <Text style={styles.addAddressText}>Manage Addresses</Text>
-        </TouchableOpacity>
-        <FlatList
-          data={addresses}
-          keyExtractor={item => item.id}
-          renderItem={({ item }) => (
-            <View style={styles.addressCard}>
-              <Text style={styles.addressLine}>{item.line1}, {item.city}, {item.state}, {item.postalCode}</Text>
-              <Text style={styles.addressCountry}>{item.country}</Text>
-              {item.isDefault && <Text style={styles.primaryLabel}>Primary</Text>}
-            </View>
-          )}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={{ marginBottom: 20 }}
-        />
-        <AddressManagerModal
-          visible={showAddressManager}
-          onClose={() => setShowAddressManager(false)}
-          addresses={addresses}
-          onSetPrimary={handleSetPrimary}
-          onAdd={handleAddAddress}
-          onEdit={handleEditAddress}
-          onDelete={handleDeleteAddress}
-          loading={loadingAddresses}
-          onRequestLocation={handleRequestLocation}
-        />
+        {/* Removed Saved Addresses section and AddressManagerModal */}
         {/* Profile Features */}
         <Text style={styles.sectionTitle}>Account</Text>
         {profileFeatures.map((feature) => (

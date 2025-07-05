@@ -1,6 +1,8 @@
 const express = require('express');
 const { body } = require('express-validator');
 const authController = require('../controllers/authController');
+const multer = require('multer');
+const path = require('path');
 
 const router = express.Router();
 
@@ -35,6 +37,8 @@ const postalCodeValidation = body('postalCode').optional().isString().withMessag
 const countryValidation = body('country').optional().isString().withMessage('Country must be a string');
 const dateOfBirthValidation = body('dateOfBirth').optional().isISO8601().toDate().withMessage('Date of birth must be a valid date (YYYY-MM-DD)');
 const genderValidation = body('gender').optional().isIn(['Male', 'Female', 'Other']).withMessage('Gender must be Male, Female, or Other');
+
+const upload = multer({ dest: path.join(__dirname, '../../uploads/avatars') });
 
 // Routes
 router.post(
@@ -107,5 +111,10 @@ router.post(
 router.get('/user/:userId', authController.getUserById);
 
 router.post('/google', authController.googleLogin);
+
+router.put('/user/:userId', authController.updateUser);
+router.post('/user/:userId/change-password', authController.changePassword);
+router.post('/user/:userId/avatar', upload.single('avatar'), authController.uploadAvatar);
+router.delete('/user/:userId', authController.deleteUser);
 
 module.exports = router; 
