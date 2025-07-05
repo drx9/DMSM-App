@@ -8,6 +8,7 @@ const dashboardRoutes = require('./dashboardRoutes');
 const orderRoutes = require('./orderRoutes');
 const cartRoutes = require('./cartRoutes');
 const addressRoutes = require('./addressRoutes');
+const paymentRoutes = require('./paymentRoutes');
 
 // Health check endpoint
 router.get('/health', (req, res) => {
@@ -22,5 +23,6 @@ router.use('/dashboard', dashboardRoutes);
 router.use('/orders', orderRoutes);
 router.use('/cart', cartRoutes);
 router.use('/addresses', addressRoutes);
+router.use('/payment-methods', paymentRoutes);
 
 module.exports = router; 

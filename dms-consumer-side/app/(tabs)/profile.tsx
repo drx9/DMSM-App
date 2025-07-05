@@ -124,9 +124,13 @@ const ProfileScreen = () => {
     }
   };
 
-  const handleLogout = () => {
-    // Implement logout logic here
-    AsyncStorage.removeItem('userId');
+  const handleLogout = async () => {
+    // Clear all user-specific data
+    await AsyncStorage.removeItem('userId');
+    await AsyncStorage.removeItem('cartItems');
+    await AsyncStorage.removeItem('userAddress');
+    await AsyncStorage.removeItem('addressSet');
+    // Optionally, clear any other user-specific keys here
     router.replace('/login');
   };
 

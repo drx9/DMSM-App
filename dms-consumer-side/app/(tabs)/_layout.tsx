@@ -12,13 +12,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { API_URL } from '../config';
 import { useRouter } from 'expo-router';
 import { useCart } from '../context/CartContext';
+import { useFocusEffect } from '@react-navigation/native';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
   const [addressSet, setAddressSet] = useState<boolean | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const router = useRouter();
-  const { cartCount } = useCart();
+  const { cartCount, refreshCartFromBackend } = useCart();
   console.log('[TabLayout] cartCount:', cartCount);
 
   useEffect(() => {
@@ -65,6 +66,12 @@ export default function TabLayout() {
       console.log('[TabLayout] Showing tabs');
     }
   }, [addressSet, userId]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshCartFromBackend();
+    }, [refreshCartFromBackend])
+  );
 
   if (addressSet === null) {
     return <ActivityIndicator size="large" color="#CB202D" style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }} />;

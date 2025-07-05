@@ -34,7 +34,7 @@ router.post('/', async (req, res) => {
 });
 
 // Update quantity of a cart item
-router.put('/:userId/:itemId', cartController.updateCartItemQuantity);
+router.put('/:userId/:productId', cartController.updateCartItemQuantity);
 
 // Remove a cart item
 router.delete('/:userId/:productId', async (req, res) => {

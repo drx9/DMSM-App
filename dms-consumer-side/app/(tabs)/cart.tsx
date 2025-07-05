@@ -93,7 +93,7 @@ const CartScreen = () => {
       const response = await axios.get(`${API_URL}/cart/${userId}`);
       const items = response.data.map((item: any) => ({
         id: item.id,
-        productId: item.productId.toString(),
+        productId: item.productId?.toString() || item.Product?.id?.toString(),
         name: item.Product?.name || '',
         price: item.Product?.price || 0,
         quantity: item.quantity,

@@ -20,6 +20,7 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
     const [cart, setCart] = useState<CartItem[]>([]);
+    const [userId, setUserId] = useState<string | null>(null);
 
     // Fetch cart from backend and update context + AsyncStorage
     const refreshCartFromBackend = async () => {
@@ -30,7 +31,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
             console.log('[CartContext] Backend cart response:', res.data);
             // Map backend cart items to { id, quantity }
             const items = res.data.map((item: any) => ({
-                id: item.productId?.toString() || item.Product?.id?.toString() || item.id?.toString(),
+                id: item.Product?.id?.toString() || item.productId?.toString() || item.id?.toString(),
                 quantity: item.quantity,
             }));
             setCart(items);
@@ -47,10 +48,24 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
-    // On mount, always fetch cart from backend
+    // Watch for userId changes and reset cart
     useEffect(() => {
-        refreshCartFromBackend();
+        const getUserIdAndResetCart = async () => {
+            const uid = await AsyncStorage.getItem('userId');
+            setUserId(uid);
+            setCart([]);
+            await AsyncStorage.removeItem('cartItems');
+            if (uid) await refreshCartFromBackend();
+        };
+        getUserIdAndResetCart();
     }, []);
+
+    useEffect(() => {
+        if (userId === null) return;
+        setCart([]);
+        AsyncStorage.removeItem('cartItems');
+        if (userId) refreshCartFromBackend();
+    }, [userId]);
 
     // Save cart to AsyncStorage on change
     useEffect(() => {

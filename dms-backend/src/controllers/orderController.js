@@ -31,7 +31,9 @@ const orderController = {
 
     // Get a single order by ID
     getOrderById: async (req, res) => {
+        console.log('getOrderById called for', req.params.id);
         try {
+            console.log('[getOrderById] Requested order id:', req.params.id);
             const order = await Order.findByPk(req.params.id, {
                 include: [
                     { model: User, as: 'customer', attributes: ['id', 'name', 'email', 'phoneNumber'] },
@@ -41,12 +43,49 @@ const orderController = {
             });
 
             if (!order) {
+                console.log('[getOrderById] Order not found for id:', req.params.id);
                 return res.status(404).json({ message: 'Order not found' });
             }
-            res.json(order);
+
+            console.log('[getOrderById] Raw order:', JSON.stringify(order, null, 2));
+            if (!order.customer) {
+                console.log('[getOrderById] Order missing customer association');
+            }
+            if (!order.items || !Array.isArray(order.items)) {
+                console.log('[getOrderById] Order missing items association');
+            } else {
+                order.items.forEach((item, idx) => {
+                    if (!item.product) {
+                        console.log(`[getOrderById] Order item at index ${idx} missing product association`);
+                    }
+                });
+            }
+
+            // Defensive: ensure all associations are present
+            const safeUser = order.customer || { name: 'Unknown', email: '', phoneNumber: '' };
+            const safeDeliveryBoy = order.deliveryBoy || { name: '', phoneNumber: '' };
+            const safeOrderItems = Array.isArray(order.items)
+                ? order.items.map(item => ({
+                    id: item.id,
+                    quantity: item.quantity,
+                    price: item.price,
+                    product: item.product || { name: 'Unknown', price: 0, images: [] },
+                }))
+                : [];
+            res.json({
+                id: order.id,
+                status: order.status,
+                totalAmount: order.totalAmount,
+                createdAt: order.createdAt,
+                updatedAt: order.updatedAt,
+                shippingAddress: order.shippingAddress,
+                user: safeUser,
+                deliveryBoy: safeDeliveryBoy,
+                orderItems: safeOrderItems,
+            });
         } catch (error) {
-            console.error('Error fetching order:', error);
-            res.status(500).json({ message: 'Error fetching order' });
+            console.error('[getOrderById] Error fetching order:', error);
+            res.status(500).json({ message: 'Error fetching order', error: error.stack });
         }
     },
 
@@ -80,50 +119,35 @@ const orderController = {
     // Place order logic
     placeOrder: async (req, res) => {
         try {
-            const userId = req.query.userId || req.body.userId || (req.user && req.user.id);
-            const { addressId, paymentMethod } = req.body;
-            if (!userId || !addressId) {
-                return res.status(400).json({ message: 'userId and addressId are required' });
-            }
-            // Fetch address
-            const address = await Address.findByPk(addressId);
-            if (!address) {
-                return res.status(404).json({ message: 'Address not found' });
-            }
-            // Find cart items for the user
-            const cartItems = await CartItem.findAll({ where: { userId } });
-            if (!cartItems.length) {
-                return res.status(400).json({ message: 'Cart is empty' });
-            }
-            // Calculate total
-            let totalAmount = 0;
-            for (const cartItem of cartItems) {
-                const product = await Product.findByPk(cartItem.productId);
-                totalAmount += (product.price * cartItem.quantity);
+            console.log('[placeOrder] Incoming body:', req.body);
+            const userId = req.body.userId || req.query.userId || (req.user && req.user.id);
+            const { address, cartItems, paymentMethod, total } = req.body;
+            if (!userId || !address || !cartItems || !cartItems.length) {
+                return res.status(400).json({ message: 'userId, address, and cartItems are required' });
             }
             // Create order
             const order = await Order.create({
                 userId,
-                shippingAddress: address.toJSON(),
+                shippingAddress: address, // full address object with lat/lng
                 status: 'pending',
-                totalAmount,
+                totalAmount: total,
                 paymentStatus: paymentMethod === 'cod' ? 'pending' : 'paid',
             });
-            // Move cart items to order items
-            for (const cartItem of cartItems) {
+            // Create order items
+            for (const item of cartItems) {
                 await OrderItem.create({
                     orderId: order.id,
-                    productId: cartItem.productId,
-                    quantity: cartItem.quantity,
-                    price: (await Product.findByPk(cartItem.productId)).price,
+                    productId: item.id,
+                    quantity: item.quantity,
+                    price: item.price,
                 });
             }
             // Clear cart
             await CartItem.destroy({ where: { userId } });
             res.json(order);
         } catch (error) {
-            console.error('Error placing order:', error);
-            res.status(500).json({ message: 'Error placing order' });
+            console.error('[placeOrder] Error placing order:', error);
+            res.status(500).json({ message: 'Error placing order', error: error.stack });
         }
     },
 
