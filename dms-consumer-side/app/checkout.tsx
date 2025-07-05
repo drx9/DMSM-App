@@ -18,6 +18,8 @@ import axios from 'axios';
 import { API_URL } from './config';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import LocationSelectionScreen from './location/LocationSelectionScreen';
+import { useCart } from './context/CartContext';
 
 const { width } = Dimensions.get('window');
 
@@ -42,42 +44,6 @@ interface Address {
     isDefault: boolean;
 }
 
-const paymentMethods = [
-    {
-        id: 'upi',
-        label: 'UPI',
-        icon: 'card-outline',
-        subMethods: [
-            { id: 'googlepay', label: 'Google Pay', icon: 'logo-google' },
-            { id: 'phonepe', label: 'PhonePe', icon: 'call-outline' },
-            { id: 'custom_upi', label: 'Add new UPI ID', icon: 'add-outline' }
-        ]
-    },
-    {
-        id: 'card',
-        label: 'Credit / Debit / ATM Card',
-        icon: 'card-outline',
-        subtitle: 'Add and secure cards as per RBI guidelines',
-        offer: '5% cashback on Axis Bank DMSM Debit Card up to ₹750'
-    },
-    {
-        id: 'netbanking',
-        label: 'Net Banking',
-        icon: 'business-outline'
-    },
-    {
-        id: 'cod',
-        label: 'Cash on Delivery',
-        icon: 'cash-outline'
-    },
-    {
-        id: 'gift',
-        label: 'Have a DMSM Gift Card?',
-        icon: 'gift-outline',
-        action: 'Add'
-    }
-];
-
 // Helper to ensure icon is a valid Ionicons name
 const validIonicons = [
     'card-outline', 'logo-google', 'call-outline', 'add-outline', 'business-outline', 'cash-outline', 'gift-outline'
@@ -97,21 +63,25 @@ const CheckoutScreen = () => {
     const [showAddAddress, setShowAddAddress] = useState(false);
     const [newAddress, setNewAddress] = useState<Partial<Address>>({});
     const [expandedPayment, setExpandedPayment] = useState('upi');
+    const [showLocationSelector, setShowLocationSelector] = useState(false);
+    const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
     const router = useRouter();
+    const { refreshCartFromBackend } = useCart();
 
     useEffect(() => {
-        const fetchCartAndAddresses = async () => {
+        const fetchCartAndAddressesAndPayments = async () => {
             try {
                 setLoading(true);
                 const storedUserId = await AsyncStorage.getItem('userId');
                 setUserId(storedUserId);
                 if (storedUserId) {
-                    const [cartRes, addrRes] = await Promise.all([
+                    const [cartRes, addrRes, paymentRes] = await Promise.all([
                         axios.get(`${API_URL}/cart/${storedUserId}`),
                         axios.get(`${API_URL}/addresses/${storedUserId}`),
+                        axios.get(`${API_URL}/payment-methods/${storedUserId}`),
                     ]);
                     const items = cartRes.data.map((item: any) => ({
-                        id: item.id,
+                        id: item.productId?.toString() || item.Product?.id?.toString(),
                         name: item.Product?.name || '',
                         price: item.Product?.price || 0,
                         quantity: item.quantity,
@@ -121,17 +91,18 @@ const CheckoutScreen = () => {
                     }));
                     setCartItems(items);
                     setAddresses(addrRes.data);
+                    setPaymentMethods(paymentRes.data || []);
                     // Set default address if exists
                     const defaultAddr = addrRes.data.find((a: any) => a.isDefault);
                     setSelectedAddressId(defaultAddr ? defaultAddr.id : addrRes.data[0]?.id || null);
                 }
             } catch (error) {
-                console.error('Failed to fetch cart or addresses:', error);
+                console.error('Failed to fetch cart, addresses, or payment methods:', error);
             } finally {
                 setLoading(false);
             }
         };
-        fetchCartAndAddresses();
+        fetchCartAndAddressesAndPayments();
     }, []);
 
     const calculateSubtotal = () => {
@@ -201,18 +172,43 @@ const CheckoutScreen = () => {
             Alert.alert('Error', 'Please select a delivery address.');
             return;
         }
+        const selectedAddress = addresses.find(addr => addr.id === selectedAddressId);
+        if (!selectedAddress) {
+            Alert.alert('Error', 'Selected address not found.');
+            return;
+        }
         try {
             await axios.post(`${API_URL}/orders/place-order`, {
-                addressId: selectedAddressId,
+                userId,
+                address: selectedAddress, // includes lat/lng if present
+                cartItems,
                 paymentMethod: selectedPayment,
-            }, {
-                params: { userId },
+                total: calculateTotal(),
             });
+            await refreshCartFromBackend();
             Alert.alert('Success', 'Order placed successfully!');
             router.replace('/(tabs)');
         } catch (error) {
             console.error('Order placement error:', error);
             Alert.alert('Error', 'Failed to place order.');
+        }
+    };
+
+    // Handler for location selection from modal
+    const handleLocationSelected = async (locationAddress: any) => {
+        if (!userId) return;
+        try {
+            // Save address to backend
+            const res = await axios.post(`${API_URL}/addresses`, {
+                ...locationAddress,
+                userId,
+                country: locationAddress.country || 'India',
+            });
+            setAddresses((prev) => [...prev, res.data]);
+            setSelectedAddressId(res.data.id);
+            setShowLocationSelector(false);
+        } catch (error) {
+            Alert.alert('Error', 'Failed to add address');
         }
     };
 
@@ -308,58 +304,11 @@ const CheckoutScreen = () => {
 
                 <TouchableOpacity
                     style={styles.addAddressButton}
-                    onPress={() => setShowAddAddress(true)}
+                    onPress={() => setShowLocationSelector(true)}
                 >
                     <Ionicons name="add" size={20} color="#2874F0" />
                     <Text style={styles.addAddressText}>Add New Address</Text>
                 </TouchableOpacity>
-
-                {showAddAddress && (
-                    <View style={styles.addAddressForm}>
-                        <Text style={styles.formTitle}>Add New Address</Text>
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Address Line 1 *"
-                            value={newAddress.line1 || ''}
-                            onChangeText={v => setNewAddress(a => ({ ...a, line1: v }))}
-                        />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Address Line 2"
-                            value={newAddress.line2 || ''}
-                            onChangeText={v => setNewAddress(a => ({ ...a, line2: v }))}
-                        />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="City *"
-                            value={newAddress.city || ''}
-                            onChangeText={v => setNewAddress(a => ({ ...a, city: v }))}
-                        />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="State *"
-                            value={newAddress.state || ''}
-                            onChangeText={v => setNewAddress(a => ({ ...a, state: v }))}
-                        />
-                        <TextInput
-                            style={styles.input}
-                            placeholder="Postal Code *"
-                            value={newAddress.postalCode || ''}
-                            onChangeText={v => setNewAddress(a => ({ ...a, postalCode: v }))}
-                        />
-                        <View style={styles.formButtons}>
-                            <TouchableOpacity style={styles.saveButton} onPress={handleAddAddress}>
-                                <Text style={styles.saveButtonText}>Save Address</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity
-                                style={styles.cancelButton}
-                                onPress={() => setShowAddAddress(false)}
-                            >
-                                <Text style={styles.cancelButtonText}>Cancel</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
-                )}
             </ScrollView>
         );
     };
@@ -513,7 +462,7 @@ const CheckoutScreen = () => {
 
                             {expandedPayment === method.id && method.subMethods && (
                                 <View style={styles.subMethods}>
-                                    {method.subMethods.map((subMethod) => (
+                                    {method.subMethods.map((subMethod: any) => (
                                         <TouchableOpacity
                                             key={subMethod.id}
                                             style={[
@@ -635,6 +584,16 @@ const CheckoutScreen = () => {
             </View>
 
             {renderBottomButton()}
+
+            {showLocationSelector && (
+                <LocationSelectionScreen
+                    onLocationSelected={handleLocationSelected}
+                    userId={userId}
+                    editingAddress={null}
+                    savedAddress={null}
+                    onBack={() => setShowLocationSelector(false)}
+                />
+            )}
         </SafeAreaView>
     );
 };

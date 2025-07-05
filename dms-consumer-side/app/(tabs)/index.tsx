@@ -23,10 +23,29 @@ import { API_URL } from '../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import LocationSelectionScreen from '../location/LocationSelectionScreen';
+import AddressManagerModal, { Address } from '../../components/AddressManagerModal';
+import { useFocusEffect } from '@react-navigation/native';
+import ProductCard from '../../components/ProductCard';
+import { useCart } from '../context/CartContext';
 
 const { width } = Dimensions.get('window');
 const PRODUCT_CARD_WIDTH = (width - 32 - 20) / 3; // 3 cards per row with proper spacing
 const FREE_DELIVERY_THRESHOLD = 399;
+
+const NALBARI_BOUNDS = {
+  northeast: { lat: 26.464, lng: 91.468 },
+  southwest: { lat: 26.420, lng: 91.410 },
+};
+
+function isWithinNalbari(lat: number, lng: number) {
+  return (
+    lat >= NALBARI_BOUNDS.southwest.lat &&
+    lat <= NALBARI_BOUNDS.northeast.lat &&
+    lng >= NALBARI_BOUNDS.southwest.lng &&
+    lng <= NALBARI_BOUNDS.northeast.lng
+  );
+}
 
 const HomeScreen = () => {
   console.log('HomeScreen loaded at', new Date().toISOString());
@@ -43,6 +62,14 @@ const HomeScreen = () => {
   const [userAddress, setUserAddress] = useState<string>('');
   const [cartTotal, setCartTotal] = useState(0);
   const insets = useSafeAreaInsets();
+  const [showLocationScreen, setShowLocationScreen] = useState(false);
+  const [userLocation, setUserLocation] = useState<any>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [addresses, setAddresses] = useState<Address[]>([]);
+  const [primaryAddress, setPrimaryAddress] = useState<Address | null>(null);
+  const [showAddressModal, setShowAddressModal] = useState(false);
+  const [showLocationSelector, setShowLocationSelector] = useState(false);
+  const { addToCart } = useCart();
 
   // Get current date and time
   const getCurrentDateTime = () => {
@@ -81,6 +108,23 @@ const HomeScreen = () => {
   };
 
   useEffect(() => {
+    const fetchAddresses = async () => {
+      const uid = await AsyncStorage.getItem('userId');
+      setUserId(uid);
+      if (!uid) return;
+      try {
+        const res = await axios.get(`${API_URL}/addresses/${uid}`);
+        setAddresses(res.data);
+        const primary = res.data.find((a: Address) => a.isDefault) || res.data[0] || null;
+        setPrimaryAddress(primary);
+        if (primary) await AsyncStorage.setItem('userAddress', JSON.stringify(primary));
+      } catch (err: any) {
+        setAddresses([]);
+        setPrimaryAddress(null);
+        console.log('Error fetching addresses:', err?.response?.data || err.message || err);
+      }
+    };
+    fetchAddresses();
     fetchData();
     const fetchUserDetails = async () => {
       try {
@@ -133,6 +177,103 @@ const HomeScreen = () => {
     });
   };
 
+  const handleSetPrimary = async (id: string) => {
+    try {
+      await axios.post(`${API_URL}/addresses/set-default/${id}`);
+      const updated = addresses.map(a => ({ ...a, isDefault: a.id === id }));
+      setAddresses(updated);
+      const primary = updated.find(a => a.isDefault) || updated[0] || null;
+      setPrimaryAddress(primary);
+      if (primary) await AsyncStorage.setItem('userAddress', JSON.stringify(primary));
+    } catch (err: any) {
+      Alert.alert('Error', 'Failed to set primary address.');
+    }
+  };
+
+  const handleAddAddress = async (address: Omit<Address, 'id' | 'isDefault'>) => {
+    try {
+      const uid = userId || (await AsyncStorage.getItem('userId'));
+      const res = await axios.post(`${API_URL}/addresses`, { ...address, userId: uid });
+      setAddresses(prev => [...prev, res.data]);
+      if (addresses.length === 0) {
+        // If first address, set as primary
+        await handleSetPrimary(res.data.id);
+      }
+    } catch (err: any) {
+      Alert.alert('Error', 'Failed to add address.');
+    }
+  };
+
+  const handleEditAddress = async (id: string, address: Omit<Address, 'id' | 'isDefault'>) => {
+    try {
+      await axios.put(`${API_URL}/addresses/${id}`, address);
+      setAddresses(prev => prev.map(a => (a.id === id ? { ...a, ...address } : a)));
+    } catch (err: any) {
+      Alert.alert('Error', 'Failed to edit address.');
+    }
+  };
+
+  const handleDeleteAddress = async (id: string) => {
+    try {
+      await axios.delete(`${API_URL}/addresses/${id}`);
+      const updated = addresses.filter(a => a.id !== id);
+      setAddresses(updated);
+      if (primaryAddress?.id === id) {
+        const newPrimary = updated[0] || null;
+        setPrimaryAddress(newPrimary);
+        if (newPrimary) await handleSetPrimary(newPrimary.id);
+        else await AsyncStorage.removeItem('userAddress');
+      }
+    } catch (err: any) {
+      Alert.alert('Error', 'Failed to delete address.');
+    }
+  };
+
+  const handleRequestLocation = () => {
+    setShowAddressModal(false);
+    setShowLocationSelector(true);
+  };
+
+  const handleLocationSelected = async (address: any) => {
+    setShowLocationSelector(false);
+    await handleAddAddress(address);
+  };
+
+  useFocusEffect(
+    React.useCallback(() => {
+      // When the tab is focused, close the address modal if open
+      setShowAddressModal(false);
+    }, [])
+  );
+
+  if (showLocationScreen) {
+    return (
+      <LocationSelectionScreen
+        onLocationSelected={(address: any) => {
+          setUserLocation(address);
+          setShowLocationScreen(false);
+        }}
+        savedAddress={userLocation}
+      />
+    );
+  }
+
+  if (!primaryAddress && !showLocationSelector) {
+    // If no address exists, force location selector
+    setShowLocationSelector(true);
+    return null;
+  }
+
+  if (showLocationSelector) {
+    return (
+      <LocationSelectionScreen
+        onLocationSelected={handleLocationSelected}
+        userId={userId}
+        onBack={() => setShowLocationSelector(false)}
+      />
+    );
+  }
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -179,22 +320,36 @@ const HomeScreen = () => {
       </View>
 
       {/* Location and Time Header */}
-      <View style={styles.locationHeader}>
-        <View style={styles.locationLeft}>
-          <View style={styles.homeIconContainer}>
-            <Ionicons name="home" size={16} color="#333" />
-            <Text style={styles.homeText}>HOME</Text>
-            <Text style={styles.addressText}>
-              {userAddress || 'Railgate no 1, Chandmari...'}
-            </Text>
-            <Ionicons name="chevron-forward" size={16} color="#666" />
+      <TouchableOpacity onPress={() => setShowAddressModal(true)}>
+        <View style={styles.locationHeader}>
+          <View style={styles.locationLeft}>
+            <View style={styles.homeIconContainer}>
+              <Ionicons name="home" size={16} color="#333" />
+              <Text style={styles.homeText}>HOME</Text>
+              <Text style={styles.addressText}>
+                {primaryAddress ? `${primaryAddress.line1}, ${primaryAddress.city}, ${primaryAddress.state}` : 'No address set'}
+              </Text>
+              <Ionicons name="chevron-forward" size={16} color="#666" />
+            </View>
+          </View>
+          <View style={styles.dateTimeContainer}>
+            <Text style={styles.dateText}>{date}</Text>
+            <Text style={styles.timeText}>{time}</Text>
           </View>
         </View>
-        <View style={styles.dateTimeContainer}>
-          <Text style={styles.dateText}>{date}</Text>
-          <Text style={styles.timeText}>{time}</Text>
-        </View>
-      </View>
+      </TouchableOpacity>
+
+      <AddressManagerModal
+        visible={showAddressModal}
+        onClose={() => setShowAddressModal(false)}
+        addresses={addresses}
+        onSetPrimary={handleSetPrimary}
+        onAdd={handleAddAddress}
+        onEdit={handleEditAddress}
+        onDelete={handleDeleteAddress}
+        loading={false}
+        onRequestLocation={handleRequestLocation}
+      />
 
       {/* Search Bar */}
       <TouchableOpacity
@@ -236,35 +391,19 @@ const HomeScreen = () => {
             contentContainerStyle={styles.horizontalScroll}
           >
             {popularProducts.slice(0, 6).map((product, index) => (
-              <TouchableOpacity
+              <ProductCard
                 key={product.id}
-                style={styles.topPickCard}
+                id={product.id}
+                name={product.name}
+                price={product.price}
+                image={product.images[0]}
+                rating={4.5}
+                reviewCount={123}
+                discount={20}
+                isOutOfStock={false}
                 onPress={() => handleProductPress(product.id)}
-              >
-                <Image source={{ uri: product.images[0] }} style={styles.topPickImage} />
-                <View style={styles.ratingContainer}>
-                  <Text style={styles.rating}>4.{Math.floor(Math.random() * 5) + 3}</Text>
-                  <Ionicons name="star" size={10} color="#00A86B" />
-                </View>
-                <Text style={styles.productWeight}>
-                  {Math.floor(Math.random() * 10) + 1} x {Math.floor(Math.random() * 200) + 50} g
-                </Text>
-                <Text style={styles.topPickName} numberOfLines={2}>{product.name}</Text>
-                <View style={styles.discountBadge}>
-                  <Text style={styles.discountText}>
-                    {Number(product.discount) || Math.floor(Math.random() * 50) + 10}% OFF
-                  </Text>
-                </View>
-                <View style={styles.priceRow}>
-                  <Text style={styles.currentPrice}>₹{Number(product.price)}</Text>
-                  <Text style={styles.originalPrice}>
-                    ₹{Math.floor(Number(product.price) * 1.3)}
-                  </Text>
-                </View>
-                <TouchableOpacity style={styles.addButton}>
-                  <Ionicons name="add" size={16} color="#00A86B" />
-                </TouchableOpacity>
-              </TouchableOpacity>
+                onAddToCart={() => addToCart(product.id)}
+              />
             ))}
           </ScrollView>
         </View>
@@ -309,15 +448,19 @@ const HomeScreen = () => {
           <Text style={styles.sectionTitle}>New Arrivals</Text>
           <View style={styles.productGrid}>
             {newArrivals.slice(0, 6).map((product) => (
-              <TouchableOpacity
+              <ProductCard
                 key={product.id}
-                style={styles.gridProductCard}
+                id={product.id}
+                name={product.name}
+                price={product.price}
+                image={product.images[0]}
+                rating={4.5}
+                reviewCount={123}
+                discount={20}
+                isOutOfStock={false}
                 onPress={() => handleProductPress(product.id)}
-              >
-                <Image source={{ uri: product.images[0] }} style={styles.gridProductImage} />
-                <Text style={styles.gridProductName} numberOfLines={2}>{product.name}</Text>
-                <Text style={styles.gridProductPrice}>₹{Number(product.price)}</Text>
-              </TouchableOpacity>
+                onAddToCart={() => addToCart(product.id)}
+              />
             ))}
           </View>
         </View>

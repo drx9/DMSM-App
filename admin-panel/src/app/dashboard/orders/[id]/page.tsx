@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 
@@ -71,7 +71,7 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
     const fetchOrder = async () => {
         try {
             setLoading(true);
-            const response = await axios.get(`/api/orders/${id}`);
+            const response = await api.get(`/api/orders/${id}`);
             setOrder(response.data);
         } catch (error) {
             console.error('Error fetching order details:', error);
@@ -92,7 +92,7 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
 
         try {
             setUpdatingStatus(true);
-            await axios.put(`/api/orders/${id}`, { status: newStatus });
+            await api.put(`/api/orders/${id}`, { status: newStatus });
             toast.success('Order status updated!');
             setOrder({ ...order, status: newStatus }); // Optimistically update UI
         } catch (error) {

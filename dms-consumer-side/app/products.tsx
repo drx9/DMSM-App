@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from './context/LanguageContext';
+import { useCart } from './context/CartContext';
 
 import ProductCard from '../components/ProductCard';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -59,6 +60,7 @@ const ProductsScreen = () => {
   const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'created_at_desc' | 'created_at_asc' | 'rating_desc' | undefined>(undefined);
   const [filters, setFilters] = useState<FilterOption[]>([]);
   const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { addToCart } = useCart();
 
   const fetchProducts = async (isRefreshing = false) => {
     try {
@@ -270,6 +272,7 @@ const ProductsScreen = () => {
             <ProductCard
               {...item}
               onPress={() => handleProductPress(item.id)}
+              onAddToCart={() => addToCart(item.id)}
             />
           )}
           keyExtractor={(item) => item.id}

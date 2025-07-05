@@ -38,6 +38,14 @@ module.exports = (sequelize) => {
             type: DataTypes.BOOLEAN,
             defaultValue: false,
         },
+        latitude: {
+            type: DataTypes.DOUBLE,
+            allowNull: true,
+        },
+        longitude: {
+            type: DataTypes.DOUBLE,
+            allowNull: true,
+        },
     });
     return Address;
 }; 

@@ -56,11 +56,6 @@ const SignupScreen = () => {
   const [phoneNumber, setPhoneNumber] = useState((initialPhoneNumber as string) || '');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [address, setAddress] = useState('');
-  const [city, setCity] = useState('');
-  const [state, setState] = useState('');
-  const [postalCode, setPostalCode] = useState('');
-  const [country, setCountry] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState<Date | undefined>(undefined);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [gender, setGender] = useState('');
@@ -128,11 +123,6 @@ const SignupScreen = () => {
         phoneNumber: phoneNumber || undefined,
         email: email || undefined,
         // Don't log password for security
-        address: address || undefined,
-        city: city || undefined,
-        state: state || undefined,
-        postalCode: postalCode || undefined,
-        country: country || undefined,
         dateOfBirth: dateOfBirth ? dateOfBirth.toISOString().split('T')[0] : undefined,
         gender: gender || undefined,
       });
@@ -142,11 +132,6 @@ const SignupScreen = () => {
         phoneNumber: phoneNumber || undefined,
         email: email || undefined,
         password,
-        address: address || undefined,
-        city: city || undefined,
-        state: state || undefined,
-        postalCode: postalCode || undefined,
-        country: country || undefined,
         dateOfBirth: dateOfBirth ? dateOfBirth.toISOString().split('T')[0] : undefined,
         gender: gender || undefined,
       });
@@ -265,57 +250,6 @@ const SignupScreen = () => {
               value={password}
               onChangeText={setPassword}
               maxLength={20}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>{t('address')}</Text>
-            <TextInput
-              style={styles.input}
-              placeholder={t('enterYourAddress')}
-              value={address}
-              onChangeText={setAddress}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>{t('city')}</Text>
-            <TextInput
-              style={styles.input}
-              placeholder={t('enterYourCity')}
-              value={city}
-              onChangeText={setCity}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>{t('state')}</Text>
-            <TextInput
-              style={styles.input}
-              placeholder={t('enterYourState')}
-              value={state}
-              onChangeText={setState}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>{t('postalCode')}</Text>
-            <TextInput
-              style={styles.input}
-              placeholder={t('enterYourPostalCode')}
-              value={postalCode}
-              onChangeText={setPostalCode}
-              keyboardType="numeric"
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>{t('country')}</Text>
-            <TextInput
-              style={styles.input}
-              placeholder={t('enterYourCountry')}
-              value={country}
-              onChangeText={setCountry}
             />
           </View>
 

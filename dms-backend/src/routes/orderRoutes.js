@@ -11,6 +11,7 @@ router.get('/delivery-boys', async (req, res) => {
         const deliveryBoys = await User.findAll({ where: { role: 'delivery' }, attributes: ['id', 'name', 'email', 'phoneNumber', 'isActive', 'createdAt'] });
         res.json(deliveryBoys);
     } catch (err) {
+        console.error('Error in GET /delivery-boys:', err);
         res.status(500).json({ message: 'Failed to fetch delivery boys' });
     }
 });
@@ -21,6 +22,7 @@ router.post('/delivery-boys', async (req, res) => {
         const user = await User.create({ name, email, phoneNumber, password, role: 'delivery', isVerified: true, isActive: true });
         res.status(201).json(user);
     } catch (err) {
+        console.error('Error in POST /delivery-boys:', err);
         res.status(500).json({ message: 'Failed to add delivery boy' });
     }
 });
@@ -37,6 +39,7 @@ router.put('/delivery-boys/:id', async (req, res) => {
         await user.save();
         res.json(user);
     } catch (err) {
+        console.error('Error in PUT /delivery-boys/:id:', err);
         res.status(500).json({ message: 'Failed to update delivery boy' });
     }
 });
@@ -48,6 +51,7 @@ router.delete('/delivery-boys/:id', async (req, res) => {
         await user.destroy();
         res.json({ message: 'Delivery boy deleted' });
     } catch (err) {
+        console.error('Error in DELETE /delivery-boys/:id:', err);
         res.status(500).json({ message: 'Failed to delete delivery boy' });
     }
 });
@@ -70,6 +74,7 @@ router.get('/delivery-boys/:id/metrics', async (req, res) => {
         const locations = await Order.findAll({ where: { deliveryBoyId, status: 'delivered' }, attributes: ['shippingAddress'] });
         res.json({ totalOrders, totalKms, payout, locations });
     } catch (err) {
+        console.error('Error in GET /delivery-boys/:id/metrics:', err);
         res.status(500).json({ message: 'Failed to fetch metrics' });
     }
 });
@@ -88,6 +93,7 @@ router.put('/:id/assign-delivery', async (req, res) => {
         await order.save();
         res.json(order);
     } catch (err) {
+        console.error('Error in PUT /:id/assign-delivery:', err);
         res.status(500).json({ message: 'Failed to assign delivery boy' });
     }
 });

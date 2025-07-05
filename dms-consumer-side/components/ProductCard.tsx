@@ -20,6 +20,7 @@ interface ProductCardProps {
   discount?: number;
   isOutOfStock?: boolean;
   onPress?: () => void;
+  onAddToCart?: () => void;
 }
 
 const { width } = Dimensions.get('window');
@@ -35,6 +36,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
   discount,
   isOutOfStock = false,
   onPress,
+  onAddToCart,
 }) => {
   const router = useRouter();
 
@@ -49,7 +51,16 @@ const ProductCard: React.FC<ProductCardProps> = ({
     }
   };
 
-  const discountedPrice = discount ? price - (price * discount) / 100 : price;
+  const handleAddToCart = () => {
+    if (onAddToCart) {
+      onAddToCart();
+    } else {
+      alert('Added to cart!');
+    }
+  };
+
+  const safePrice = typeof price === 'number' && !isNaN(price) ? price : 0;
+  const discountedPrice = discount ? safePrice - (safePrice * discount) / 100 : safePrice;
 
   return (
     <TouchableOpacity
@@ -73,6 +84,15 @@ const ProductCard: React.FC<ProductCardProps> = ({
             <Text style={styles.outOfStockText}>Out of Stock</Text>
           </View>
         )}
+        {/* Cart Icon Button */}
+        {!isOutOfStock && (
+          <TouchableOpacity
+            style={styles.cartIconButton}
+            onPress={handleAddToCart}
+          >
+            <Ionicons name="cart" size={20} color="#fff" />
+          </TouchableOpacity>
+        )}
       </View>
 
       <View style={styles.detailsContainer}>
@@ -83,7 +103,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
         <View style={styles.priceContainer}>
           <Text style={styles.price}>₹{discountedPrice.toFixed(2)}</Text>
           {discount && (
-            <Text style={styles.originalPrice}>₹{price.toFixed(2)}</Text>
+            <Text style={styles.originalPrice}>₹{safePrice.toFixed(2)}</Text>
           )}
         </View>
 
@@ -190,6 +210,19 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#999999',
     marginLeft: 4,
+  },
+  cartIconButton: {
+    position: 'absolute',
+    bottom: 10,
+    right: 10,
+    backgroundColor: '#CB202D',
+    borderRadius: 20,
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+    elevation: 4,
   },
 });
 

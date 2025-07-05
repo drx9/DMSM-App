@@ -1,31 +1,14 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { TouchableOpacity, View, Text, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
-import { API_URL } from '../app/config';
+import { useCart } from '../app/context/CartContext';
 
 interface Props {
     onPress?: () => void;
 }
 
 const CartIconWithBadge: React.FC<Props> = ({ onPress }) => {
-    const [cartCount, setCartCount] = useState(0);
-
-    useEffect(() => {
-        fetchCartCount();
-    }, []);
-
-    const fetchCartCount = async () => {
-        try {
-            const userId = await AsyncStorage.getItem('userId');
-            if (!userId) return;
-            const res = await axios.get(`${API_URL}/cart/count/${userId}`);
-            setCartCount(res.data.count || 0);
-        } catch (err) {
-            setCartCount(0);
-        }
-    };
+    const { cartCount } = useCart();
 
     return (
         <TouchableOpacity onPress={onPress} style={styles.cartIconWrap}>
