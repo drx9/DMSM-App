@@ -209,7 +209,7 @@ const adminPasswordLogin = async (req, res) => {
 const getUserById = async (req, res) => {
   try {
     const user = await User.findByPk(req.params.userId, {
-      attributes: ['id', 'name', 'email', 'phoneNumber', 'role', 'isVerified', 'isActive', 'createdAt', 'updatedAt', 'photo']
+      attributes: ['id', 'name', 'email', 'phoneNumber', 'role', 'isVerified', 'isActive', 'createdAt', 'updatedAt', 'photo', 'gender', 'dateOfBirth']
     });
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
@@ -266,12 +266,35 @@ const uploadAvatar = async (req, res) => {
   try {
     const { userId } = req.params;
     if (!req.file) return res.status(400).json({ message: 'No file uploaded' });
+
     const user = await User.findByPk(userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
-    user.photo = `/uploads/avatars/${req.file.filename}`;
+
+    // Upload to Cloudinary
+    const cloudinary = require('cloudinary').v2;
+    const fs = require('fs');
+
+    cloudinary.config({
+      cloud_name: 'dpdlmdl5x',
+      api_key: '298524623458681',
+      api_secret: 'I6SZkaBwqNIC6sHUXWUhO2BnTY8',
+    });
+
+    const result = await cloudinary.uploader.upload(req.file.path, {
+      folder: 'avatars',
+      resource_type: 'image',
+    });
+
+    // Clean up local file
+    fs.unlinkSync(req.file.path);
+
+    // Update user photo with Cloudinary URL
+    user.photo = result.secure_url;
     await user.save();
+
     res.json({ photo: user.photo });
   } catch (error) {
+    console.error('Avatar upload error:', error);
     res.status(500).json({ message: 'Failed to upload avatar' });
   }
 };
@@ -288,6 +311,39 @@ const deleteUser = async (req, res) => {
   }
 };
 
+const deliveryLogin = async (req, res) => {
+  try {
+    const { email, password } = req.body;
+    const user = await User.findOne({ where: { email, role: 'delivery' } });
+    if (!user) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: 'Invalid credentials' });
+    }
+    const token = jwt.sign(
+      { id: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    return res.json({
+      success: true,
+      message: 'Login successful.',
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+    });
+  } catch (error) {
+    console.error('Delivery login error:', error);
+    return res.status(500).json({ success: false, message: 'An internal server error occurred.' });
+  }
+};
+
 module.exports = {
   login,
   verifyOTP,
@@ -300,4 +356,5 @@ module.exports = {
   changePassword,
   uploadAvatar,
   deleteUser,
+  deliveryLogin,
 }; 

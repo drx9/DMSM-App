@@ -7,6 +7,8 @@ import React, {
 } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter, useSegments } from 'expo-router';
+import axios from 'axios';
+import { API_URL } from '../config';
 
 interface User {
   id: string;
@@ -14,6 +16,7 @@ interface User {
   email: string;
   role: string;
   phoneNumber?: string;
+  profileImage?: string;
 }
 
 interface AuthContextType {
@@ -79,9 +82,18 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   const login = async (newToken: string, newUser: User) => {
     setToken(newToken);
-    setUser(newUser);
     await AsyncStorage.setItem('token', newToken);
-    await AsyncStorage.setItem('user', JSON.stringify(newUser));
+    // Fetch the user profile from /auth/user/me using the new token
+    try {
+      const response = await axios.get(`${API_URL}/auth/user/me`, {
+        headers: { Authorization: `Bearer ${newToken}` },
+      });
+      setUser(response.data);
+      await AsyncStorage.setItem('user', JSON.stringify(response.data));
+    } catch (e) {
+      setUser(newUser); // fallback
+      await AsyncStorage.setItem('user', JSON.stringify(newUser));
+    }
     router.replace('/(tabs)');
   };
 

@@ -17,6 +17,7 @@ import { useRouter } from 'expo-router';
 import { useLanguage } from '../context/LanguageContext';
 import categoryService, { Category } from '../../services/categoryService';
 import productService, { Product } from '../../services/productService';
+import ProductCard from '../../components/ProductCard';
 
 const { width } = Dimensions.get('window');
 const SUB_CATEGORY_CARD_MARGIN = 8;
@@ -96,7 +97,7 @@ const CategoriesScreen = () => {
   ];
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { flex: 1, paddingTop: 16 }]}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* Header */}
@@ -247,23 +248,16 @@ const CategoriesScreen = () => {
             horizontal
             showsHorizontalScrollIndicator={false}
             renderItem={({ item }) => (
-              <TouchableOpacity style={styles.productCard}>
-                <View style={styles.productImageContainer}>
-                  <Image source={{ uri: item.images[0] || '' }} style={styles.productImage} />
-                  <View style={styles.productBadge}>
-                    <Text style={styles.productBadgeText}>NEW</Text>
-                  </View>
-                </View>
-                <View style={styles.productInfo}>
-                  <Text style={styles.productName} numberOfLines={2}>{item.name}</Text>
-                  <View style={styles.productPriceContainer}>
-                    <Text style={styles.productPrice}>₹{item.price}</Text>
-                    <View style={styles.addButton}>
-                      <Ionicons name="add" size={16} color="#FFFFFF" />
-                    </View>
-                  </View>
-                </View>
-              </TouchableOpacity>
+              <ProductCard
+                id={item.id}
+                name={item.name}
+                price={item.price}
+                image={item.images?.[0] || ''}
+                rating={item.rating || 4.5}
+                reviewCount={item.reviewCount || 0}
+                discount={item.discount}
+                isOutOfStock={item.isOutOfStock}
+              />
             )}
             contentContainerStyle={styles.productsListContent}
           />
@@ -562,69 +556,6 @@ const styles = StyleSheet.create({
   },
   productsListContent: {
     paddingRight: 20,
-  },
-  productCard: {
-    width: 160,
-    marginRight: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
-    overflow: 'hidden',
-  },
-  productImageContainer: {
-    position: 'relative',
-    backgroundColor: '#F9FAFB',
-  },
-  productImage: {
-    width: '100%',
-    height: 120,
-    resizeMode: 'cover',
-  },
-  productBadge: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: '#10B981',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
-  },
-  productBadgeText: {
-    fontSize: 10,
-    color: '#FFFFFF',
-    fontWeight: '700',
-  },
-  productInfo: {
-    padding: 12,
-  },
-  productName: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 8,
-    lineHeight: 18,
-  },
-  productPriceContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  productPrice: {
-    fontSize: 16,
-    color: '#10B981',
-    fontWeight: '700',
-  },
-  addButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: '#10B981',
-    justifyContent: 'center',
-    alignItems: 'center',
   },
 });
 

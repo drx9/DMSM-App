@@ -13,6 +13,7 @@ cloudinary.config({
 
 const upload = multer({ dest: 'uploads/' });
 
+// Avatar upload route
 router.post('/', upload.single('file'), async (req, res) => {
     try {
         console.log('Received file:', req.file);
@@ -25,6 +26,23 @@ router.post('/', upload.single('file'), async (req, res) => {
         res.json({ url: result.secure_url });
     } catch (error) {
         console.error('Cloudinary upload error:', error);
+        res.status(500).json({ error: error.message, details: error });
+    }
+});
+
+// Product image upload route
+router.post('/product', upload.single('image'), async (req, res) => {
+    try {
+        console.log('Received product image:', req.file);
+        if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+        const result = await cloudinary.uploader.upload(req.file.path, {
+            folder: 'products',
+            resource_type: 'image',
+        });
+        fs.unlinkSync(req.file.path); // Clean up local file
+        res.json({ url: result.secure_url });
+    } catch (error) {
+        console.error('Product image upload error:', error);
         res.status(500).json({ error: error.message, details: error });
     }
 });

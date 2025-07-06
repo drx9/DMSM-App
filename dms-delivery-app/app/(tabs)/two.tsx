@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Image, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Image, ScrollView, Alert } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import axios from 'axios';
 import { API_URL } from '../../config';
 import FontAwesome from '@expo/vector-icons/FontAwesome';
+import * as ImagePicker from 'expo-image-picker';
 
 interface Metrics {
   totalOrders: number;
@@ -23,6 +24,8 @@ export default function TabTwoScreen() {
   const { user, logout, token } = useAuth();
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
+  const [profileImage, setProfileImage] = useState<string | null>(user?.profileImage || null);
 
   useEffect(() => {
     const fetchMetrics = async () => {
@@ -41,65 +44,160 @@ export default function TabTwoScreen() {
     if (user && token) fetchMetrics();
   }, [user, token]);
 
+  const requestPermissions = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permission needed', 'Please grant camera roll permissions to upload profile images.');
+      return false;
+    }
+    return true;
+  };
+
+  const pickImage = async () => {
+    const hasPermission = await requestPermissions();
+    if (!hasPermission) return;
+
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        await uploadImage(result.assets[0].uri);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image. Please try again.');
+    }
+  };
+
+  const uploadImage = async (uri: string) => {
+    if (!user || !token) return;
+
+    setUploading(true);
+    try {
+      // Create form data
+      const formData = new FormData();
+      formData.append('file', {
+        uri,
+        type: 'image/jpeg',
+        name: 'profile-image.jpg',
+      } as any);
+
+      // Upload to backend
+      const response = await axios.post(`${API_URL}/upload`, formData, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+
+      const imageUrl = response.data.url;
+      setProfileImage(imageUrl);
+
+      // Update user profile in backend
+      await axios.put(`${API_URL}/users/profile`, {
+        profileImage: imageUrl,
+      }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      Alert.alert('Success', 'Profile image updated successfully!');
+    } catch (error) {
+      console.error('Upload error:', error);
+      Alert.alert('Error', 'Failed to upload image. Please try again.');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
-    <View style={{ flex: 1, backgroundColor: '#f3f4f6' }}>
+    <View style={styles.container}>
       <ScrollView
-        contentContainerStyle={{
-          paddingTop: 24,
-          paddingBottom: 32,
-          backgroundColor: '#f3f4f6',
-          alignItems: 'center',
-          flexGrow: 1,
-        }}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
       >
-        <View style={styles.card}>
+        {/* Profile Section */}
+        <View style={styles.profileCard}>
           {user && (
             <View style={styles.avatarContainer}>
-              <View style={styles.avatarCircle}>
-                <Text style={styles.avatarText}>{getInitials(user.name)}</Text>
+              <TouchableOpacity
+                style={styles.avatarWrapper}
+                onPress={pickImage}
+                disabled={uploading}
+              >
+                {profileImage ? (
+                  <Image source={{ uri: profileImage }} style={styles.avatarImage} />
+                ) : (
+                  <View style={styles.avatarCircle}>
+                    <Text style={styles.avatarText}>{getInitials(user.name)}</Text>
+                  </View>
+                )}
+                {uploading && (
+                  <View style={styles.uploadOverlay}>
+                    <ActivityIndicator size="small" color="#fff" />
+                  </View>
+                )}
+                <View style={styles.cameraIcon}>
+                  <FontAwesome name="camera" size={12} color="#fff" />
+                </View>
+              </TouchableOpacity>
+              <Text style={styles.uploadHint}>Tap to change photo</Text>
+            </View>
+          )}
+          <Text style={styles.profileTitle}>Profile</Text>
+          {user && (
+            <View style={styles.profileInfo}>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Name</Text>
+                <Text style={styles.infoValue}>{user.name}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Email</Text>
+                <Text style={styles.infoValue}>{user.email}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Text style={styles.infoLabel}>Phone</Text>
+                <Text style={styles.infoValue}>{user?.phoneNumber ? user.phoneNumber : '-'}</Text>
               </View>
             </View>
           )}
-          <Text style={styles.title}>Profile</Text>
-          {user && (
-            <>
-              <Text style={styles.label}>Name</Text>
-              <Text style={styles.value}>{user.name}</Text>
-              <Text style={styles.label}>Email</Text>
-              <Text style={styles.value}>{user.email}</Text>
-              <Text style={styles.label}>Phone</Text>
-              <Text style={styles.value}>{user?.phoneNumber ? user.phoneNumber : '-'}</Text>
-            </>
-          )}
         </View>
-        <View style={styles.divider} />
-        <View style={styles.card}>
-          <Text style={styles.title}>Metrics</Text>
+
+        {/* Metrics Section */}
+        <View style={styles.metricsCard}>
+          <Text style={styles.metricsTitle}>Performance</Text>
           {loading ? (
-            <ActivityIndicator size="small" color="#10b981" />
+            <ActivityIndicator size="small" color="#10b981" style={styles.loader} />
           ) : metrics ? (
-            <>
-              <View style={styles.metricRow}>
-                <FontAwesome name="check-circle" size={20} color="#10b981" style={styles.metricIcon} />
-                <Text style={styles.metricLabel}>Total Deliveries</Text>
-                <Text style={styles.metricValue}>{metrics.totalOrders}</Text>
+            <View style={styles.metricsGrid}>
+              <View style={styles.metricItem}>
+                <FontAwesome name="check-circle" size={16} color="#10b981" />
+                <Text style={styles.metricNumber}>{metrics.totalOrders}</Text>
+                <Text style={styles.metricLabel}>Deliveries</Text>
               </View>
-              <View style={styles.metricRow}>
-                <FontAwesome name="road" size={20} color="#3b82f6" style={styles.metricIcon} />
-                <Text style={styles.metricLabel}>Total KMs</Text>
-                <Text style={styles.metricValue}>{metrics.totalKms}</Text>
+              <View style={styles.metricItem}>
+                <FontAwesome name="road" size={16} color="#10b981" />
+                <Text style={styles.metricNumber}>{metrics.totalKms}</Text>
+                <Text style={styles.metricLabel}>KMs</Text>
               </View>
-              <View style={styles.metricRow}>
-                <FontAwesome name="money" size={20} color="#fbbf24" style={styles.metricIcon} />
+              <View style={styles.metricItem}>
+                <FontAwesome name="money" size={16} color="#10b981" />
+                <Text style={styles.metricNumber}>₹{metrics.payout}</Text>
                 <Text style={styles.metricLabel}>Earnings</Text>
-                <Text style={[styles.metricValue, { color: '#10b981', fontWeight: 'bold' }]}>₹{metrics.payout}</Text>
               </View>
-            </>
+            </View>
           ) : (
-            <Text style={styles.value}>No metrics available.</Text>
+            <Text style={styles.noMetrics}>No metrics available</Text>
           )}
         </View>
+
+        {/* Logout Button */}
         <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
+          <FontAwesome name="sign-out" size={14} color="#fff" />
           <Text style={styles.logoutBtnText}>Logout</Text>
         </TouchableOpacity>
       </ScrollView>
@@ -108,108 +206,173 @@ export default function TabTwoScreen() {
 }
 
 const styles = StyleSheet.create({
-  bg: {
-    backgroundColor: '#f3f4f6',
-    padding: 0,
+  container: {
+    flex: 1,
+    backgroundColor: '#f8fffe',
   },
-  card: {
+  scrollContent: {
+    padding: 16,
+    paddingTop: 24,
+    paddingBottom: 32,
+  },
+  profileCard: {
     backgroundColor: '#fff',
-    borderRadius: 18,
-    padding: 24,
-    width: '90%',
-    maxWidth: 420,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 3,
-    marginTop: 24,
-    marginBottom: 8,
-    alignItems: 'center',
-  },
-  logo: {
-    width: 70,
-    height: 70,
-    marginBottom: 10,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#e6fffa',
   },
   avatarContainer: {
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
+  },
+  avatarWrapper: {
+    position: 'relative',
+    marginBottom: 8,
   },
   avatarCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: '#e5e7eb',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#10b981',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 6,
+  },
+  avatarImage: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
   },
   avatarText: {
     fontSize: 24,
-    fontWeight: 'bold',
-    color: '#222',
+    fontWeight: '600',
+    color: '#fff',
   },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 14,
-    color: '#222',
-    textAlign: 'center',
-  },
-  label: {
-    fontWeight: 'bold',
-    color: '#374151',
-    fontSize: 15,
-    marginTop: 8,
-    marginBottom: 2,
-  },
-  value: {
-    fontSize: 16,
-    color: '#222',
-    marginBottom: 2,
-  },
-  metricRow: {
-    flexDirection: 'row',
+  uploadOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 40,
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    marginVertical: 6,
+    justifyContent: 'center',
   },
-  metricIcon: {
-    marginRight: 10,
+  cameraIcon: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: '#10b981',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  uploadHint: {
+    fontSize: 10,
+    color: '#6b7280',
+    fontStyle: 'italic',
+  },
+  profileTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#10b981',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  profileInfo: {
+    gap: 8,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  infoLabel: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontWeight: '500',
+  },
+  infoValue: {
+    fontSize: 12,
+    color: '#111827',
+    fontWeight: '500',
+  },
+  metricsCard: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#10b981',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#e6fffa',
+  },
+  metricsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#10b981',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  loader: {
+    marginVertical: 16,
+  },
+  metricsGrid: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  metricItem: {
+    alignItems: 'center',
+    flex: 1,
+    gap: 4,
+  },
+  metricNumber: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#10b981',
   },
   metricLabel: {
-    color: '#374151',
-    fontSize: 15,
-    flex: 1,
+    fontSize: 10,
+    color: '#6b7280',
+    fontWeight: '500',
+    textAlign: 'center',
   },
-  metricValue: {
-    fontWeight: 'bold',
-    fontSize: 16,
-    color: '#222',
-    minWidth: 40,
-    textAlign: 'right',
+  noMetrics: {
+    fontSize: 12,
+    color: '#6b7280',
+    textAlign: 'center',
+    fontStyle: 'italic',
   },
   logoutBtn: {
-    backgroundColor: '#ef4444',
-    borderRadius: 10,
-    paddingVertical: 14,
+    backgroundColor: '#10b981',
+    borderRadius: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
     alignItems: 'center',
-    marginTop: 32,
-    width: '90%',
-    maxWidth: 420,
+    justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
   },
   logoutBtnText: {
     color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 16,
-    letterSpacing: 0.5,
-  },
-  divider: {
-    width: '90%',
-    height: 1,
-    backgroundColor: '#e5e7eb',
-    marginVertical: 8,
-    borderRadius: 1,
+    fontWeight: '600',
+    fontSize: 12,
   },
 });

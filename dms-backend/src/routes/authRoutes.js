@@ -3,6 +3,7 @@ const { body } = require('express-validator');
 const authController = require('../controllers/authController');
 const multer = require('multer');
 const path = require('path');
+const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -116,5 +117,29 @@ router.put('/user/:userId', authController.updateUser);
 router.post('/user/:userId/change-password', authController.changePassword);
 router.post('/user/:userId/avatar', upload.single('avatar'), authController.uploadAvatar);
 router.delete('/user/:userId', authController.deleteUser);
+
+router.post(
+  '/delivery/login',
+  [
+    body('email').isEmail().withMessage('Invalid email format'),
+    body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters long')
+  ],
+  authController.deliveryLogin
+);
+
+router.get('/user/me', authenticateToken, (req, res) => {
+  res.json({
+    id: req.user.id,
+    name: req.user.name,
+    email: req.user.email,
+    role: req.user.role,
+    phoneNumber: req.user.phoneNumber,
+    isVerified: req.user.isVerified,
+    isActive: req.user.isActive,
+    createdAt: req.user.createdAt,
+    updatedAt: req.user.updatedAt,
+    // add other fields as needed
+  });
+});
 
 module.exports = router; 

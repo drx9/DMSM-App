@@ -5,9 +5,9 @@ const bcrypt = require('bcryptjs');
 const getProfile = async (req, res) => {
   try {
     const userId = req.user.id;
-    
+
     const user = await User.findByPk(userId, {
-      attributes: ['id', 'name', 'email', 'phoneNumber', 'isVerified', 'role', 'createdAt']
+      attributes: ['id', 'name', 'email', 'phoneNumber', 'profileImage', 'isVerified', 'role', 'createdAt']
     });
 
     if (!user) {
@@ -21,6 +21,7 @@ const getProfile = async (req, res) => {
         name: user.name,
         email: user.email,
         phoneNumber: user.phoneNumber,
+        profileImage: user.profileImage,
         isVerified: user.isVerified,
         role: user.role,
         createdAt: user.createdAt
@@ -40,7 +41,7 @@ const updateProfile = async (req, res) => {
     }
 
     const userId = req.user.id;
-    const { name, email, phoneNumber } = req.body;
+    const { name, email, phoneNumber, profileImage } = req.body;
 
     const user = await User.findByPk(userId);
     if (!user) {
@@ -68,6 +69,7 @@ const updateProfile = async (req, res) => {
     if (name) updateData.name = name;
     if (email) updateData.email = email;
     if (phoneNumber) updateData.phoneNumber = phoneNumber;
+    if (profileImage) updateData.profileImage = profileImage;
 
     await user.update(updateData);
 
@@ -79,6 +81,7 @@ const updateProfile = async (req, res) => {
         name: user.name,
         email: user.email,
         phoneNumber: user.phoneNumber,
+        profileImage: user.profileImage,
         isVerified: user.isVerified,
         role: user.role,
         createdAt: user.createdAt

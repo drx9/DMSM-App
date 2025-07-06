@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@mapbox/polyline": "^1.2.1",
     "autoprefixer": "^10.4.21",
     "bcryptjs": "^3.0.2",
     "chart.js": "^4.5.0",
@@ -11,5 +12,8 @@
     "react-icons": "^5.5.0",
     "tailwindcss": "^4.1.10",
     "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/mapbox__polyline": "^1.0.5"
   }
 }

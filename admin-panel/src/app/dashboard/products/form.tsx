@@ -98,45 +98,26 @@ export default function ProductForm({ productId }: { productId?: string }) {
         setIsUploading(true);
         toast.loading(`Uploading image...`, { id: toastId });
 
-        // Hardcoded Cloudinary config for unsigned upload
-        const CLOUD_NAME = 'dpldml5ix';
-        const UPLOAD_PRESET = 'dmsm_unsigned_preset';
-
-        console.log('Uploading to:', `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`);
-        console.log('Using preset:', UPLOAD_PRESET);
-
-        if (!CLOUD_NAME || !UPLOAD_PRESET) {
-            toast.error("Cloudinary config missing. Please set it in .env.local and restart the server.", { id: toastId });
-            setIsUploading(false);
-            return;
-        }
-
         const formData = new FormData();
-        formData.append('file', file);
-        formData.append('upload_preset', UPLOAD_PRESET);
-
-        // Debug: log all FormData keys and values
-        for (let pair of formData.entries()) {
-            console.log('FormData:', pair[0], pair[1]);
-        }
+        formData.append('image', file);
 
         try {
-            const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
-                method: 'POST',
-                body: formData,
+            const res = await api.post('/api/upload-avatar/product', formData, {
+                headers: { 'Content-Type': 'multipart/form-data' }
             });
-            const data = await res.json();
-            if (data.secure_url) {
+
+            if (res.data.url) {
                 const newImageSlots = [...imageSlots];
-                newImageSlots[index] = data.secure_url;
+                newImageSlots[index] = res.data.url;
                 setImageSlots(newImageSlots);
                 setValue('images', newImageSlots.filter(Boolean).join(','), { shouldValidate: true });
                 toast.success('Image uploaded!', { id: toastId });
             } else {
-                throw new Error(data.error.message || 'Image upload failed');
+                throw new Error('Image upload failed');
             }
         } catch (error: any) {
-            toast.error(`Upload failed: ${error.message}`, { id: toastId });
+            console.error('Upload error:', error);
+            toast.error(`Upload failed: ${error.response?.data?.error || error.message}`, { id: toastId });
         } finally {
             setIsUploading(false);
         }

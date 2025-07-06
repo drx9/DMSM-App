@@ -12,6 +12,7 @@ import {
   TextInput,
   FlatList,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -26,8 +27,10 @@ const ProfileScreen = () => {
   const [orders, setOrders] = useState<any[]>([]);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
+  const [user, setUser] = useState<any>(null);
   const [loadingOrders, setLoadingOrders] = useState(true);
   const [loadingAddresses, setLoadingAddresses] = useState(true);
+  const [loadingUser, setLoadingUser] = useState(true);
   const [primaryAddress, setPrimaryAddress] = useState<Address | null>(null);
   const [showAddressManager, setShowAddressManager] = useState(false);
   const [showLocationSelector, setShowLocationSelector] = useState(false);
@@ -37,12 +40,25 @@ const ProfileScreen = () => {
       const storedUserId = await AsyncStorage.getItem('userId');
       setUserId(storedUserId);
       if (storedUserId) {
+        fetchUser(storedUserId);
         fetchOrders(storedUserId);
         fetchAddresses(storedUserId);
       }
     };
     fetchUserData();
   }, []);
+
+  const fetchUser = async (uid: string) => {
+    setLoadingUser(true);
+    try {
+      const res = await axios.get(`${API_URL}/auth/user/${uid}`);
+      setUser(res.data);
+    } catch (err) {
+      setUser(null);
+    } finally {
+      setLoadingUser(false);
+    }
+  };
 
   const fetchOrders = async (uid: string) => {
     setLoadingOrders(true);
@@ -188,7 +204,7 @@ const ProfileScreen = () => {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { flex: 1, paddingTop: 16 }]}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* Header */}
@@ -197,10 +213,31 @@ const ProfileScreen = () => {
       </View>
 
       <ScrollView style={styles.scrollViewContent}>
-        {/* Orders Section */}
-        {/* Removed My Orders section */}
-        {/* Addresses Section */}
-        {/* Removed Saved Addresses section and AddressManagerModal */}
+        {/* User Profile Section */}
+        {!loadingUser && user && (
+          <View style={styles.userProfileSection}>
+            <View style={styles.avatarContainer}>
+              <Image
+                source={user.photo
+                  ? { uri: user.photo }
+                  : require('../../assets/images/dms-logo.png')}
+                style={styles.avatar}
+              />
+            </View>
+            <View style={styles.userInfo}>
+              <Text style={styles.userName}>{user.name}</Text>
+              <Text style={styles.userEmail}>{user.email || user.phoneNumber}</Text>
+              <View style={styles.statusContainer}>
+                <View style={[styles.statusBadge, user.isVerified ? styles.verified : styles.unverified]}>
+                  <Text style={[styles.statusText, user.isVerified ? styles.verifiedText : styles.unverifiedText]}>
+                    {user.isVerified ? 'Verified' : 'Unverified'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Profile Features */}
         <Text style={styles.sectionTitle}>Account</Text>
         {profileFeatures.map((feature) => (
@@ -371,6 +408,65 @@ const styles = StyleSheet.create({
     color: '#CB202D',
     fontWeight: 'bold',
     marginLeft: 15,
+  },
+  userProfileSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    padding: 16,
+    borderRadius: 8,
+    marginBottom: 16,
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+  },
+  avatarContainer: {
+    marginRight: 16,
+  },
+  avatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+  },
+  userInfo: {
+    flex: 1,
+  },
+  userName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 4,
+  },
+  userEmail: {
+    fontSize: 14,
+    color: '#666',
+    marginBottom: 8,
+  },
+  statusContainer: {
+    flexDirection: 'row',
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  verified: {
+    backgroundColor: '#E8F5E8',
+  },
+  unverified: {
+    backgroundColor: '#FFF3E0',
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  verifiedText: {
+    color: '#2E7D32',
+  },
+  unverifiedText: {
+    color: '#F57C00',
   },
 });
 

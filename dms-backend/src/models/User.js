@@ -67,6 +67,20 @@ User.init({
     type: DataTypes.STRING,
     allowNull: true,
   },
+  profileImage: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    field: 'profile_image',
+  },
+  gender: {
+    type: DataTypes.ENUM('Male', 'Female', 'Other'),
+    allowNull: true,
+  },
+  dateOfBirth: {
+    type: DataTypes.DATEONLY,
+    allowNull: true,
+    field: 'date_of_birth',
+  },
 }, {
   sequelize,
   modelName: 'User',

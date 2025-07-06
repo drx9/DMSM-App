@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View,
   Text,
@@ -52,9 +53,11 @@ const CartScreen = () => {
   // Free delivery threshold
   const FREE_DELIVERY_THRESHOLD = 399;
 
-  useEffect(() => {
-    loadUserDataAndCart();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      loadUserDataAndCart();
+    }, [])
+  );
 
   const loadUserDataAndCart = async () => {
     try {

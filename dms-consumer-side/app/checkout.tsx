@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
     View,
     Text,
@@ -67,6 +67,11 @@ const CheckoutScreen = () => {
     const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
     const router = useRouter();
     const { refreshCartFromBackend } = useCart();
+    const [showStatusBar, setShowStatusBar] = useState(false);
+    const [countdown, setCountdown] = useState(30);
+    const [orderPlacing, setOrderPlacing] = useState(false);
+    const [orderPlaced, setOrderPlaced] = useState(false);
+    const countdownRef = useRef<any>(null);
 
     useEffect(() => {
         const fetchCartAndAddressesAndPayments = async () => {
@@ -155,7 +160,9 @@ const CheckoutScreen = () => {
             setNewAddress({});
             setSelectedAddressId(res.data.id);
         } catch (error) {
-            Alert.alert('Error', 'Failed to add address');
+            const err = error as any;
+            console.error('Failed to add address:', err?.response?.data || err);
+            Alert.alert('Error', err?.response?.data?.error || 'Failed to add address');
         }
     };
 
@@ -177,10 +184,31 @@ const CheckoutScreen = () => {
             Alert.alert('Error', 'Selected address not found.');
             return;
         }
+        setShowStatusBar(true);
+        setCountdown(30);
+        setOrderPlacing(true);
+        setOrderPlaced(false);
+        if (countdownRef.current) clearInterval(countdownRef.current);
+        countdownRef.current = setInterval(() => {
+            setCountdown((prev) => {
+                if (prev <= 1) {
+                    clearInterval(countdownRef.current!);
+                    actuallyPlaceOrder();
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
+    };
+
+    const actuallyPlaceOrder = async () => {
+        if (orderPlaced) return;
+        setOrderPlacing(false);
+        setOrderPlaced(true);
         try {
             await axios.post(`${API_URL}/orders/place-order`, {
                 userId,
-                address: selectedAddress, // includes lat/lng if present
+                address: addresses.find(addr => addr.id === selectedAddressId),
                 cartItems,
                 paymentMethod: selectedPayment,
                 total: calculateTotal(),
@@ -191,12 +219,31 @@ const CheckoutScreen = () => {
         } catch (error) {
             console.error('Order placement error:', error);
             Alert.alert('Error', 'Failed to place order.');
+            setShowStatusBar(false);
+            setOrderPlacing(false);
+            setOrderPlaced(false);
         }
     };
 
+    const handleCancelOrder = () => {
+        setShowStatusBar(false);
+        setOrderPlacing(false);
+        setOrderPlaced(false);
+        if (countdownRef.current) clearInterval(countdownRef.current);
+    };
+
+    useEffect(() => {
+        return () => {
+            if (countdownRef.current) clearInterval(countdownRef.current);
+        };
+    }, []);
+
     // Handler for location selection from modal
     const handleLocationSelected = async (locationAddress: any) => {
-        if (!userId) return;
+        if (!userId || !locationAddress.line1 || !locationAddress.city || !locationAddress.state || !locationAddress.postalCode) {
+            Alert.alert('Error', 'Please fill all required fields');
+            return;
+        }
         try {
             // Save address to backend
             const res = await axios.post(`${API_URL}/addresses`, {
@@ -208,7 +255,9 @@ const CheckoutScreen = () => {
             setSelectedAddressId(res.data.id);
             setShowLocationSelector(false);
         } catch (error) {
-            Alert.alert('Error', 'Failed to add address');
+            const err = error as any;
+            console.error('Failed to add address:', err?.response?.data || err);
+            Alert.alert('Error', err?.response?.data?.error || 'Failed to add address');
         }
     };
 
@@ -593,6 +642,23 @@ const CheckoutScreen = () => {
                     savedAddress={null}
                     onBack={() => setShowLocationSelector(false)}
                 />
+            )}
+
+            {showStatusBar && (
+                <View style={{ position: 'absolute', left: 0, right: 0, bottom: 60, zIndex: 100, backgroundColor: '#fffbe6', borderTopWidth: 1, borderColor: '#ffe58f', padding: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    {!orderPlaced ? (
+                        <>
+                            <Text style={{ color: '#faad14', fontWeight: 'bold', fontSize: 15 }}>
+                                Confirming your order in {countdown} sec...
+                            </Text>
+                            <TouchableOpacity onPress={handleCancelOrder} style={{ backgroundColor: '#fff1f0', paddingVertical: 6, paddingHorizontal: 16, borderRadius: 8, borderWidth: 1, borderColor: '#ffccc7', marginLeft: 16 }}>
+                                <Text style={{ color: '#ff4d4f', fontWeight: 'bold' }}>Cancel</Text>
+                            </TouchableOpacity>
+                        </>
+                    ) : (
+                        <Text style={{ color: '#52c41a', fontWeight: 'bold', fontSize: 15 }}>Confirming your order...</Text>
+                    )}
+                </View>
             )}
         </SafeAreaView>
     );

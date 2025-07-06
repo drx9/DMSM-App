@@ -13,6 +13,7 @@ import { API_URL } from '../config';
 import { useRouter } from 'expo-router';
 import { useCart } from '../context/CartContext';
 import { useFocusEffect } from '@react-navigation/native';
+import OrderStatusBar from '../../components/OrderStatusBar';
 
 export default function TabLayout() {
   const colorScheme = useColorScheme();
@@ -20,6 +21,8 @@ export default function TabLayout() {
   const [userId, setUserId] = useState<string | null>(null);
   const router = useRouter();
   const { cartCount, refreshCartFromBackend } = useCart();
+  const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
+  const [destination, setDestination] = useState<{ latitude: number; longitude: number } | null>(null);
   console.log('[TabLayout] cartCount:', cartCount);
 
   useEffect(() => {
@@ -73,6 +76,31 @@ export default function TabLayout() {
     }, [refreshCartFromBackend])
   );
 
+  useEffect(() => {
+    const fetchActiveOrder = async () => {
+      const storedUserId = await AsyncStorage.getItem('userId');
+      if (!storedUserId) return;
+      try {
+        const res = await axios.get(`${API_URL}/orders/user/${storedUserId}`);
+        // Find the latest order with status 'out_for_delivery', 'on_the_way' or 'picked_up'
+        const active = res.data.find((order: any) => ['out_for_delivery', 'on_the_way', 'picked_up'].includes(order.status));
+        if (active) {
+          setActiveOrderId(active.id);
+          if (active.shippingAddress && typeof active.shippingAddress.latitude === 'number' && typeof active.shippingAddress.longitude === 'number') {
+            setDestination({ latitude: active.shippingAddress.latitude, longitude: active.shippingAddress.longitude });
+          }
+        } else {
+          setActiveOrderId(null);
+          setDestination(null);
+        }
+      } catch (err) {
+        setActiveOrderId(null);
+        setDestination(null);
+      }
+    };
+    fetchActiveOrder();
+  }, [userId]);
+
   if (addressSet === null) {
     return <ActivityIndicator size="large" color="#CB202D" style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }} />;
   }
@@ -94,70 +122,73 @@ export default function TabLayout() {
   }
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: '#CB202D',
-        tabBarInactiveTintColor: '#687076',
-        headerShown: false,
-        tabBarButton: HapticTab,
-        tabBarBackground: TabBarBackground,
-        tabBarStyle: Platform.select({
-          ios: {
-            // Use a transparent background on iOS to show the blur effect
-            position: 'absolute',
-          },
-          default: {},
-        }),
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <Ionicons name="home-outline" size={28} color={color} as const />,
-        }}
-      />
-      <Tabs.Screen
-        name="cart"
-        options={{
-          title: 'Bag',
-          tabBarIcon: ({ color }) => (
-            <View>
-              <Ionicons name="cart" size={28} color={color} as const />
-              {cartCount > 0 && (
-                <View style={{
-                  position: 'absolute',
-                  top: -4,
-                  right: -8,
-                  backgroundColor: 'green',
-                  borderRadius: 8,
-                  minWidth: 16,
-                  height: 16,
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  paddingHorizontal: 4,
-                  zIndex: 10,
-                }}>
-                  <Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>{cartCount}</Text>
-                </View>
-              )}
-            </View>
-          ),
-        }}
-      />
-      <Tabs.Screen
-        name="categories"
-        options={{
-          title: 'Categories',
-          tabBarIcon: ({ color }) => <Ionicons name="grid" size={28} color={color} as const />,
-        }}
-      />
-      <Tabs.Screen
-        name="profile"
-        options={{
-          title: 'Profile',
-          tabBarIcon: ({ color }) => <Ionicons name="person" size={28} color={color} as const />,
-        }}
-      />
-    </Tabs>
+    <>
+      <OrderStatusBar orderId={activeOrderId} destination={destination} />
+      <Tabs
+        screenOptions={{
+          tabBarActiveTintColor: '#CB202D',
+          tabBarInactiveTintColor: '#687076',
+          headerShown: false,
+          tabBarButton: HapticTab,
+          tabBarBackground: TabBarBackground,
+          tabBarStyle: Platform.select({
+            ios: {
+              // Use a transparent background on iOS to show the blur effect
+              position: 'absolute',
+            },
+            default: {},
+          }),
+        }}>
+        <Tabs.Screen
+          name="index"
+          options={{
+            title: 'Home',
+            tabBarIcon: ({ color }) => <Ionicons name="home-outline" size={28} color={color} as const />,
+          }}
+        />
+        <Tabs.Screen
+          name="cart"
+          options={{
+            title: 'Bag',
+            tabBarIcon: ({ color }) => (
+              <View>
+                <Ionicons name="cart" size={28} color={color} as const />
+                {cartCount > 0 && (
+                  <View style={{
+                    position: 'absolute',
+                    top: -4,
+                    right: -8,
+                    backgroundColor: 'green',
+                    borderRadius: 8,
+                    minWidth: 16,
+                    height: 16,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    paddingHorizontal: 4,
+                    zIndex: 10,
+                  }}>
+                    <Text style={{ color: '#fff', fontSize: 10, fontWeight: 'bold' }}>{cartCount}</Text>
+                  </View>
+                )}
+              </View>
+            ),
+          }}
+        />
+        <Tabs.Screen
+          name="categories"
+          options={{
+            title: 'Categories',
+            tabBarIcon: ({ color }) => <Ionicons name="grid" size={28} color={color} as const />,
+          }}
+        />
+        <Tabs.Screen
+          name="profile"
+          options={{
+            title: 'Profile',
+            tabBarIcon: ({ color }) => <Ionicons name="person" size={28} color={color} as const />,
+          }}
+        />
+      </Tabs>
+    </>
   );
 }
