@@ -132,6 +132,19 @@ const ProductDetailScreen = () => {
     }
   };
 
+  const handleBuyNow = async () => {
+    const buyNowItem = {
+      id: selectedVariant ? selectedVariant.id : product!.id,
+      name: product!.name + (selectedVariant ? ` (${selectedVariant.name})` : ''),
+      price: selectedVariant ? selectedVariant.price : product!.price,
+      quantity,
+      image: product!.images?.[0] || '',
+      originalPrice: selectedVariant ? Math.round(selectedVariant.price * 1.15) : Math.round(product!.price * 1.15),
+      discount: selectedVariant ? selectedVariant.discount : product!.discount,
+    };
+    router.push({ pathname: '/checkout', params: { buyNow: JSON.stringify(buyNowItem) } });
+  };
+
   const renderStars = (rating: number) => (
     <View style={styles.starsContainer}>
       {[1, 2, 3, 4, 5].map((star) => (
@@ -396,12 +409,39 @@ const ProductDetailScreen = () => {
         <View style={styles.bottomSpacing} />
       </ScrollView>
 
-      {/* Bottom Delivery Bar */}
+      {/* Bottom Delivery Bar with Free Delivery and Buttons in one line */}
       <View style={styles.bottomDeliveryBar}>
-        <Text style={styles.bottomDeliveryText}>Add ₹{FREE_DELIVERY_THRESHOLD - cartTotal} for FREE delivery</Text>
-        <TouchableOpacity>
-          <Ionicons name="chevron-up" size={20} color="#333" />
-        </TouchableOpacity>
+        <View style={styles.deliveryProgressContainer}>
+          <Text style={styles.bottomDeliveryText}>
+            Add ₹{FREE_DELIVERY_THRESHOLD - cartTotal} for FREE delivery
+          </Text>
+          <View style={styles.progressBar}>
+            <View
+              style={[
+                styles.progressFill,
+                { width: `${Math.min((cartTotal / FREE_DELIVERY_THRESHOLD) * 100, 100)}%` }
+              ]}
+            />
+          </View>
+        </View>
+
+        <View style={styles.buttonContainer}>
+          <TouchableOpacity
+            style={styles.addToCartButton}
+            onPress={handleAddToCart}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.addToCartButtonText}>Add to Cart</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.buyNowButton}
+            onPress={handleBuyNow}
+            activeOpacity={0.9}
+          >
+            <Text style={styles.buyNowButtonText}>Buy Now</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -852,20 +892,96 @@ const styles = StyleSheet.create({
   bottomSpacing: {
     height: 80,
   },
+
   bottomDeliveryBar: {
     backgroundColor: '#FFFFFF',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderTopWidth: 1,
     borderTopColor: '#E0E0E0',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: -2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  deliveryProgressContainer: {
+    marginBottom: 12,
   },
   bottomDeliveryText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#333',
     fontWeight: '500',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  progressBar: {
+    height: 4,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 2,
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#4CAF50',
+    borderRadius: 2,
+  },
+  buttonContainer: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  addToCartButton: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+    borderColor: '#CB202D',
+    borderWidth: 1.5,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 2,
+    shadowColor: '#CB202D',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+  },
+  addToCartButtonText: {
+    color: '#CB202D',
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 0.5,
+  },
+  buyNowButton: {
+    flex: 1,
+    backgroundColor: '#CB202D',
+    borderColor: '#CB202D',
+    borderWidth: 1.5,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#CB202D',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  buyNowButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    letterSpacing: 0.5,
   },
 });
 

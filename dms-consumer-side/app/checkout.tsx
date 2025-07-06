@@ -16,7 +16,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_URL } from './config';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import LocationSelectionScreen from './location/LocationSelectionScreen';
 import { useCart } from './context/CartContext';
@@ -52,6 +52,7 @@ const getIoniconName = (icon: string) =>
     validIonicons.includes(icon) ? (icon as any) : 'card-outline';
 
 const CheckoutScreen = () => {
+    const { buyNow } = useLocalSearchParams();
     const [cartItems, setCartItems] = useState<CartItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentStep, setCurrentStep] = useState(1);
@@ -79,13 +80,24 @@ const CheckoutScreen = () => {
                 setLoading(true);
                 const storedUserId = await AsyncStorage.getItem('userId');
                 setUserId(storedUserId);
-                if (storedUserId) {
+                let items: CartItem[] = [];
+                let fetchedAddresses: Address[] = [];
+                if (buyNow) {
+                    // If buyNow param is present, use it as the only cart item
+                    const parsed = JSON.parse(Array.isArray(buyNow) ? buyNow[0] : buyNow);
+                    items = [{ ...parsed }];
+                    if (storedUserId) {
+                        const addrRes = await axios.get(`${API_URL}/addresses/${storedUserId}`);
+                        fetchedAddresses = addrRes.data;
+                        setAddresses(fetchedAddresses);
+                    }
+                } else if (storedUserId) {
                     const [cartRes, addrRes, paymentRes] = await Promise.all([
                         axios.get(`${API_URL}/cart/${storedUserId}`),
                         axios.get(`${API_URL}/addresses/${storedUserId}`),
                         axios.get(`${API_URL}/payment-methods/${storedUserId}`),
                     ]);
-                    const items = cartRes.data.map((item: any) => ({
+                    items = cartRes.data.map((item: any) => ({
                         id: item.productId?.toString() || item.Product?.id?.toString(),
                         name: item.Product?.name || '',
                         price: item.Product?.price || 0,
@@ -94,12 +106,15 @@ const CheckoutScreen = () => {
                         originalPrice: Math.floor((item.Product?.price || 0) * 1.25),
                         discount: Math.floor(Math.random() * 20) + 5,
                     }));
-                    setCartItems(items);
-                    setAddresses(addrRes.data);
+                    fetchedAddresses = addrRes.data;
+                    setAddresses(fetchedAddresses);
                     setPaymentMethods(paymentRes.data || []);
-                    // Set default address if exists
-                    const defaultAddr = addrRes.data.find((a: any) => a.isDefault);
-                    setSelectedAddressId(defaultAddr ? defaultAddr.id : addrRes.data[0]?.id || null);
+                }
+                setCartItems(items);
+                // Always set default/primary address after fetching
+                if (fetchedAddresses.length > 0) {
+                    const defaultAddr = fetchedAddresses.find((a: any) => a.isDefault);
+                    setSelectedAddressId(defaultAddr ? defaultAddr.id : fetchedAddresses[0].id);
                 }
             } catch (error) {
                 console.error('Failed to fetch cart, addresses, or payment methods:', error);
@@ -108,7 +123,7 @@ const CheckoutScreen = () => {
             }
         };
         fetchCartAndAddressesAndPayments();
-    }, []);
+    }, [buyNow]);
 
     const calculateSubtotal = () => {
         return cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
