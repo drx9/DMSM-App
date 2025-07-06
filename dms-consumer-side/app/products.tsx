@@ -1,10 +1,9 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   FlatList,
-  TextInput,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
@@ -16,12 +15,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from './context/LanguageContext';
 import { useCart } from './context/CartContext';
 import { useWishlist } from './context/WishlistContext';
+import { useAppDispatch, useAppSelector } from '../src/store/hooks';
+import { fetchProducts } from '../src/store/slices/productsSlice';
+import { searchProducts } from '../src/utils/searchUtils';
 
 import ProductCard from '../components/ProductCard';
+import SearchWithFilters from '../components/SearchWithFilters';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
-import productService from './services/productService';
-import { PAGINATION, SORT_OPTIONS, FILTER_OPTIONS, SortOption, FilterOption } from './config';
 import { getWishlist } from './services/wishlistService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -49,111 +50,40 @@ interface GetProductsParams {
 const ProductsScreen = () => {
   const { t } = useLanguage();
   const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [products, setProducts] = useState<Product[]>([]);
-  const [refreshing, setRefreshing] = useState(false);
-  const [showSortModal, setShowSortModal] = useState(false);
-  const [showFilterModal, setShowFilterModal] = useState(false);
-  const [selectedSort, setSelectedSort] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [totalProducts, setTotalProducts] = useState(0);
-  const [sortBy, setSortBy] = useState<'price_asc' | 'price_desc' | 'created_at_desc' | 'created_at_asc' | 'rating_desc' | undefined>(undefined);
-  const [filters, setFilters] = useState<FilterOption[]>([]);
-  const searchTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dispatch = useAppDispatch();
   const { addToCart } = useCart();
   const { wishlistIds, add, remove } = useWishlist();
 
-  const fetchProducts = async (isRefreshing = false) => {
-    try {
-      if (isRefreshing) {
-        setPage(1);
-        setHasMore(true);
-      }
+  const { items: products = [], loading, error, lastFetched } = useAppSelector((state: any) => state.products);
+  const [refreshing, setRefreshing] = useState(false);
 
-      if (!hasMore && !isRefreshing) return;
+  // Local state for search and filters
+  const [query, setQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'name_asc' | 'name_desc' | 'price_asc' | 'price_desc' | 'rating_desc' | 'newest'>('name_asc');
+  const [filterBy, setFilterBy] = useState<'all' | 'in_stock' | 'on_sale' | 'new_arrivals'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-      setLoading(true);
-      // Map frontend sort option to backend
-      let sort: 'price_asc' | 'price_desc' | 'created_at_desc' | 'created_at_asc' | 'rating_desc' = 'created_at_desc';
-      let order: 'ASC' | 'DESC' = 'DESC';
-      switch (sortBy) {
-        case 'price_asc':
-          sort = 'price_asc'; order = 'ASC'; break;
-        case 'price_desc':
-          sort = 'price_desc'; order = 'DESC'; break;
-        case 'created_at_asc':
-          sort = 'created_at_asc'; order = 'ASC'; break;
-        case 'created_at_desc':
-          sort = 'created_at_desc'; order = 'DESC'; break;
-        case 'rating_desc':
-          sort = 'rating_desc'; order = 'DESC'; break;
-        default:
-          sort = 'created_at_desc'; order = 'DESC';
-      }
-
-      const response = await productService.getProducts({
-        page: isRefreshing ? 1 : page,
-        limit: PAGINATION.DEFAULT_PAGE_SIZE,
-        search: searchQuery,
-        category: selectedCategory || undefined,
-        sort,
-        order,
-        filters: filters.length > 0 ? filters.join(',') : undefined,
-      });
-
-      const formattedProducts = response.products.map((product) => ({
-        ...product,
-        image: product.images[0] || '',
-        price: typeof product.price === 'string' ? parseFloat(product.price) : product.price,
-        discount: typeof product.discount === 'string' ? parseFloat(product.discount) : product.discount,
-        rating: typeof product.rating === 'number' ? product.rating : 0,
-        isOutOfStock: product.isOutOfStock ?? product.isOutOfStock,
-        isActive: product.isActive ?? product.isActive,
-      }));
-
-      setProducts(isRefreshing ? formattedProducts : [...products, ...formattedProducts]);
-      setTotalProducts(response.totalProducts);
-      setHasMore(page < response.totalPages);
-      setPage(isRefreshing ? 2 : page + 1);
-    } catch (error) {
-      console.error('Error fetching products:', error);
-      Alert.alert('Error', 'Failed to fetch products. Please try again.');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  };
-
+  // Fetch products if not already loaded or if data is old
   useEffect(() => {
-    fetchProducts(true);
-  }, [searchQuery, selectedCategory, sortBy, filters]);
+    console.log('Products screen mounted, products:', products.length, 'lastFetched:', lastFetched);
+    const shouldFetch = !lastFetched || Date.now() - lastFetched > 3600000; // 1 hour
+    console.log('Should fetch products:', shouldFetch);
+    if (shouldFetch) {
+      dispatch(fetchProducts());
+    }
+  }, [dispatch, lastFetched, products.length]);
+
+  // Filter and sort products using local state
+  const filteredProducts = useMemo(() => {
+    const filtered = searchProducts(products, query, sortBy, filterBy, selectedCategory, { min: 0, max: 10000 });
+    console.log('Filtered products:', filtered.length, 'from total:', products.length);
+    return filtered;
+  }, [products, query, sortBy, filterBy, selectedCategory]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchProducts(true);
-  }, []);
-
-  const handleSearch = (text: string) => {
-    setSearchQuery(text);
-    if (searchTimeout.current) clearTimeout(searchTimeout.current);
-    searchTimeout.current = setTimeout(() => {
-      fetchProducts(true);
-    }, 400); // 400ms debounce
-  };
-
-  const handleSort = (sortOption: string) => {
-    setSelectedSort(sortOption);
-    setSortBy(sortOption as 'price_asc' | 'price_desc' | 'created_at_desc' | 'created_at_asc' | 'rating_desc' | undefined);
-    setShowSortModal(false);
-  };
-
-  const handleFilter = (category: string) => {
-    setSelectedCategory(category);
-    setShowFilterModal(false);
-  };
+    dispatch(fetchProducts()).finally(() => setRefreshing(false));
+  }, [dispatch]);
 
   const handleProductPress = (productId: string) => {
     router.push({
@@ -162,102 +92,21 @@ const ProductsScreen = () => {
     });
   };
 
-  const handleSortChange = (sort: SortOption) => {
-    setSortBy(sort as 'price_asc' | 'price_desc' | 'created_at_desc' | 'created_at_asc' | 'rating_desc' | undefined);
-  };
-
-  const handleFilterToggle = (filter: FilterOption) => {
-    setFilters((prev) =>
-      prev.includes(filter)
-        ? prev.filter((f) => f !== filter)
-        : [...prev, filter]
-    );
-  };
-
   const handleToggleWishlist = async (product: any, wishlisted: boolean) => {
     if (wishlisted) add(product.id, product);
     else remove(product.id);
   };
 
-  const renderSortModal = () => (
-    <Modal
-      visible={showSortModal}
-      transparent
-      animationType="slide"
-      onRequestClose={() => setShowSortModal(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Sort By</Text>
-            <TouchableOpacity onPress={() => setShowSortModal(false)}>
-              <Ionicons name="close" size={24} color="#333" />
-            </TouchableOpacity>
-          </View>
-          {SORT_OPTIONS.map((option) => (
-            <TouchableOpacity
-              key={option.value}
-              style={styles.sortOption}
-              onPress={() => handleSort(option.value)}
-            >
-              <Text style={styles.sortOptionText}>{option.label}</Text>
-              {selectedSort === option.value && (
-                <Ionicons name="checkmark" size={24} color="#CB202D" />
-              )}
-            </TouchableOpacity>
-          ))}
-        </View>
-      </View>
-    </Modal>
-  );
-
-  const renderFilterModal = () => (
-    <Modal
-      visible={showFilterModal}
-      transparent
-      animationType="slide"
-      onRequestClose={() => setShowFilterModal(false)}
-    >
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Filter By Category</Text>
-            <TouchableOpacity onPress={() => setShowFilterModal(false)}>
-              <Ionicons name="close" size={24} color="#333" />
-            </TouchableOpacity>
-          </View>
-          <ScrollView>
-            {FILTER_OPTIONS.map((option) => (
-              <TouchableOpacity
-                key={option.value}
-                style={styles.filterOption}
-                onPress={() => handleFilter(option.value)}
-              >
-                <Text style={styles.filterOptionText}>{option.label}</Text>
-                {selectedCategory === option.value && (
-                  <Ionicons name="checkmark" size={24} color="#CB202D" />
-                )}
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      </View>
-    </Modal>
-  );
-
   const renderHeader = () => (
-    <View style={styles.searchContainer}>
-      <TextInput
-        style={styles.searchInput}
-        placeholder="Search products..."
-        value={searchQuery}
-        onChangeText={handleSearch}
-        onSubmitEditing={() => fetchProducts(true)}
-        returnKeyType="search"
-      />
-      <TouchableOpacity onPress={() => fetchProducts(true)} style={styles.searchButton}>
-        <Ionicons name="search" size={20} color="#FFF" />
+    <View style={styles.header}>
+      <TouchableOpacity
+        style={styles.backButton}
+        onPress={() => router.back()}
+      >
+        <Ionicons name="arrow-back" size={24} color="#333" />
       </TouchableOpacity>
+      <Text style={styles.headerTitle}>Products</Text>
+      <View style={styles.headerSpacer} />
     </View>
   );
 
@@ -270,43 +119,89 @@ const ProductsScreen = () => {
     );
   };
 
+  if (loading && products.length === 0) {
+    return (
+      <SafeAreaView style={styles.container}>
+        {renderHeader()}
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#CB202D" />
+          <Text style={styles.loadingText}>Loading products...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Show loading indicator at the top if products are being fetched
+  const renderLoadingIndicator = () => {
+    if (loading && products.length > 0) {
+      return (
+        <View style={styles.refreshLoading}>
+          <ActivityIndicator size="small" color="#CB202D" />
+          <Text style={styles.refreshText}>Refreshing...</Text>
+        </View>
+      );
+    }
+    return null;
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      {loading && !refreshing ? (
-        <ActivityIndicator size="large" color="#CB202D" style={styles.loader} />
-      ) : (
-        <FlatList
-          data={products}
-          renderItem={({ item }) => (
-            <ProductCard
-              {...item}
-              onPress={() => handleProductPress(item.id)}
-              onAddToCart={() => addToCart(item.id)}
-              isWishlisted={wishlistIds.includes(item.id)}
-              onToggleWishlist={(wish) => handleToggleWishlist(item, wish)}
-            />
-          )}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          columnWrapperStyle={styles.productRow}
-          contentContainerStyle={styles.productList}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-          }
-          onEndReached={() => fetchProducts()}
-          onEndReachedThreshold={0.5}
-          ListHeaderComponent={renderHeader}
-          ListFooterComponent={renderFooter}
-          ListEmptyComponent={
-            <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No products found</Text>
+      {renderHeader()}
+      {renderLoadingIndicator()}
+      <SearchWithFilters
+        query={query}
+        sortBy={sortBy}
+        filterBy={filterBy}
+        selectedCategory={selectedCategory}
+        onSearchChange={setQuery}
+        onSortChange={setSortBy}
+        onFilterChange={setFilterBy}
+        onCategoryChange={setSelectedCategory}
+      />
+      <FlatList
+        data={filteredProducts}
+        renderItem={({ item }) => (
+          <ProductCard
+            {...item}
+            image={item.images?.[0] || ''}
+            onPress={() => handleProductPress(item.id)}
+            onAddToCart={() => addToCart(item.id)}
+            isWishlisted={wishlistIds.includes(item.id)}
+            onToggleWishlist={(wish) => handleToggleWishlist(item, wish)}
+          />
+        )}
+        keyExtractor={(item) => item.id}
+        numColumns={2}
+        columnWrapperStyle={styles.productRow}
+        contentContainerStyle={styles.productList}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+        }
+        ListHeaderComponent={
+          filteredProducts.length > 0 ? (
+            <View style={styles.resultsHeader}>
+              <Text style={styles.resultsCount}>
+                {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''} found
+              </Text>
             </View>
-          }
-        />
-      )}
-
-      {renderSortModal()}
-      {renderFilterModal()}
+          ) : null
+        }
+        ListEmptyComponent={
+          <View style={styles.emptyContainer}>
+            {error ? (
+              <>
+                <Text style={styles.errorText}>Error loading products</Text>
+                <Text style={styles.errorSubtext}>{error}</Text>
+                <TouchableOpacity style={styles.retryButton} onPress={() => dispatch(fetchProducts())}>
+                  <Text style={styles.retryButtonText}>Retry</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <Text style={styles.emptyText}>No products found</Text>
+            )}
+          </View>
+        }
+      />
     </SafeAreaView>
   );
 };
@@ -316,57 +211,53 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  backButton: {
+    padding: 8,
+    marginRight: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    flex: 1,
+  },
+  headerSpacer: {
+    width: 40,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  searchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 6,
-    backgroundColor: '#FFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F0F0F0',
-  },
-  searchInput: {
-    flex: 1,
-    backgroundColor: '#F5F5F5',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    fontSize: 13,
-    marginRight: 6,
-  },
-  searchButton: {
-    backgroundColor: '#CB202D',
-    padding: 10,
-    borderRadius: 8,
-  },
-  filterContainer: {
-    marginBottom: 8,
-  },
-  filterButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#F5F5F5',
-    marginRight: 8,
-  },
-  filterButtonActive: {
-    backgroundColor: '#CB202D',
-  },
-  filterButtonText: {
-    fontSize: 14,
-    color: '#666666',
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#666',
   },
   productList: {
     padding: 16,
   },
-  loader: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+  productRow: {
+    justifyContent: 'space-between',
+  },
+  resultsHeader: {
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    marginBottom: 8,
+  },
+  resultsCount: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
   },
   emptyContainer: {
     flex: 1,
@@ -378,60 +269,44 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666666',
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 16,
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#333333',
-  },
-  sortOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
-  },
-  sortOptionText: {
-    fontSize: 12,
-    color: '#333333',
-  },
-  filterOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#EEEEEE',
-  },
-  filterOptionText: {
-    fontSize: 12,
-    color: '#333333',
-  },
   footer: {
     paddingVertical: 20,
     alignItems: 'center',
   },
-  productRow: {
+  refreshLoading: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 8,
+    backgroundColor: '#f8f9fa',
+    gap: 8,
+  },
+  refreshText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  errorText: {
+    fontSize: 18,
+    color: '#CB202D',
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  errorSubtext: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  retryButton: {
+    backgroundColor: '#CB202D',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

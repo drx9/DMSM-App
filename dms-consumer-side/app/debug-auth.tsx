@@ -12,7 +12,7 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
-const API_URL = 'http://192.168.232.188:5000/api';
+const API_URL = 'http://172.21.127.188:5000/api';
 
 const DebugAuthScreen = () => {
   const [phoneNumber, setPhoneNumber] = useState('1234567890');

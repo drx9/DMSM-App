@@ -12,7 +12,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import axios, { AxiosError } from 'axios';
 
-const API_URL = 'http://192.168.232.188:5000/api';
+const API_URL = 'http://172.21.127.188:5000/api';
 
 interface ApiResponse {
   success: boolean;

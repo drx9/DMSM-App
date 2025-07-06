@@ -20,6 +20,7 @@
     "@react-navigation/elements": "^2.3.8",
     "@react-navigation/native": "^7.1.6",
     "@react-navigation/stack": "^7.3.2",
+    "@reduxjs/toolkit": "^2.8.2",
     "@types/axios": "^0.14.4",
     "axios": "^1.9.0",
     "chart.js": "^4.5.0",
@@ -57,6 +58,8 @@
     "react-native-toast-message": "^2.3.3",
     "react-native-web": "~0.20.0",
     "react-native-webview": "13.13.5",
+    "react-redux": "^9.2.0",
+    "redux-persist": "^6.0.0",
     "socket.io-client": "^4.8.1",
     "xlsx": "^0.18.5"
   },

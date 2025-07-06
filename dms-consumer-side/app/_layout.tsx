@@ -8,6 +8,8 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
 import { API_URL } from './config';
+import { Provider } from 'react-redux';
+import { store } from '../src/store';
 
 export default function RootLayout() {
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
@@ -38,22 +40,23 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
-      <OrderStatusBar orderId={activeOrderId} destination={destination} />
-      <CartProvider>
-        <LanguageProvider>
-          <WishlistProvider>
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="splash" />
-              <Stack.Screen name="language" />
-              <Stack.Screen name="login" />
-              <Stack.Screen name="signup" />
-              <Stack.Screen name="verify-otp" />
-              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            </Stack>
-          </WishlistProvider>
-        </LanguageProvider>
-      </CartProvider>
-    </GestureHandlerRootView>
+    <Provider store={store}>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <OrderStatusBar orderId={activeOrderId} destination={destination} />
+        <CartProvider>
+          <LanguageProvider>
+            <WishlistProvider>
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="splash" />
+                <Stack.Screen name="language" />
+                <Stack.Screen name="signup" />
+                <Stack.Screen name="verify-otp" />
+                <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              </Stack>
+            </WishlistProvider>
+          </LanguageProvider>
+        </CartProvider>
+      </GestureHandlerRootView>
+    </Provider>
   );
 }
