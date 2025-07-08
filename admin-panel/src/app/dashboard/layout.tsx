@@ -10,6 +10,7 @@ import {
     ClipboardDocumentListIcon,
     Cog6ToothIcon,
     TruckIcon,
+    GiftIcon,
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -17,6 +18,7 @@ import { usePathname } from 'next/navigation';
 const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: HomeIcon },
     { name: 'Products', href: '/dashboard/products', icon: ShoppingBagIcon },
+    { name: 'Add Sale', href: '/dashboard/offers', icon: GiftIcon },
     { name: 'Orders', href: '/dashboard/orders', icon: ClipboardDocumentListIcon },
     { name: 'Delivery Boys', href: '/dashboard/delivery-boys', icon: TruckIcon },
     { name: 'Settings', href: '/dashboard/settings', icon: Cog6ToothIcon },
@@ -176,6 +178,9 @@ export default function DashboardLayout({
                                 type="button"
                                 className="-m-1.5 flex items-center p-2 rounded-lg bg-gradient-to-r from-red-500 to-red-600 text-white font-semibold hover:from-red-600 hover:to-red-700 transition-all duration-200 hover:scale-105 shadow-lg shadow-red-500/25"
                                 onClick={() => {
+                                    if (typeof window !== 'undefined') {
+                                        localStorage.removeItem('admin_token');
+                                    }
                                     document.cookie = 'admin_token=; path=/; expires=Thu, 01 Jan 1970 00:00:01 GMT';
                                     window.location.href = '/login';
                                 }}

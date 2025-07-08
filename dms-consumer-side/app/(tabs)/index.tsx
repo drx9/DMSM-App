@@ -69,6 +69,7 @@ const HomeScreen = () => {
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [showLocationSelector, setShowLocationSelector] = useState(false);
   const { addToCart } = useCart();
+  const [activeOffers, setActiveOffers] = useState<any[]>([]);
 
   // Get current date and time
   const getCurrentDateTime = () => {
@@ -144,6 +145,9 @@ const HomeScreen = () => {
     };
     fetchUserDetails();
     fetchCartTotal();
+    axios.get(`${API_URL}/offers/active`).then(res => {
+      setActiveOffers(res.data || []);
+    }).catch(() => setActiveOffers([]));
   }, []);
 
   const fetchCartTotal = async () => {
@@ -244,6 +248,11 @@ const HomeScreen = () => {
       setShowAddressModal(false);
     }, [])
   );
+
+  // Handler for View All Offers
+  const handleViewAllOffers = () => {
+    router.push('/offers');
+  };
 
   if (showLocationScreen) {
     return (
@@ -407,17 +416,19 @@ const HomeScreen = () => {
           </ScrollView>
         </View>
 
-        {/* Mid Month Festival Banner */}
-        <View style={styles.bannerContainer}>
-          <View style={styles.festivalBanner}>
-            <Text style={styles.bannerTitle}>MID MONTH</Text>
-            <Text style={styles.bannerTitle}>FESTIVAL</Text>
-            <TouchableOpacity style={styles.viewOffersButton}>
-              <Text style={styles.viewOffersText}>Click Here To View All Offers</Text>
-              <Ionicons name="sparkles" size={14} color="white" />
-            </TouchableOpacity>
+        {/* Festival/Offer Banner (dynamic) */}
+        {activeOffers.length > 0 && (
+          <View style={styles.bannerContainer}>
+            <View style={styles.festivalBanner}>
+              <Text style={styles.bannerTitle}>{activeOffers[0].name}</Text>
+              <Text style={styles.bannerDesc}>{activeOffers[0].description}</Text>
+              <TouchableOpacity style={styles.viewOffersButton} onPress={handleViewAllOffers}>
+                <Text style={styles.viewOffersText}>View All Offers</Text>
+                <Ionicons name="sparkles" size={14} color="white" />
+              </TouchableOpacity>
+            </View>
           </View>
-        </View>
+        )}
 
         {/* Categories Section */}
         {categories.length > 0 && (
@@ -731,6 +742,12 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FF1493',
     textAlign: 'center',
+  },
+  bannerDesc: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    marginTop: 4,
   },
   viewOffersButton: {
     backgroundColor: '#8A2BE2',

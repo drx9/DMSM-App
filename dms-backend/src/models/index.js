@@ -16,6 +16,8 @@ const db = {
   Address: require('./Address')(sequelize),
   Variant: require('./Variant'),
   Wishlist: require('./Wishlist')(sequelize),
+  Offer: require('./Offer'),
+  OfferProduct: require('./OfferProduct'),
 };
 
 // Define associations

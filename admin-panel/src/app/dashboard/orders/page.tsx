@@ -41,6 +41,8 @@ export default function OrdersPage() {
     const [deliveryBoys, setDeliveryBoys] = useState<DeliveryBoy[]>([]);
     const [selectedDeliveryBoy, setSelectedDeliveryBoy] = useState<string>('');
     const [assigning, setAssigning] = useState(false);
+    const [selectedOrders, setSelectedOrders] = useState<string[]>([]);
+    const [selectAll, setSelectAll] = useState(false);
 
     const fetchOrders = async () => {
         try {
@@ -88,8 +90,35 @@ export default function OrdersPage() {
             toast.success('Delivery boy assigned!');
             setShowModal(false);
             fetchOrders();
-        } catch (error) {
-            toast.error('Failed to assign delivery boy');
+        } catch (error: any) {
+            if (error?.response?.data?.message?.includes('undelivered orders')) {
+                toast.error('This delivery boy already has undelivered orders. Complete them before assigning new ones.');
+            } else {
+                toast.error('Failed to assign delivery boy');
+            }
+        } finally {
+            setAssigning(false);
+        }
+    };
+
+    const handleBulkAssign = async () => {
+        if (!selectedDeliveryBoy || selectedOrders.length === 0) return;
+        setAssigning(true);
+        try {
+            await api.put('/api/orders/assign-delivery-bulk', {
+                orderIds: selectedOrders,
+                deliveryBoyId: selectedDeliveryBoy,
+            });
+            toast.success('Delivery boy assigned to selected orders!');
+            setShowModal(false);
+            setSelectedOrders([]);
+            fetchOrders();
+        } catch (error: any) {
+            if (error?.response?.data?.message?.includes('undelivered orders')) {
+                toast.error('This delivery boy already has undelivered orders. Complete them before assigning new ones.');
+            } else {
+                toast.error('Failed to assign delivery boy to selected orders');
+            }
         } finally {
             setAssigning(false);
         }
@@ -124,6 +153,30 @@ export default function OrdersPage() {
         );
     };
 
+    const handleSelectOrder = (orderId: string) => {
+        setSelectedOrders(prev =>
+            prev.includes(orderId) ? prev.filter(id => id !== orderId) : [...prev, orderId]
+        );
+    };
+
+    const handleSelectAll = () => {
+        if (selectAll) {
+            setSelectedOrders([]);
+            setSelectAll(false);
+        } else {
+            setSelectedOrders(orders.map(order => order.id));
+            setSelectAll(true);
+        }
+    };
+
+    useEffect(() => {
+        if (selectedOrders.length === orders.length && orders.length > 0) {
+            setSelectAll(true);
+        } else {
+            setSelectAll(false);
+        }
+    }, [selectedOrders, orders]);
+
     return (
         <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 p-6">
             <div className="max-w-7xl mx-auto">
@@ -139,6 +192,26 @@ export default function OrdersPage() {
                             </p>
                         </div>
                     </div>
+                </div>
+
+                {/* Bulk Assign Button */}
+                <div className="flex items-center mb-4">
+                    <button
+                        className={`inline-flex items-center px-5 py-2 bg-gradient-to-r from-green-500 to-green-600 text-white text-sm font-semibold rounded-lg shadow-md hover:from-green-600 hover:to-green-700 transform hover:scale-105 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed mr-4`}
+                        disabled={selectedOrders.length === 0}
+                        onClick={() => {
+                            setShowModal(true);
+                            setSelectedOrderId(null); // Not single order
+                            setSelectedDeliveryBoy('');
+                            fetchDeliveryBoys();
+                        }}
+                    >
+                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3a1 1 0 011-1h6a1 1 0 011 1v4h4a1 1 0 011 1v2a1 1 0 01-1 1h-4v8a1 1 0 01-1 1H9a1 1 0 01-1-1v-8H4a1 1 0 01-1-1V8a1 1 0 011-1h4z" />
+                        </svg>
+                        Assign Delivery Boy to Selected
+                    </button>
+                    <span className="text-gray-500 text-sm">{selectedOrders.length} selected</span>
                 </div>
 
                 {loading ? (
@@ -164,6 +237,14 @@ export default function OrdersPage() {
                             <table className="min-w-full divide-y divide-gray-200">
                                 <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                                     <tr>
+                                        <th className="px-4 py-4">
+                                            <input
+                                                type="checkbox"
+                                                checked={selectAll}
+                                                onChange={handleSelectAll}
+                                                aria-label="Select all orders"
+                                            />
+                                        </th>
                                         <th className="px-6 py-4 text-left text-sm font-bold text-gray-900 uppercase tracking-wider">Order ID</th>
                                         <th className="px-6 py-4 text-left text-sm font-bold text-gray-900 uppercase tracking-wider">Customer</th>
                                         <th className="px-6 py-4 text-left text-sm font-bold text-gray-900 uppercase tracking-wider">Total Amount</th>
@@ -176,6 +257,14 @@ export default function OrdersPage() {
                                 <tbody className="bg-white divide-y divide-gray-200">
                                     {orders.map((order, index) => (
                                         <tr key={order.id} className="hover:bg-gradient-to-r hover:from-gray-50 hover:to-white transition-all duration-200 group">
+                                            <td className="px-4 py-5">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedOrders.includes(order.id)}
+                                                    onChange={() => handleSelectOrder(order.id)}
+                                                    aria-label={`Select order ${order.id}`}
+                                                />
+                                            </td>
                                             <td className="px-6 py-5 whitespace-nowrap">
                                                 <div className="text-sm font-bold text-gray-900 font-mono bg-gray-100 px-3 py-1 rounded-lg inline-block">
                                                     {order.id.substring(0, 8)}...
@@ -284,7 +373,7 @@ export default function OrdersPage() {
                                     </button>
                                     <button
                                         className="flex-1 px-6 py-3 bg-gradient-to-r from-green-500 to-green-600 text-white font-semibold rounded-xl hover:from-green-600 hover:to-green-700 transform hover:scale-105 transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
-                                        onClick={handleAssign}
+                                        onClick={selectedOrderId ? handleAssign : handleBulkAssign}
                                         disabled={!selectedDeliveryBoy || assigning}
                                     >
                                         {assigning ? (

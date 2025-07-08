@@ -84,10 +84,8 @@ const VerifyOTPScreen = () => {
       console.log('Verification response:', response.data);
 
       if (response.data.token) {
-        // Store the token and userId
-        await AsyncStorage.setItem('userId', userIdString);
-        // TODO: Store token in secure storage
-        router.replace('/(tabs)');
+        // Registration successful, redirect to login
+        router.replace('/login');
       } else {
         Alert.alert(t('error'), t('invalidOrExpiredOTP'));
       }

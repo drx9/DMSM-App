@@ -89,6 +89,12 @@ Product.associate = (models) => {
     foreignKey: 'productId',
     as: 'reviews'
   });
+  Product.belongsToMany(models.Offer, {
+    through: models.OfferProduct,
+    foreignKey: 'productId',
+    otherKey: 'offerId',
+    as: 'offers',
+  });
 };
 
 module.exports = Product; 

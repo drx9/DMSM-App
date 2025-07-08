@@ -165,6 +165,12 @@ const MyOrdersScreen = () => {
             <Text style={styles.orderDetails}>
                 Order ID: #{item.id.slice(-8)} • {item.items.length} item{item.items.length > 1 ? 's' : ''}
             </Text>
+
+            {item.deliveryKey && (
+                <Text style={{ fontWeight: 'bold', color: '#10b981', marginTop: 4 }}>
+                    Delivery Code: {item.deliveryKey}
+                </Text>
+            )}
         </TouchableOpacity>
     );
 

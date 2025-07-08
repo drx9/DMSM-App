@@ -39,6 +39,7 @@ const LocationSelectionScreen = ({ onLocationSelected, savedAddress, userId: pro
     const mapRef = useRef<MapView>(null);
     const [isEditing] = useState(!!editingAddress);
     const navigation = useNavigation();
+    const [serviceableLocations, setServiceableLocations] = useState<any[]>([]);
 
     useEffect(() => {
         if (!userId) {
@@ -46,6 +47,12 @@ const LocationSelectionScreen = ({ onLocationSelected, savedAddress, userId: pro
                 if (id) setUserId(id);
             });
         }
+    }, []);
+
+    useEffect(() => {
+        axios.get(`${API_URL}/serviceable-pincodes/public`)
+            .then(res => setServiceableLocations(res.data))
+            .catch(() => setServiceableLocations([]));
     }, []);
 
     useFocusEffect(
@@ -98,10 +105,28 @@ const LocationSelectionScreen = ({ onLocationSelected, savedAddress, userId: pro
         }
     };
 
-    const handleMapPress = (e: any) => {
+    const reverseGeocode = async (lat: number, lng: number) => {
+        try {
+            const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_MAPS_APIKEY}`;
+            const res = await fetch(url);
+            const json = await res.json();
+            if (json.results && json.results.length > 0) {
+                return json.results[0].formatted_address;
+            }
+        } catch (err) { }
+        return '';
+    };
+
+    const handleMapPress = async (e: any) => {
         const { latitude, longitude } = e.nativeEvent.coordinate;
         setMarker({ latitude, longitude });
         setError('');
+        // Autofill search bar with address
+        const address = await reverseGeocode(latitude, longitude);
+        if (address) {
+            setQuery(address);
+            setManualAddress(address);
+        }
     };
 
     const handleUseSaved = () => {
@@ -140,10 +165,10 @@ const LocationSelectionScreen = ({ onLocationSelected, savedAddress, userId: pro
         }
         const fullAddress = {
             line1: addr,
-            city: 'Nalbari',
-            state: 'Assam',
+            city: serviceableLocations.find(l => l.latitude === lat && l.longitude === lng)?.city || '',
+            state: serviceableLocations.find(l => l.latitude === lat && l.longitude === lng)?.state || '',
             country: 'India',
-            postalCode: '',
+            postalCode: serviceableLocations.find(l => l.latitude === lat && l.longitude === lng)?.pincode || '',
             house: addressDetails.house,
             landmark: addressDetails.landmark,
             latitude: lat,
@@ -259,8 +284,8 @@ const LocationSelectionScreen = ({ onLocationSelected, savedAddress, userId: pro
                         <View style={styles.pinIcon} />
                     </View>
                     <View style={styles.addressInfo}>
-                        <Text style={styles.addressArea}>Bamunimaidan</Text>
-                        <Text style={styles.addressCity}>Guwahati</Text>
+                        <Text style={styles.addressArea}>{serviceableLocations.find(l => l.latitude === marker?.latitude && l.longitude === marker?.longitude)?.area || ''}</Text>
+                        <Text style={styles.addressCity}>{serviceableLocations.find(l => l.latitude === marker?.latitude && l.longitude === marker?.longitude)?.city || ''}</Text>
                     </View>
                     <TouchableOpacity>
                         <Text style={styles.changeButton}>Change</Text>
@@ -352,7 +377,7 @@ const LocationSelectionScreen = ({ onLocationSelected, savedAddress, userId: pro
                         <View style={styles.areaSection}>
                             <Text style={styles.areaLabel}>Area / Sector / Locality *</Text>
                             <View style={styles.areaDisplay}>
-                                <Text style={styles.areaText}>Bamunimaidan, Guwahati</Text>
+                                <Text style={styles.areaText}>{serviceableLocations.find(l => l.latitude === marker?.latitude && l.longitude === marker?.longitude)?.area || ''}</Text>
                                 <TouchableOpacity>
                                     <Text style={styles.changeAreaButton}>Change</Text>
                                 </TouchableOpacity>

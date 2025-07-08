@@ -12,7 +12,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import axios, { AxiosError } from 'axios';
 
-const API_URL = 'http://172.21.127.188:5000/api';
+const API_URL = 'http://192.168.95.181:5000/api';
 
 interface ApiResponse {
   success: boolean;
@@ -51,8 +51,8 @@ const VerifyOTPScreen = () => {
       });
 
       if (response.data.success) {
-        // Navigate to main app
-        router.replace('/(tabs)');
+        // Registration successful, redirect to login
+        router.replace('/login');
       }
     } catch (error) {
       console.error('OTP verification error:', error);

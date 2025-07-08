@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const API_BASE_URL = 'http://172.21.127.188:5000/api';
+const API_BASE_URL = 'http://192.168.95.181:5000/api';
 
 export interface UserProfile {
   id: string;

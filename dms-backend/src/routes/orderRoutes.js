@@ -98,6 +98,8 @@ router.put('/:id/assign-delivery', async (req, res) => {
     }
 });
 
+router.put('/assign-delivery-bulk', orderController.bulkAssignDeliveryBoy);
+
 router.post('/place-order', orderController.placeOrder);
 
 router.get('/user/:userId', orderController.getUserOrders);

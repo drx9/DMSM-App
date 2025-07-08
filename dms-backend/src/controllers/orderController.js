@@ -92,11 +92,18 @@ const orderController = {
     // Update order status
     updateOrderStatus: async (req, res) => {
         try {
-            const { status } = req.body;
+            const { status, deliveryKey } = req.body;
             const order = await Order.findByPk(req.params.id);
 
             if (!order) {
                 return res.status(404).json({ message: 'Order not found' });
+            }
+
+            // If status is 'delivered', require deliveryKey
+            if (status === 'delivered') {
+                if (!deliveryKey || order.deliveryKey !== deliveryKey) {
+                    return res.status(400).json({ message: 'Invalid delivery key' });
+                }
             }
 
             // If status is 'shipped', reduce stock
@@ -125,6 +132,8 @@ const orderController = {
             if (!userId || !address || !cartItems || !cartItems.length) {
                 return res.status(400).json({ message: 'userId, address, and cartItems are required' });
             }
+            // Generate 4-digit delivery key
+            const deliveryKey = Math.floor(1000 + Math.random() * 9000).toString();
             // Create order
             const order = await Order.create({
                 userId,
@@ -132,6 +141,7 @@ const orderController = {
                 status: 'pending',
                 totalAmount: total,
                 paymentStatus: paymentMethod === 'cod' ? 'pending' : 'paid',
+                deliveryKey,
             });
             // Create order items
             for (const item of cartItems) {
@@ -162,10 +172,51 @@ const orderController = {
                 ],
                 order: [['createdAt', 'DESC']],
             });
-            res.json(orders);
+            // Explicitly include deliveryKey in the response
+            const ordersWithDeliveryKey = orders.map(order => ({
+                id: order.id,
+                status: order.status,
+                totalAmount: order.totalAmount,
+                createdAt: order.createdAt,
+                updatedAt: order.updatedAt,
+                shippingAddress: order.shippingAddress,
+                items: order.items,
+                deliveryKey: order.deliveryKey,
+            }));
+            res.json(ordersWithDeliveryKey);
         } catch (error) {
             console.error('Error fetching user orders:', error);
             res.status(500).json({ message: 'Error fetching user orders' });
+        }
+    },
+
+    // Bulk assign delivery boy to multiple orders
+    bulkAssignDeliveryBoy: async (req, res) => {
+        try {
+            const { orderIds, deliveryBoyId } = req.body;
+            if (!Array.isArray(orderIds) || !deliveryBoyId) {
+                return res.status(400).json({ message: 'orderIds (array) and deliveryBoyId are required' });
+            }
+            // Check if delivery boy has any undelivered orders
+            const undelivered = await Order.findOne({
+                where: {
+                    deliveryBoyId,
+                    status: { [Order.sequelize.Op.not]: 'delivered' },
+                },
+            });
+            if (undelivered) {
+                return res.status(400).json({ message: 'This delivery boy already has undelivered orders. Complete them before assigning new ones.' });
+            }
+            // Assign delivery boy to all selected orders
+            const updated = await Order.update(
+                { deliveryBoyId, status: 'processing' },
+                { where: { id: orderIds } }
+            );
+            const updatedOrders = await Order.findAll({ where: { id: orderIds } });
+            res.json({ updated: updated[0], orders: updatedOrders });
+        } catch (error) {
+            console.error('Error in bulkAssignDeliveryBoy:', error);
+            res.status(500).json({ message: 'Failed to assign delivery boy to selected orders' });
         }
     },
 };

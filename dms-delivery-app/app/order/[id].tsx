@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Alert, ScrollView, TouchableOpacity, Image } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Alert, ScrollView, TouchableOpacity, Image, Linking, TextInput } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import axios from 'axios';
 import { API_URL } from '../../config';
@@ -59,6 +59,7 @@ export default function OrderDetailScreen() {
   const [distance, setDistance] = useState<string>('');
   const [navigationReady, setNavigationReady] = useState(false);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
+  const [deliveryKeyInput, setDeliveryKeyInput] = useState('');
 
   useEffect(() => {
     const fetchOrder = async () => {
@@ -76,18 +77,18 @@ export default function OrderDetailScreen() {
     if (id && token) fetchOrder();
   }, [id, token]);
 
-  const updateStatus = async (newStatus: string) => {
+  const updateStatus = async (newStatus: string, deliveryKey?: string) => {
     setUpdating(true);
     try {
       await axios.put(
         `${API_URL}/delivery/orders/${id}/status`,
-        { status: newStatus },
+        deliveryKey ? { status: newStatus, deliveryKey } : { status: newStatus },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setOrder((prev) => prev && { ...prev, status: newStatus });
       Alert.alert('Success', `Order marked as ${newStatus.replace('_', ' ')}`);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to update order status');
+    } catch (error: any) {
+      Alert.alert('Error', error.response?.data?.message || 'Failed to update order status');
     } finally {
       setUpdating(false);
     }
@@ -188,10 +189,24 @@ export default function OrderDetailScreen() {
   };
 
   const markAsDelivered = async () => {
-    await updateStatus('delivered');
+    if (!deliveryKeyInput || deliveryKeyInput.length !== 4) {
+      Alert.alert('Error', 'Please enter the 4-digit delivery code from the customer.');
+      return;
+    }
+    await updateStatus('delivered', deliveryKeyInput);
     setShowMarkDelivered(false);
     Alert.alert('Delivered!', 'Order marked as delivered.');
     router.back();
+  };
+
+  const openInGoogleMaps = () => {
+    if (order?.shippingAddress?.latitude && order?.shippingAddress?.longitude) {
+      const { latitude, longitude } = order.shippingAddress;
+      const url = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+      Linking.openURL(url);
+    } else {
+      Alert.alert('Error', 'No delivery location found');
+    }
   };
 
   function getDistance(loc1: { latitude: number; longitude: number }, loc2: { latitude: number; longitude: number }) {
@@ -284,15 +299,43 @@ export default function OrderDetailScreen() {
               )}
 
               {(order.status === 'picked_up' || order.status === 'out_for_delivery') && !navigationStarted && (
-                <TouchableOpacity
-                  style={[styles.actionBtn, styles.navigateBtn]}
-                  onPress={handleStartNavigation}
-                  disabled={updating}
-                >
-                  <Text style={styles.actionBtnText}>
-                    {updating ? 'Starting...' : 'Start Navigation'}
-                  </Text>
-                </TouchableOpacity>
+                <>
+                  <TouchableOpacity
+                    style={[styles.actionBtn, styles.navigateBtn]}
+                    onPress={handleStartNavigation}
+                    disabled={updating}
+                  >
+                    <Text style={styles.actionBtnText}>
+                      {updating ? 'Starting...' : 'Start Navigation'}
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.actionBtn, styles.gmapBtn]}
+                    onPress={openInGoogleMaps}
+                  >
+                    <Text style={styles.actionBtnText}>Open in Google Maps</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+
+              {(order.status === 'picked_up' || order.status === 'out_for_delivery') && (
+                <View style={styles.otpRow}>
+                  <TextInput
+                    style={styles.otpInput}
+                    value={deliveryKeyInput}
+                    onChangeText={setDeliveryKeyInput}
+                    maxLength={4}
+                    keyboardType="number-pad"
+                    placeholder="____"
+                  />
+                  <TouchableOpacity
+                    style={[styles.actionBtn, styles.deliverBtn]}
+                    onPress={markAsDelivered}
+                    disabled={updating}
+                  >
+                    <Text style={styles.actionBtnText}>{updating ? 'Delivering...' : 'Deliver'}</Text>
+                  </TouchableOpacity>
+                </View>
               )}
 
               {(order.status === 'picked_up' || order.status === 'out_for_delivery') && navigationStarted && (
@@ -302,6 +345,20 @@ export default function OrderDetailScreen() {
               )}
             </View>
           </ScrollView>
+
+          {showMarkDelivered && (
+            <View style={{ marginBottom: 12 }}>
+              <Text style={{ fontWeight: 'bold', marginBottom: 4 }}>Enter 4-digit Delivery Code from Customer</Text>
+              <TextInput
+                style={{ borderWidth: 1, borderColor: '#ccc', borderRadius: 6, padding: 8, fontSize: 18, letterSpacing: 8, textAlign: 'center', marginBottom: 8 }}
+                value={deliveryKeyInput}
+                onChangeText={setDeliveryKeyInput}
+                maxLength={4}
+                keyboardType="number-pad"
+                placeholder="____"
+              />
+            </View>
+          )}
         </View>
       </Modal>
 
@@ -519,6 +576,10 @@ const styles = StyleSheet.create({
   navigateBtn: {
     backgroundColor: '#059669',
   },
+  gmapBtn: {
+    backgroundColor: '#4285F4',
+    marginTop: 8,
+  },
   actionBtnText: {
     color: '#fff',
     fontSize: 14,
@@ -618,5 +679,30 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 13,
     fontWeight: '600',
+  },
+  otpRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 12,
+    marginBottom: 4,
+  },
+  otpInput: {
+    borderWidth: 1,
+    borderColor: '#ccc',
+    borderRadius: 6,
+    padding: 8,
+    fontSize: 18,
+    letterSpacing: 8,
+    textAlign: 'center',
+    width: 100,
+    backgroundColor: '#f9fafb',
+    marginRight: 8,
+  },
+  deliverBtn: {
+    backgroundColor: '#10b981',
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: 8,
   },
 });

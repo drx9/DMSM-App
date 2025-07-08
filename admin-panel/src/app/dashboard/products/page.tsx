@@ -46,6 +46,7 @@ export default function ProductsPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [pageSize] = useState(10); // You can make this selectable if you want
+    const [search, setSearch] = useState('');
 
     // Fetch categories for filter dropdown
     useEffect(() => {
@@ -60,12 +61,13 @@ export default function ProductsPage() {
         fetchCategories();
     }, []);
 
-    // Fetch products with sort/order/category
-    const fetchProducts = async (page = currentPage) => {
+    // Fetch products with sort/order/category/search
+    const fetchProducts = async (page = currentPage, searchQuery = search) => {
         try {
             setLoading(true);
             const params: any = { sort, order, page, limit: pageSize };
             if (category !== 'all') params.category = category;
+            if (searchQuery) params.search = searchQuery;
             const response = await api.get('/api/products', { params });
             setProducts(response.data.products);
             setCurrentPage(response.data.currentPage || 1);
@@ -77,10 +79,11 @@ export default function ProductsPage() {
         }
     };
 
+    // Fetch on search, sort, order, category change
     useEffect(() => {
-        fetchProducts(1); // Reset to first page on filter/sort change
+        fetchProducts(1, search); // Reset to first page on filter/sort/search change
         // eslint-disable-next-line
-    }, [sort, order, category]);
+    }, [sort, order, category, search]);
 
     // Local stock filter (client-side)
     useEffect(() => {
@@ -111,7 +114,29 @@ export default function ProductsPage() {
     const renderPagination = () => {
         if (totalPages <= 1) return null;
         const pages = [];
-        for (let i = 1; i <= totalPages; i++) {
+        const pageWindow = 2; // Number of pages to show around current page
+        const showLeftEllipsis = currentPage > pageWindow + 2;
+        const showRightEllipsis = currentPage < totalPages - (pageWindow + 1);
+
+        // Always show first page
+        pages.push(
+            <button
+                key={1}
+                className={`px-3 py-1 rounded ${currentPage === 1 ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700'} mx-1`}
+                onClick={() => fetchProducts(1)}
+                disabled={currentPage === 1}
+            >
+                1
+            </button>
+        );
+
+        // Show left ellipsis if needed
+        if (showLeftEllipsis) {
+            pages.push(<span key="left-ellipsis" className="mx-1">...</span>);
+        }
+
+        // Pages around current page
+        for (let i = Math.max(2, currentPage - pageWindow); i <= Math.min(totalPages - 1, currentPage + pageWindow); i++) {
             pages.push(
                 <button
                     key={i}
@@ -123,6 +148,26 @@ export default function ProductsPage() {
                 </button>
             );
         }
+
+        // Show right ellipsis if needed
+        if (showRightEllipsis) {
+            pages.push(<span key="right-ellipsis" className="mx-1">...</span>);
+        }
+
+        // Always show last page if more than one page
+        if (totalPages > 1) {
+            pages.push(
+                <button
+                    key={totalPages}
+                    className={`px-3 py-1 rounded ${currentPage === totalPages ? 'bg-green-600 text-white' : 'bg-gray-200 text-gray-700'} mx-1`}
+                    onClick={() => fetchProducts(totalPages)}
+                    disabled={currentPage === totalPages}
+                >
+                    {totalPages}
+                </button>
+            );
+        }
+
         return (
             <div className="flex justify-center items-center mt-6 gap-2">
                 <button
@@ -175,6 +220,25 @@ export default function ProductsPage() {
                             </button>
                         </div>
                     </div>
+                    {/* Search Bar */}
+                    <div className="mt-6 flex items-center max-w-md">
+                        <input
+                            type="text"
+                            className="w-full rounded-xl border border-gray-200 px-4 py-2 shadow-sm focus:border-green-500 focus:ring-green-500 bg-gray-50 hover:bg-white transition-colors duration-200"
+                            placeholder="Search products..."
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                        />
+                        {search && (
+                            <button
+                                className="ml-2 text-gray-500 hover:text-gray-700"
+                                onClick={() => setSearch('')}
+                                title="Clear search"
+                            >
+                                &#10005;
+                            </button>
+                        )}
+                    </div>
                 </div>
 
                 {/* Upload Excel Modal */}
@@ -203,12 +267,10 @@ export default function ProductsPage() {
                                         setUploading(true);
                                         const formData = new FormData();
                                         formData.append('file', fileInputRef.current.files[0]);
-                                        const devToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6ImExYjJjM2Q0LWU1ZjYtNzg5MC0xMjM0LTU2Nzg5MGFiY2RlZiIsInJvbGUiOiJhZG1pbiIsImlhdCI6MTc1MDU4MTQ1OSwiZXhwIjoxNzUzMTczNDU5fQ.UHkxXsuZ01xW0X65XAt73DXBzYGLAEfKVFk8YlcMyM8';
                                         try {
                                             await api.post('/api/products/bulk-upload', formData, {
                                                 headers: {
                                                     'Content-Type': 'multipart/form-data',
-                                                    'Authorization': `Bearer ${devToken}`
                                                 }
                                             });
                                             toast.success('Products uploaded successfully!');
