@@ -11,11 +11,12 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 const allowedOrigins = [
-  'https://your-admin.vercel.app',
-  'https://your-consumer.vercel.app'
+  'https://dmsm-app.vercel.app', // your actual Vercel frontend
+  'http://localhost:3000',      // local dev
 ];
 app.use(cors({
   origin: function (origin, callback) {
+    console.log('CORS request from origin:', origin); // Debug log
     // allow requests with no origin (like mobile apps, curl, etc.)
     if (!origin) return callback(null, true);
     if (allowedOrigins.indexOf(origin) === -1) {
