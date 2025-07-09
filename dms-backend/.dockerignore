@@ -1,3 +1,7 @@
-  node_modules
-  *.log
-  .git
+node_modules
+.git
+*.log
+uploads
+db_dump.sql
+.vscode
+*.md
