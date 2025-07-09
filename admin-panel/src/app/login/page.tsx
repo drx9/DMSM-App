@@ -34,7 +34,7 @@ export default function LoginPage() {
         try {
             setIsLoading(true);
             const response = await axios.post(
-                `${process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000'}/api/auth/admin-login`,
+                `${process.env.NEXT_PUBLIC_API_URL || 'https://dmsm-app-production-a35d.up.railway.app'}/api/auth/admin-login`,
                 data
             );
 

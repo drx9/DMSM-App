@@ -5,7 +5,7 @@ import axios from 'axios';
 // (e.g., localStorage or a cookie) after the user logs in.
 
 const api = axios.create({
-    baseURL: 'http://localhost:5000',
+    baseURL: process.env.NEXT_PUBLIC_API_URL || 'https://dmsm-app-production-a35d.up.railway.app',
     headers: {
         'Content-Type': 'application/json',
     },
