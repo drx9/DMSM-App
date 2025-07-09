@@ -6,7 +6,7 @@ import { API_URL } from './config';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import io from 'socket.io-client';
 
-const SOCKET_URL = 'ws://localhost:5000';
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'wss://dmsm-app-production-a35d.up.railway.app'; // Use backend's WebSocket URL
 
 const MyOrdersScreen = () => {
     const [orders, setOrders] = useState<any[]>([]);

@@ -7,7 +7,7 @@ export async function GET() {
         const cookieStore = cookies();
         const token = cookieStore.get('admin_token')?.value;
 
-        const response = await axios.get(`${process.env.BACKEND_URL}/api/orders/delivery-boys`, {
+        const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'https://dmsm-app-production-a35d.up.railway.app'}/api/orders/delivery-boys`, {
             headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -26,7 +26,7 @@ export async function POST(req: Request) {
         const cookieStore = cookies();
         const token = cookieStore.get('admin_token')?.value;
 
-        const response = await axios.post(`${process.env.BACKEND_URL}/api/orders/delivery-boys`, data, {
+        const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'https://dmsm-app-production-a35d.up.railway.app'}/api/orders/delivery-boys`, data, {
             headers: { Authorization: `Bearer ${token}` },
         });
 

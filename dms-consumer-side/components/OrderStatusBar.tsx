@@ -4,7 +4,7 @@ import MapView, { Marker, Polyline } from 'react-native-maps';
 import io from 'socket.io-client';
 import { Ionicons } from '@expo/vector-icons';
 
-const SOCKET_URL = 'ws://localhost:5000'; // Change to your backend's WebSocket URL if needed
+const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'wss://dmsm-app-production-a35d.up.railway.app'; // Use backend's WebSocket URL
 
 // You may want to get these from context or props in a real app
 const ACTIVE_ORDER_ID = null; // Replace with logic to get the current active order ID

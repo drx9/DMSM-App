@@ -8,7 +8,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         const token = cookieStore.get('admin_token')?.value;
         const { id } = params;
 
-        const response = await axios.get(`${process.env.BACKEND_URL}/api/offers/${id}`, {
+        const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'https://dmsm-app-production-a35d.up.railway.app'}/api/offers/${id}`, {
             headers: { Authorization: `Bearer ${token}` },
         });
 
@@ -33,7 +33,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
         const { id } = params;
         const body = await request.json();
 
-        const response = await axios.put(`${process.env.BACKEND_URL}/api/offers/${id}`, body, {
+        const response = await axios.put(`${process.env.NEXT_PUBLIC_API_URL || 'https://dmsm-app-production-a35d.up.railway.app'}/api/offers/${id}`, body, {
             headers: {
                 Authorization: `Bearer ${token}`,
                 'Content-Type': 'application/json',

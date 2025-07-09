@@ -8,7 +8,7 @@ export async function POST(request: Request) {
         const { email, password } = body;
 
         // Call backend login API
-        const response = await axios.post(`${process.env.BACKEND_URL}/api/auth/login`, { email, password });
+        const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'https://dmsm-app-production-a35d.up.railway.app'}/api/auth/login`, { email, password });
 
         const { user } = response.data;
 

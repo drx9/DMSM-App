@@ -1,1 +1,1 @@
-export const API_URL = 'http://10.84.250.139:5000/api';
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://dmsm-app-production-a35d.up.railway.app/api';

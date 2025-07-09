@@ -12,7 +12,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
         }
 
         const { id } = params;
-        const response = await axios.get(`${process.env.BACKEND_URL}/api/products/${id}`, {
+        const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'https://dmsm-app-production-a35d.up.railway.app'}/api/products/${id}`, {
             headers: {
                 Authorization: `Bearer ${token}`,
             },
@@ -40,7 +40,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
         const { id } = params;
         const body = await request.json();
 
-        const response = await axios.put(`${process.env.BACKEND_URL}/api/products/${id}`, body, {
+        const response = await axios.put(`${process.env.NEXT_PUBLIC_API_URL || 'https://dmsm-app-production-a35d.up.railway.app'}/api/products/${id}`, body, {
             headers: {
                 Authorization: `Bearer ${token}`,
                 'Content-Type': 'application/json',

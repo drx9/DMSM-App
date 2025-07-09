@@ -11,10 +11,8 @@ export async function GET() {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        const response = await axios.get(`${process.env.BACKEND_URL}/api/products`, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
+        const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'https://dmsm-app-production-a35d.up.railway.app'}/api/products`, {
+            headers: { 'Content-Type': 'application/json' },
         });
 
         return NextResponse.json(response.data);
@@ -37,11 +35,8 @@ export async function POST(request: Request) {
         }
 
         const body = await request.json();
-        const response = await axios.post(`${process.env.BACKEND_URL}/api/products`, body, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-                'Content-Type': 'application/json',
-            },
+        const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'https://dmsm-app-production-a35d.up.railway.app'}/api/products`, body, {
+            headers: { 'Content-Type': 'application/json' },
         });
 
         return NextResponse.json(response.data);
@@ -70,11 +65,7 @@ export async function DELETE(request: Request) {
             return NextResponse.json({ message: 'Product ID is required' }, { status: 400 });
         }
 
-        await axios.delete(`${process.env.BACKEND_URL}/api/products/${id}`, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        });
+        await axios.delete(`${process.env.NEXT_PUBLIC_API_URL || 'https://dmsm-app-production-a35d.up.railway.app'}/api/products/${id}`);
 
         return NextResponse.json({ message: 'Product deleted successfully' });
     } catch (error: any) {

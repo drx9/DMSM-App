@@ -5,9 +5,9 @@ export async function GET() {
     try {
         // Fetch data from backend
         const [ordersResponse, productsResponse, usersResponse] = await Promise.all([
-            axios.get(`${process.env.BACKEND_URL}/api/orders/stats`),
-            axios.get(`${process.env.BACKEND_URL}/api/products/stats`),
-            axios.get(`${process.env.BACKEND_URL}/api/users/stats`),
+            axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'https://dmsm-app-production-a35d.up.railway.app'}/api/orders/stats`),
+            axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'https://dmsm-app-production-a35d.up.railway.app'}/api/products/stats`),
+            axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'https://dmsm-app-production-a35d.up.railway.app'}/api/users/stats`),
         ]);
 
         const { totalRevenue, totalOrders } = ordersResponse.data;

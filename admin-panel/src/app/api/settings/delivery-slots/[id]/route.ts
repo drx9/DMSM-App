@@ -17,7 +17,7 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
             return NextResponse.json({ message: 'Delivery slot ID is required' }, { status: 400 });
         }
 
-        await axios.delete(`${process.env.BACKEND_URL}/api/delivery-slots/${id}`, {
+        await axios.delete(`${process.env.NEXT_PUBLIC_API_URL || 'https://dmsm-app-production-a35d.up.railway.app'}/api/delivery-slots/${id}`, {
             headers: {
                 Authorization: `Bearer ${token}`,
             },

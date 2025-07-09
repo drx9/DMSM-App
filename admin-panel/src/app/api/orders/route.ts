@@ -11,7 +11,7 @@ export async function GET() {
             return NextResponse.json({ message: 'Unauthorized' }, { status: 401 });
         }
 
-        const response = await axios.get(`${process.env.BACKEND_URL}/api/orders`, {
+        const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'https://dmsm-app-production-a35d.up.railway.app'}/api/orders`, {
             headers: {
                 Authorization: `Bearer ${token}`,
             },

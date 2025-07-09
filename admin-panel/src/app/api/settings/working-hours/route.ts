@@ -12,7 +12,7 @@ export async function GET() {
         }
 
         // Assuming a backend API endpoint for fetching working hours exists
-        const response = await axios.get(`${process.env.BACKEND_URL}/api/working-hours`, {
+        const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'https://dmsm-app-production-a35d.up.railway.app'}/api/working-hours`, {
             headers: {
                 Authorization: `Bearer ${token}`,
             },
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
 
         const body = await request.json();
         // Assuming a backend API endpoint for updating working hours exists
-        const response = await axios.post(`${process.env.BACKEND_URL}/api/working-hours`, body, {
+        const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'https://dmsm-app-production-a35d.up.railway.app'}/api/working-hours`, body, {
             headers: {
                 Authorization: `Bearer ${token}`,
                 'Content-Type': 'application/json',
