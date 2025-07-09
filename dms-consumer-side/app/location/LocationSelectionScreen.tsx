@@ -7,6 +7,7 @@ import { API_URL } from '../config';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import * as Location from 'expo-location';
 
 const { width, height } = Dimensions.get('window');
 
@@ -24,6 +25,27 @@ function isWithinNalbari(lat: number, lng: number) {
         lng >= NALBARI_BOUNDS.southwest.lng &&
         lng <= NALBARI_BOUNDS.northeast.lng
     );
+}
+
+async function getLocationSafe() {
+  try {
+    let { status } = await Location.requestForegroundPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert(
+        'Permission Denied',
+        'Location permission is required to use this feature. Please enable it in your device settings.'
+      );
+      return null;
+    }
+    let location = await Location.getCurrentPositionAsync({});
+    return location;
+  } catch (error) {
+    Alert.alert(
+      'Location Error',
+      'Could not get your location. Please try again or check your device settings.'
+    );
+    return null;
+  }
 }
 
 const LocationSelectionScreen = ({ onLocationSelected, savedAddress, userId: propUserId, editingAddress, onBack }: any) => {
