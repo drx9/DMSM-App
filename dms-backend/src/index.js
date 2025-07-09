@@ -10,14 +10,27 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
+const allowedOrigins = [
+  'https://your-admin.vercel.app',
+  'https://your-consumer.vercel.app'
+];
 app.use(cors({
-  origin: '*',
+  origin: function (origin, callback) {
+    // allow requests with no origin (like mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) === -1) {
+      const msg = 'The CORS policy for this site does not allow access from the specified Origin.';
+      return callback(new Error(msg), false);
+    }
+    return callback(null, true);
+  },
   credentials: true,
 }));
 app.use(express.json());
 
 // Routes
 app.use('/api', routes);
+app.get('/api/health', (req, res) => res.send('OK'));
 
 // Error handling
 app.use(errorHandler);
