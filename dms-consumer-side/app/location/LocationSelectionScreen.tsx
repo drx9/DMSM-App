@@ -10,7 +10,7 @@ import { useNavigation } from '@react-navigation/native';
 
 const { width, height } = Dimensions.get('window');
 
-const GOOGLE_MAPS_APIKEY = 'AIzaSyDxIJneZ8qgkgKLsffP46EENI-EGOdnCEU';
+const GOOGLE_MAPS_APIKEY = process.env.GOOGLE_MAPS_API_KEY;
 const NALBARI_BOUNDS = {
     northeast: { lat: 26.464, lng: 91.468 },
     southwest: { lat: 26.420, lng: 91.410 },

@@ -57,4 +57,8 @@ const startServer = async () => {
   }
 };
 
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable is required! Set it in Railway backend variables.');
+}
+
 startServer(); 

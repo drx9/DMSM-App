@@ -37,7 +37,7 @@ const statusColors: Record<string, string> = {
   out_for_delivery: '#047857',
 };
 
-const GOOGLE_MAPS_API_KEY = 'AIzaSyDxIJneZ8qgkgKLsffP46EENI-EGOdnCEU';
+const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
