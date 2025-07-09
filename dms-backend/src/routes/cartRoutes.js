@@ -16,12 +16,21 @@ router.get('/:userId', async (req, res) => {
     }
 });
 
-// Add or update a cart item
+// Add or update a cart item with stock check
 router.post('/', async (req, res) => {
     try {
         const { userId, productId, quantity } = req.body;
+        if (quantity < 1) return res.status(400).json({ error: 'Quantity must be at least 1' });
+
+        // Fetch product and check stock
+        const product = await Product.findByPk(productId);
+        if (!product) return res.status(404).json({ error: 'Product not found' });
+        if (product.stock < quantity) return res.status(400).json({ error: 'Not enough stock available' });
+        if (product.isOutOfStock || product.stock === 0) return res.status(400).json({ error: 'Product is out of stock' });
+
         let item = await CartItem.findOne({ where: { userId, productId } });
         if (item) {
+            if (product.stock < quantity) return res.status(400).json({ error: 'Not enough stock available' });
             item.quantity = quantity;
             await item.save();
         } else {

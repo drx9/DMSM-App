@@ -19,6 +19,7 @@ export default function TabLayout() {
   const colorScheme = useColorScheme();
   const [addressSet, setAddressSet] = useState<boolean | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [hasSetAddressOnce, setHasSetAddressOnce] = useState<boolean | null>(null);
   const router = useRouter();
   const { cartCount, refreshCartFromBackend } = useCart();
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
@@ -29,7 +30,14 @@ export default function TabLayout() {
     const checkAddressSet = async () => {
       const uid = await AsyncStorage.getItem('userId');
       setUserId(uid);
-      console.log('[TabLayout] Checking address for userId:', uid);
+      // Check if user has ever set an address
+      const hasSetOnce = await AsyncStorage.getItem('hasSetAddressOnce');
+      if (hasSetOnce === 'true') {
+        setHasSetAddressOnce(true);
+        setAddressSet(true);
+        return;
+      }
+      setHasSetAddressOnce(false);
       // Only check backend for addresses, do not clear AsyncStorage
       if (uid) {
         try {
@@ -101,17 +109,19 @@ export default function TabLayout() {
     fetchActiveOrder();
   }, [userId]);
 
-  if (addressSet === null) {
+  if (addressSet === null || hasSetAddressOnce === null) {
     return <ActivityIndicator size="large" color="#CB202D" style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }} />;
   }
 
-  if (addressSet === false) {
+  if (addressSet === false && hasSetAddressOnce === false) {
     return (
       <LocationSelectionScreen
         onLocationSelected={async (address: any) => {
           await AsyncStorage.setItem('userAddress', JSON.stringify(address));
           await AsyncStorage.setItem('addressSet', 'true');
+          await AsyncStorage.setItem('hasSetAddressOnce', 'true');
           setAddressSet(true);
+          setHasSetAddressOnce(true);
           // router.replace('/');
         }}
         userId={userId}

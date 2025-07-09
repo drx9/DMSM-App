@@ -150,7 +150,7 @@ export default function OrderDetailScreen() {
     if (locationWatcher.current) locationWatcher.current.remove();
     locationWatcher.current = await Location.watchPositionAsync(
       { accuracy: Location.Accuracy.High, timeInterval: 2000, distanceInterval: 5 },
-      (loc) => {
+      (loc: { coords: { latitude: number; longitude: number } }) => {
         const newLoc = {
           latitude: loc.coords.latitude,
           longitude: loc.coords.longitude,

@@ -132,6 +132,19 @@ const orderController = {
             if (!userId || !address || !cartItems || !cartItems.length) {
                 return res.status(400).json({ message: 'userId, address, and cartItems are required' });
             }
+            // Stock validation for all cart items
+            for (const item of cartItems) {
+                const product = await Product.findByPk(item.id);
+                if (!product) {
+                    return res.status(400).json({ message: `Product with id ${item.id} not found` });
+                }
+                if (product.stock < item.quantity) {
+                    return res.status(400).json({ message: `Not enough stock for product ${product.name}` });
+                }
+                if (product.isOutOfStock || product.stock === 0) {
+                    return res.status(400).json({ message: `Product ${product.name} is out of stock` });
+                }
+            }
             // Generate 4-digit delivery key
             const deliveryKey = Math.floor(1000 + Math.random() * 9000).toString();
             // Create order

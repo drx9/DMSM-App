@@ -158,13 +158,13 @@ const ProfileScreen = () => {
     } else if (feature.screen === 'account-details') {
       router.push('/account-details');
     } else if (feature.screen === 'customer-support') {
-      router.push('/customer-support');
+      router.push('/customer-support' as any);
     } else if (feature.screen === 'wishlist') {
-      router.push('/wishlist');
+      router.push('/wishlist' as any);
     } else if (feature.screen === 'payment-options') {
-      router.push('/payment-options');
+      router.push('/payment-options' as any);
     } else if (feature.screen === 'add-gift-card') {
-      router.push('/add-gift-card');
+      router.push('/add-gift-card' as any);
     } else {
       // Placeholder for other features
       console.log(`Navigating to ${feature.name}`);

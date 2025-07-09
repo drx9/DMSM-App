@@ -251,7 +251,7 @@ const HomeScreen = () => {
 
   // Handler for View All Offers
   const handleViewAllOffers = () => {
-    router.push('/offers');
+    router.push('/offers' as any);
   };
 
   if (showLocationScreen) {
