@@ -11,7 +11,7 @@ import * as Location from 'expo-location';
 
 const { width, height } = Dimensions.get('window');
 
-const GOOGLE_MAPS_APIKEY = process.env.GOOGLE_MAPS_API_KEY;
+const GOOGLE_MAPS_APIKEY = process.env.GOOGLE_MAPS_API_KEY || 'YOUR_GOOGLE_MAPS_API_KEY';
 const NALBARI_BOUNDS = {
     northeast: { lat: 26.464, lng: 91.468 },
     southwest: { lat: 26.420, lng: 91.410 },
@@ -92,6 +92,11 @@ const LocationSelectionScreen = ({ onLocationSelected, savedAddress, userId: pro
             setPredictions([]);
             return;
         }
+        if (GOOGLE_MAPS_APIKEY === 'YOUR_GOOGLE_MAPS_API_KEY') {
+            console.warn('Google Maps API key not configured');
+            setPredictions([]);
+            return;
+        }
         setLoadingPredictions(true);
         try {
             const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&key=${GOOGLE_MAPS_APIKEY}&components=country:in`;
@@ -99,6 +104,7 @@ const LocationSelectionScreen = ({ onLocationSelected, savedAddress, userId: pro
             const json = await res.json();
             setPredictions(json.predictions || []);
         } catch (err) {
+            console.error('Error fetching predictions:', err);
             setPredictions([]);
         }
         setLoadingPredictions(false);
@@ -109,6 +115,11 @@ const LocationSelectionScreen = ({ onLocationSelected, savedAddress, userId: pro
         setPredictions([]);
         setManualAddress(item.description);
         try {
+            if (GOOGLE_MAPS_APIKEY === 'YOUR_GOOGLE_MAPS_API_KEY') {
+                console.warn('Google Maps API key not configured');
+                setError('Google Maps API key not configured. Please contact support.');
+                return;
+            }
             const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${item.place_id}&key=${GOOGLE_MAPS_APIKEY}`;
             const res = await fetch(detailsUrl);
             const details = await res.json();
@@ -123,19 +134,26 @@ const LocationSelectionScreen = ({ onLocationSelected, savedAddress, userId: pro
                 });
             }
         } catch (err: any) {
+            console.error('Error fetching place details:', err);
             setError('Failed to fetch place details.');
         }
     };
 
     const reverseGeocode = async (lat: number, lng: number) => {
         try {
+            if (GOOGLE_MAPS_APIKEY === 'YOUR_GOOGLE_MAPS_API_KEY') {
+                console.warn('Google Maps API key not configured');
+                return '';
+            }
             const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_MAPS_APIKEY}`;
             const res = await fetch(url);
             const json = await res.json();
             if (json.results && json.results.length > 0) {
                 return json.results[0].formatted_address;
             }
-        } catch (err) { }
+        } catch (err) {
+            console.error('Error in reverse geocoding:', err);
+        }
         return '';
     };
 

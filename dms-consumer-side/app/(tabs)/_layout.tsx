@@ -28,22 +28,33 @@ export default function TabLayout() {
 
   useEffect(() => {
     const checkAddressSet = async () => {
-      const uid = await AsyncStorage.getItem('userId');
-      setUserId(uid);
-      // Check if user has ever set an address
-      const hasSetOnce = await AsyncStorage.getItem('hasSetAddressOnce');
-      if (hasSetOnce === 'true') {
-        setHasSetAddressOnce(true);
-        setAddressSet(true);
-        return;
-      }
-      setHasSetAddressOnce(false);
-      // Only check backend for addresses, do not clear AsyncStorage
-      if (uid) {
+      try {
+        const uid = await AsyncStorage.getItem('userId');
+        setUserId(uid);
+        
+        if (!uid) {
+          console.log('[TabLayout] No userId found, setting addressSet = false');
+          setAddressSet(false);
+          setHasSetAddressOnce(false);
+          return;
+        }
+
+        // Check if user has ever set an address
+        const hasSetOnce = await AsyncStorage.getItem('hasSetAddressOnce');
+        if (hasSetOnce === 'true') {
+          setHasSetAddressOnce(true);
+          setAddressSet(true);
+          return;
+        }
+        
+        setHasSetAddressOnce(false);
+        
+        // Only check backend for addresses, do not clear AsyncStorage
         try {
           console.log('[TabLayout] Fetching addresses from backend for userId:', uid);
           const res = await axios.get(`${API_URL}/addresses/${uid}`);
           console.log('[TabLayout] Backend address response:', res.data);
+          
           if (res.data && Array.isArray(res.data) && res.data.length > 0) {
             await AsyncStorage.setItem('userAddress', JSON.stringify(res.data[0]));
             await AsyncStorage.setItem('addressSet', 'true');
@@ -57,13 +68,15 @@ export default function TabLayout() {
           }
         } catch (err: any) {
           console.log('[TabLayout] Error fetching addresses from backend:', err?.response?.data || err.message || err);
+          // On error, assume no address is set
+          setAddressSet(false);
+          return;
         }
-      } else {
-        console.log('[TabLayout] No userId found, setting addressSet = false');
+      } catch (error) {
+        console.error('[TabLayout] Critical error in checkAddressSet:', error);
         setAddressSet(false);
-        return;
+        setHasSetAddressOnce(false);
       }
-      setAddressSet(false);
     };
     checkAddressSet();
   }, []);

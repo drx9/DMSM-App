@@ -147,11 +147,16 @@ const LoginScreen = () => {
         await AsyncStorage.setItem('userId', response.data.user.id);
         // await AsyncStorage.setItem('userToken', response.data.token); // if you want to store token
         Alert.alert(t('success'), t('loginSuccessful'));
-        router.replace('/(tabs)');
+        
+        // Add a small delay to ensure AsyncStorage is written before navigation
+        setTimeout(() => {
+          router.replace('/(tabs)');
+        }, 100);
       } else {
         Alert.alert(t('error'), response.data.message || t('loginFailed'));
       }
     } catch (error) {
+      console.error('Login error:', error);
       handleApiError(error);
     }
   };
