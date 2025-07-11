@@ -360,6 +360,8 @@ export default function ProductForm({ productId }: { productId?: string }) {
                                         <input
                                             type="number"
                                             step="0.01"
+                                            min="0"
+                                            max="100"
                                             {...register('discount')}
                                             className="w-full px-4 py-3 pr-8 rounded-xl border-gray-200 shadow-sm focus:border-orange-500 focus:ring-orange-500 bg-gray-50 hover:bg-white transition-colors duration-200"
                                             placeholder="0"
@@ -511,7 +513,8 @@ export default function ProductForm({ productId }: { productId?: string }) {
 
 const ProductPreviewModal = ({ product, onClose }: { product: FormData & { images: string }, onClose: () => void }) => {
     const imageUrls = typeof product.images === 'string' ? product.images.split(',').filter(Boolean) : [];
-    const salePrice = product.price - (product.price * product.discount) / 100;
+    const safeDiscount = Math.max(0, Math.min(100, Number(product.discount) || 0));
+    const salePrice = product.price - (product.price * safeDiscount) / 100;
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50" onClick={onClose}>
