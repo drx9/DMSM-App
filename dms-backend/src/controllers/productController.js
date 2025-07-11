@@ -73,7 +73,19 @@ const productController = {
 
   getProductById: async (req, res) => {
     try {
-      const product = await Product.findByPk(req.params.id, {
+      const productId = req.params.id;
+      
+      // Additional validation for UUID format
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      if (!uuidRegex.test(productId)) {
+        console.error('[getProductById] Invalid UUID format:', productId);
+        return res.status(400).json({ 
+          message: 'Invalid product ID format. Expected UUID format.',
+          received: productId 
+        });
+      }
+      
+      const product = await Product.findByPk(productId, {
         include: [{
           model: Category,
           as: 'category',

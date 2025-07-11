@@ -33,8 +33,20 @@ const orderController = {
     getOrderById: async (req, res) => {
         console.log('getOrderById called for', req.params.id);
         try {
-            console.log('[getOrderById] Requested order id:', req.params.id);
-            const order = await Order.findByPk(req.params.id, {
+            const orderId = req.params.id;
+            
+            // Additional validation for UUID format
+            const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+            if (!uuidRegex.test(orderId)) {
+                console.error('[getOrderById] Invalid UUID format:', orderId);
+                return res.status(400).json({ 
+                    message: 'Invalid order ID format. Expected UUID format.',
+                    received: orderId 
+                });
+            }
+            
+            console.log('[getOrderById] Requested order id:', orderId);
+            const order = await Order.findByPk(orderId, {
                 include: [
                     { model: User, as: 'customer', attributes: ['id', 'name', 'email', 'phoneNumber'] },
                     { model: User, as: 'deliveryBoy', attributes: ['id', 'name', 'phoneNumber'] },

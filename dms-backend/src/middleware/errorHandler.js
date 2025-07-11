@@ -1,6 +1,14 @@
 const errorHandler = (err, req, res, next) => {
   console.error('Error:', err);
 
+  // Handle UUID validation errors
+  if (err.message && err.message.includes('invalid input syntax for type uuid')) {
+    return res.status(400).json({
+      message: 'Invalid ID format. Expected UUID format.',
+      error: 'UUID_VALIDATION_ERROR'
+    });
+  }
+
   // Handle Sequelize validation errors
   if (err.name === 'SequelizeValidationError') {
     return res.status(400).json({

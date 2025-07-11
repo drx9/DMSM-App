@@ -81,7 +81,20 @@ router.get('/delivery-boys/:id/metrics', async (req, res) => {
 
 // Order endpoints (keep these after delivery boy routes)
 router.get('/', orderController.getAllOrders);
-router.get('/:id', orderController.getOrderById);
+
+// Add validation for UUID format before the :id route
+router.get('/:id', (req, res, next) => {
+    const { id } = req.params;
+    // Check if id is a valid UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+        return res.status(400).json({ 
+            message: 'Invalid order ID format. Expected UUID format.',
+            received: id 
+        });
+    }
+    next();
+}, orderController.getOrderById);
 router.put('/:id/status', orderController.updateOrderStatus);
 router.put('/:id/assign-delivery', async (req, res) => {
     try {

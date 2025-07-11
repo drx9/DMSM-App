@@ -99,12 +99,7 @@ export default function OrderDetailScreen() {
     setShowMap(true);
     setModalVisible(false);
     setNavigationReady(false);
-    let { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      Alert.alert('Permission denied', 'Location permission is required to show directions.');
-      return;
-    }
-    let location = await Location.getCurrentPositionAsync({});
+    let location = await getLocationSafe();
     const currentLoc = {
       latitude: location.coords.latitude,
       longitude: location.coords.longitude,
@@ -223,6 +218,27 @@ export default function OrderDetailScreen() {
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     const d = R * c;
     return d;
+  }
+
+  async function getLocationSafe() {
+    try {
+      let { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Permission Denied',
+          'Location permission is required to use this feature. Please enable it in your device settings.'
+        );
+        return null;
+      }
+      let location = await Location.getCurrentPositionAsync({});
+      return location;
+    } catch (error) {
+      Alert.alert(
+        'Location Error',
+        'Could not get your location. Please try again or check your device settings.'
+      );
+      return null;
+    }
   }
 
   if (loading) return (
