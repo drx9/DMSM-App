@@ -184,7 +184,7 @@ const ProductDetailScreen = () => {
           <Ionicons name="search" size={16} color="#999" />
           <Text style={styles.searchPlaceholder}>Search for products</Text>
         </View>
-        <TouchableOpacity onPress={() => router.push('/cart')} style={styles.cartIconWrap}>
+        <TouchableOpacity onPress={() => router.push('/cart' as any)} style={styles.cartIconWrap}>
           <Ionicons name="bag-outline" size={24} color="#333" />
           {cartCount > 0 && (
             <View style={styles.cartBadge}>
@@ -217,10 +217,18 @@ const ProductDetailScreen = () => {
             <View style={styles.priceSection}>
               <View style={styles.priceTag}>
                 <Text style={styles.priceLabel}>Kilos</Text>
-                <Text style={styles.price}>₹{selectedVariant ? selectedVariant.price : product!.price}</Text>
+                <Text style={styles.price}>
+                  ₹{selectedVariant ? (selectedVariant.price - (selectedVariant.price * selectedVariant.discount) / 100).toFixed(2) : (product!.price - (product!.price * product!.discount) / 100).toFixed(2)}
+                </Text>
               </View>
-              <Text style={styles.mrpLabel}>MRP</Text>
-              <Text style={styles.originalPrice}>₹{Math.round((selectedVariant ? selectedVariant.price : product!.price) * 1.15)}</Text>
+              {((selectedVariant && selectedVariant.discount > 0) || (!selectedVariant && product!.discount > 0)) && (
+                <>
+                  <Text style={styles.mrpLabel}>MRP</Text>
+                  <Text style={styles.originalPrice}>
+                    ₹{selectedVariant ? selectedVariant.price.toFixed(2) : product!.price.toFixed(2)}
+                  </Text>
+                </>
+              )}
             </View>
             <TouchableOpacity style={styles.addButton} onPress={handleAddToCart}>
               <Text style={styles.addButtonText}>Add</Text>
@@ -253,38 +261,45 @@ const ProductDetailScreen = () => {
         {variants.length > 0 && (
           <View style={styles.variantsSection}>
             <Text style={styles.sectionTitle}>Select Variant</Text>
-            {variants.map((variant, index) => (
-              <TouchableOpacity
-                key={variant.id}
-                style={[
-                  styles.variantCard,
-                  selectedVariant?.id === variant.id && styles.selectedVariantCard
-                ]}
-                onPress={() => setSelectedVariant(variant)}
-              >
-                <View style={styles.variantLeft}>
-                  <View style={[styles.radioButton, selectedVariant?.id === variant.id && styles.selectedRadio]}>
-                    {selectedVariant?.id === variant.id && <View style={styles.radioInner} />}
-                  </View>
-                  <View>
-                    <Text style={styles.discountText}>{variant.discount}% off</Text>
-                    <View style={styles.variantPriceContainer}>
-                      <View style={styles.priceTag}>
-                        <Text style={styles.priceLabel}>Kilos</Text>
-                        <Text style={styles.variantPrice}>₹{variant.price}</Text>
-                      </View>
-                      <Text style={styles.mrpLabel}>MRP</Text>
-                      <Text style={styles.variantOriginalPrice}>₹{Math.round(variant.price * 1.15)}</Text>
+            {variants.map((variant, index) => {
+              const salePrice = variant.price - (variant.price * variant.discount) / 100;
+              return (
+                <TouchableOpacity
+                  key={variant.id}
+                  style={[
+                    styles.variantCard,
+                    selectedVariant?.id === variant.id && styles.selectedVariantCard
+                  ]}
+                  onPress={() => setSelectedVariant(variant)}
+                >
+                  <View style={styles.variantLeft}>
+                    <View style={[styles.radioButton, selectedVariant?.id === variant.id && styles.selectedRadio]}>
+                      {selectedVariant?.id === variant.id && <View style={styles.radioInner} />}
                     </View>
-                    <Text style={styles.paymentOption}>Or Pay ₹{Math.round(variant.price * 0.9)} + ⚡{Math.round(variant.price * 0.1)}</Text>
+                    <View>
+                      <Text style={styles.discountText}>{variant.discount}% off</Text>
+                      <View style={styles.variantPriceContainer}>
+                        <View style={styles.priceTag}>
+                          <Text style={styles.priceLabel}>Kilos</Text>
+                          <Text style={styles.variantPrice}>₹{salePrice.toFixed(2)}</Text>
+                        </View>
+                        {variant.discount > 0 && (
+                          <>
+                            <Text style={styles.mrpLabel}>MRP</Text>
+                            <Text style={styles.variantOriginalPrice}>₹{variant.price.toFixed(2)}</Text>
+                          </>
+                        )}
+                      </View>
+                      <Text style={styles.paymentOption}>Or Pay ₹{Math.round(salePrice * 0.9)} + ⚡{Math.round(salePrice * 0.1)}</Text>
+                    </View>
                   </View>
-                </View>
-                <View style={styles.variantRight}>
-                  <Text style={styles.variantWeight}>{variant.name}</Text>
-                  <Text style={styles.variantRate}>@ ₹{(variant.price / parseFloat(variant.name.replace(/\D/g, '')) * 250).toFixed(1)}/250g</Text>
-                </View>
-              </TouchableOpacity>
-            ))}
+                  <View style={styles.variantRight}>
+                    <Text style={styles.variantWeight}>{variant.name}</Text>
+                    <Text style={styles.variantRate}>@ ₹{(salePrice / parseFloat(variant.name.replace(/\D/g, '')) * 250).toFixed(1)}/250g</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         )}
 

@@ -85,7 +85,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
   };
 
   const safePrice = typeof price === 'number' && !isNaN(price) ? price : 0;
-  const discountedPrice = discount ? safePrice - (safePrice * discount) / 100 : safePrice;
+  const safeDiscount = Math.max(0, Math.min(100, Number(discount) || 0));
+  const discountedPrice = safePrice - (safePrice * safeDiscount) / 100;
 
   return (
     <TouchableOpacity
@@ -134,7 +135,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
         <View style={styles.priceContainer}>
           <Text style={styles.price}>₹{discountedPrice.toFixed(2)}</Text>
-          {discount && (
+          {safeDiscount > 0 && (
             <Text style={styles.originalPrice}>₹{safePrice.toFixed(2)}</Text>
           )}
         </View>
