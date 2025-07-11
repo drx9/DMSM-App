@@ -139,7 +139,7 @@ const ProductDetailScreen = () => {
       price: selectedVariant ? selectedVariant.price : product!.price,
       quantity,
       image: product!.images?.[0] || '',
-      originalPrice: selectedVariant ? Math.round(selectedVariant.price * 1.15) : Math.round(product!.price * 1.15),
+      originalPrice: selectedVariant ? selectedVariant.price : product!.price, // Use actual price as MRP
       discount: selectedVariant ? selectedVariant.discount : product!.discount,
     };
     router.push({ pathname: '/checkout', params: { buyNow: JSON.stringify(buyNowItem) } });
