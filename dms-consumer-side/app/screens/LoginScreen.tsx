@@ -150,7 +150,7 @@ const LoginScreen = () => {
         
         // Add a small delay to ensure AsyncStorage is written before navigation
         setTimeout(() => {
-          router.replace('/(tabs)');
+        router.replace('/(tabs)');
         }, 100);
       } else {
         Alert.alert(t('error'), response.data.message || t('loginFailed'));

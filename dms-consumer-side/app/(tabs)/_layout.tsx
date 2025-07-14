@@ -29,8 +29,8 @@ export default function TabLayout() {
   useEffect(() => {
     const checkAddressSet = async () => {
       try {
-        const uid = await AsyncStorage.getItem('userId');
-        setUserId(uid);
+      const uid = await AsyncStorage.getItem('userId');
+      setUserId(uid);
         
         if (!uid) {
           console.log('[TabLayout] No userId found, setting addressSet = false');
@@ -49,7 +49,7 @@ export default function TabLayout() {
         
         setHasSetAddressOnce(false);
         
-        // Only check backend for addresses, do not clear AsyncStorage
+      // Only check backend for addresses, do not clear AsyncStorage
         try {
           console.log('[TabLayout] Fetching addresses from backend for userId:', uid);
           const res = await axios.get(`${API_URL}/addresses/${uid}`);

@@ -101,18 +101,23 @@ const CartScreen = () => {
   const fetchCartItems = async (userId: string) => {
     try {
       const response = await axios.get(`${API_URL}/cart/${userId}`);
-      const items = response.data.map((item: any) => ({
-        id: item.id,
-        productId: item.productId?.toString() || item.Product?.id?.toString(),
-        name: item.Product?.name || '',
-        price: item.Product?.price || 0,
-        quantity: item.quantity,
-        image: item.Product?.images?.[0] || '',
-        weight: `${Math.floor(Math.random() * 500) + 50} g`,
-        originalPrice: Math.floor((item.Product?.price || 0) * 1.4),
-        discount: Math.floor(Math.random() * 30) + 10,
-        inStock: Math.random() > 0.3, // 30% chance of being out of stock
-      }));
+      const items = response.data
+        .filter((item: any) => (item.Product || item.product) && typeof ((item.Product?.price ?? item.product?.price)) === 'number')
+        .map((item: any) => {
+          const prod = item.Product || item.product;
+          return {
+            id: item.id,
+            productId: item.productId?.toString() || prod?.id?.toString(),
+            name: prod?.name || '',
+            price: prod?.price || 0,
+            quantity: item.quantity,
+            image: prod?.images?.[0] || '',
+            weight: `${Math.floor(Math.random() * 500) + 50} g`,
+            originalPrice: Math.floor((prod?.price || 0) * 1.4),
+            discount: Math.floor(Math.random() * 30) + 10,
+            inStock: prod?.stock > 0 && !prod?.isOutOfStock,
+          };
+        });
 
       // Separate in-stock and out-of-stock items
       const inStockItems = items.filter((item: CartItem) => item.inStock);
@@ -158,8 +163,14 @@ const CartScreen = () => {
           quantity: newQuantity
         });
       }
-    } catch (error) {
-      console.error('Failed to update quantity:', error);
+    } catch (error: any) {
+      let message = 'Failed to update quantity.';
+      if (error.response && error.response.data && typeof error.response.data.message === 'string') {
+        if (error.response.data.message.toLowerCase().includes('stock')) {
+          message = 'Not enough stock available.';
+        }
+      }
+      Alert.alert('Error', message);
       // Revert on error
       fetchCartItems(userId!);
     }

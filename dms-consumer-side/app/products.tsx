@@ -25,6 +25,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { getWishlist } from './services/wishlistService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
+import { API_URL } from './config';
 
 interface Product {
   id: string;
@@ -54,7 +56,9 @@ const ProductsScreen = () => {
   const { addToCart } = useCart();
   const { wishlistIds, add, remove } = useWishlist();
 
-  const { items: products = [], loading, error, lastFetched } = useAppSelector((state: any) => state.products);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   // Local state for search and filters
@@ -63,27 +67,32 @@ const ProductsScreen = () => {
   const [filterBy, setFilterBy] = useState<'all' | 'in_stock' | 'on_sale' | 'new_arrivals'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  // Fetch products if not already loaded or if data is old
-  useEffect(() => {
-    console.log('Products screen mounted, products:', products.length, 'lastFetched:', lastFetched);
-    const shouldFetch = !lastFetched || Date.now() - lastFetched > 3600000; // 1 hour
-    console.log('Should fetch products:', shouldFetch);
-    if (shouldFetch) {
-      dispatch(fetchProducts());
+  // Fetch products from backend with search term
+  const fetchProducts = async (searchTerm: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params: any = { limit: 100 };
+      if (searchTerm && searchTerm.trim()) params.search = searchTerm.trim();
+      const response = await axios.get(`${API_URL}/products`, { params });
+      setProducts(response.data.products || []);
+    } catch (err: any) {
+      setError('Failed to fetch products');
+      setProducts([]);
+    } finally {
+      setLoading(false);
     }
-  }, [dispatch, lastFetched, products.length]);
+  };
 
-  // Filter and sort products using local state
-  const filteredProducts = useMemo(() => {
-    const filtered = searchProducts(products, query, sortBy, filterBy, selectedCategory, { min: 0, max: 10000 });
-    console.log('Filtered products:', filtered.length, 'from total:', products.length);
-    return filtered;
-  }, [products, query, sortBy, filterBy, selectedCategory]);
+  // Fetch products on mount and when query changes
+  useEffect(() => {
+    fetchProducts(query);
+  }, [query]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    dispatch(fetchProducts()).finally(() => setRefreshing(false));
-  }, [dispatch]);
+    fetchProducts(query).finally(() => setRefreshing(false));
+  }, [query]);
 
   const handleProductPress = (productId: string) => {
     router.push({
@@ -159,11 +168,11 @@ const ProductsScreen = () => {
         onCategoryChange={setSelectedCategory}
       />
       <FlatList
-        data={filteredProducts}
+        data={products}
         renderItem={({ item }) => (
           <ProductCard
             {...item}
-            image={item.images?.[0] || ''}
+            image={item.image || ''}
             onPress={() => handleProductPress(item.id)}
             onAddToCart={() => addToCart(item.id)}
             isWishlisted={wishlistIds.includes(item.id)}
@@ -175,13 +184,13 @@ const ProductsScreen = () => {
         columnWrapperStyle={styles.productRow}
         contentContainerStyle={styles.productList}
         refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          <RefreshControl refreshing={loading} onRefresh={() => fetchProducts(query)} />
         }
         ListHeaderComponent={
-          filteredProducts.length > 0 ? (
+          products.length > 0 ? (
             <View style={styles.resultsHeader}>
               <Text style={styles.resultsCount}>
-                {filteredProducts.length} product{filteredProducts.length !== 1 ? 's' : ''} found
+                {products.length} product{products.length !== 1 ? 's' : ''} found
               </Text>
             </View>
           ) : null
@@ -192,7 +201,7 @@ const ProductsScreen = () => {
               <>
                 <Text style={styles.errorText}>Error loading products</Text>
                 <Text style={styles.errorSubtext}>{error}</Text>
-                <TouchableOpacity style={styles.retryButton} onPress={() => dispatch(fetchProducts())}>
+                <TouchableOpacity style={styles.retryButton} onPress={() => fetchProducts(query)}>
                   <Text style={styles.retryButtonText}>Retry</Text>
                 </TouchableOpacity>
               </>
