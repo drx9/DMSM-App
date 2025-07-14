@@ -38,6 +38,13 @@ interface CartItem {
   inStock: boolean;
 }
 
+function getValidImageUrl(images: any): string {
+  if (Array.isArray(images) && images.length > 0 && typeof images[0] === 'string' && images[0].startsWith('http')) {
+    return images[0];
+  }
+  return 'https://via.placeholder.com/150?text=No+Image';
+}
+
 const CartScreen = () => {
   const [userId, setUserId] = useState<string | null>(null);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -195,15 +202,17 @@ const CartScreen = () => {
       )}
     >
       <View style={styles.cartItemCard}>
-        <Image source={{ uri: item.image }} style={styles.cartItemImage} />
+        <Image source={{ uri: getValidImageUrl(item.image ? [item.image] : []) }} style={styles.cartItemImage} />
         <View style={styles.cartItemDetails}>
           <Text style={styles.cartItemName} numberOfLines={2}>{item.name}</Text>
           <Text style={styles.cartItemWeight}>{item.weight}</Text>
           <View style={styles.priceContainer}>
-            <Text style={styles.currentPrice}>₹{item.price}</Text>
-            <Text style={styles.originalPrice}>₹{item.originalPrice}</Text>
+            <Text style={styles.currentPrice}>₹{typeof item.price === 'number' ? item.price : 0}</Text>
+            {item.originalPrice && (
+              <Text style={styles.originalPrice}>₹{typeof item.originalPrice === 'number' ? item.originalPrice : 0}</Text>
+            )}
           </View>
-          <Text style={styles.coinReward}>Or Pay ₹{item.price - 2} + 🪙 2</Text>
+          <Text style={styles.coinReward}>Or Pay ₹{typeof item.price === 'number' ? item.price - 2 : 0} + 🪙 2</Text>
         </View>
         <View style={styles.rightSection}>
           <View style={styles.quantityControls}>
@@ -240,7 +249,7 @@ const CartScreen = () => {
 
   const renderOutOfStockItem = ({ item }: { item: CartItem }) => (
     <View style={[styles.cartItemCard, styles.outOfStockCard]}>
-      <Image source={{ uri: item.image }} style={[styles.cartItemImage, styles.outOfStockImage]} />
+      <Image source={{ uri: getValidImageUrl(item.image ? [item.image] : []) }} style={[styles.cartItemImage, styles.outOfStockImage]} />
       <View style={styles.cartItemDetails}>
         <Text style={styles.cartItemName} numberOfLines={2}>{item.name}</Text>
         <Text style={styles.cartItemWeight}>{item.weight}</Text>

@@ -1,4 +1,4 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://dmsm-app-production-a35d.up.railway.app/api';
+export const API_URL = "https://dmsm-app-production-a35d.up.railway.app/api";
 
 export const APP_CONFIG = {
     APP_NAME: 'DMS Mart',

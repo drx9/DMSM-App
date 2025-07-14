@@ -51,6 +51,13 @@ const validIonicons = [
 const getIoniconName = (icon: string) =>
     validIonicons.includes(icon) ? (icon as any) : 'card-outline';
 
+function getValidImageUrl(images: string | string[] | undefined) {
+  if (Array.isArray(images) && images.length > 0 && typeof images[0] === 'string' && images[0].startsWith('http')) {
+    return images[0];
+  }
+  return 'https://via.placeholder.com/150?text=No+Image';
+}
+
 const CheckoutScreen = () => {
     const { buyNow } = useLocalSearchParams();
     const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -391,16 +398,16 @@ const CheckoutScreen = () => {
 
                     {cartItems.map((item) => (
                         <View key={item.id} style={styles.basketItem}>
-                            <Image source={{ uri: item.image }} style={styles.itemImage} />
+                            <Image source={{ uri: getValidImageUrl(item.image ? [item.image] : []) }} style={styles.itemImage} />
                             <View style={styles.itemDetails}>
-                                <Text style={styles.itemName} numberOfLines={2}>{item.name}</Text>
+                                <Text style={styles.itemName} numberOfLines={2}>{item.name ?? 'No Name'}</Text>
                                 <View style={styles.itemPricing}>
-                                    <Text style={styles.itemPrice}>₹{item.price}</Text>
+                                    <Text style={styles.itemPrice}>₹{typeof item.price === 'number' ? item.price : 0}</Text>
                                     {item.originalPrice && (
-                                        <Text style={styles.itemOriginalPrice}>₹{item.originalPrice}</Text>
+                                        <Text style={styles.itemOriginalPrice}>₹{typeof item.originalPrice === 'number' ? item.originalPrice : 0}</Text>
                                     )}
                                 </View>
-                                <Text style={styles.paymentOption}>Or Pay ₹{Math.floor(item.price * 0.9)} + 💎 2</Text>
+                                <Text style={styles.paymentOption}>Or Pay ₹{Math.floor((typeof item.price === 'number' ? item.price : 0) * 0.9)} + 💎 2</Text>
                             </View>
                         </View>
                     ))}

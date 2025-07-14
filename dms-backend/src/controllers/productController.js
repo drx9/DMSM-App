@@ -30,7 +30,10 @@ const productController = {
       const where = { isActive: true };
 
       if (search) {
-        where.name = { [Op.iLike]: `%${search}%` };
+        where[Op.or] = [
+          { name: { [Op.iLike]: `%${search}%` } },
+          { description: { [Op.iLike]: `%${search}%` } }
+        ];
       }
 
       if (category) {

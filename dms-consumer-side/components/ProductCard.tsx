@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { addToWishlist, removeFromWishlist } from '../app/services/wishlistService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Toast from 'react-native-root-toast';
+import { useCart } from '../app/context/CartContext';
 
 interface ProductCardProps {
   id: string;
@@ -46,6 +47,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
   onToggleWishlist,
 }) => {
   const router = useRouter();
+  const { addToCart } = useCart();
   const [wishlisted, setWishlisted] = React.useState(isWishlisted);
   React.useEffect(() => { setWishlisted(isWishlisted); }, [isWishlisted]);
 
@@ -64,7 +66,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
     if (onAddToCart) {
       onAddToCart();
     } else {
-      alert('Added to cart!');
+      addToCart(id).then(() => {
+        alert('Added to cart!');
+      });
     }
   };
 
@@ -84,7 +88,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
     }
   };
 
-  const safePrice = typeof price === 'number' && !isNaN(price) ? price : 0;
+  const safePrice = Number(price) || 0;
   const safeDiscount = Math.max(0, Math.min(100, Number(discount) || 0));
   const discountedPrice = safePrice - (safePrice * safeDiscount) / 100;
 
@@ -134,9 +138,9 @@ const ProductCard: React.FC<ProductCardProps> = ({
         </Text>
 
         <View style={styles.priceContainer}>
-          <Text style={styles.price}>₹{discountedPrice.toFixed(2)}</Text>
+          <Text style={styles.price}>₹{Number(discountedPrice).toFixed(2)}</Text>
           {safeDiscount > 0 && (
-            <Text style={styles.originalPrice}>₹{safePrice.toFixed(2)}</Text>
+            <Text style={styles.originalPrice}>₹{Number(safePrice).toFixed(2)}</Text>
           )}
         </View>
 

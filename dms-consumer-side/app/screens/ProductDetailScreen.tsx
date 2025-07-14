@@ -121,7 +121,6 @@ const ProductDetailScreen = () => {
       await axios.post(`${API_URL}/cart`, {
         userId,
         productId: product!.id,
-        variantId: selectedVariant?.id,
         quantity,
       });
       Alert.alert('Success', 'Product added to cart');
@@ -198,7 +197,7 @@ const ProductDetailScreen = () => {
         {/* Product Image */}
         <View style={styles.imageContainer}>
           <Image
-            source={{ uri: product!.images && product!.images.length > 0 ? product!.images[0] : '' }}
+            source={{ uri: Array.isArray(product?.images) && product.images.length > 0 ? product.images[0] : 'https://via.placeholder.com/280x200?text=No+Image' }}
             style={styles.productImage}
           />
           <View style={styles.imageDots}>
@@ -210,22 +209,24 @@ const ProductDetailScreen = () => {
 
         {/* Product Info */}
         <View style={styles.productInfo}>
-          <Text style={styles.productName}>{product!.name}</Text>
-          <Text style={styles.discountBadge}>{selectedVariant?.discount || product!.discount}% off</Text>
+          <Text style={styles.productName}>{product?.name ?? 'No Name'}</Text>
+          <Text style={styles.discountBadge}>{selectedVariant?.discount ?? product?.discount ?? 0}% off</Text>
 
           <View style={styles.priceRow}>
             <View style={styles.priceSection}>
               <View style={styles.priceTag}>
                 <Text style={styles.priceLabel}>Kilos</Text>
                 <Text style={styles.price}>
-                  ₹{selectedVariant ? (selectedVariant.price - (selectedVariant.price * selectedVariant.discount) / 100).toFixed(2) : (product!.price - (product!.price * product!.discount) / 100).toFixed(2)}
+                  ₹{selectedVariant
+                    ? (Number(selectedVariant.price) - (Number(selectedVariant.price) * Number(selectedVariant.discount) / 100)).toFixed(2)
+                    : (Number(product?.price) - (Number(product?.price) * Number(product?.discount) / 100)).toFixed(2)}
                 </Text>
               </View>
-              {((selectedVariant && selectedVariant.discount > 0) || (!selectedVariant && product!.discount > 0)) && (
+              {((selectedVariant && (selectedVariant.discount ?? 0) > 0) || (!selectedVariant && (product?.discount ?? 0) > 0)) && (
                 <>
                   <Text style={styles.mrpLabel}>MRP</Text>
                   <Text style={styles.originalPrice}>
-                    ₹{selectedVariant ? selectedVariant.price.toFixed(2) : product!.price.toFixed(2)}
+                    ₹{selectedVariant ? Number(selectedVariant.price || 0).toFixed(2) : Number(product?.price || 0).toFixed(2)}
                   </Text>
                 </>
               )}
@@ -281,12 +282,12 @@ const ProductDetailScreen = () => {
                       <View style={styles.variantPriceContainer}>
                         <View style={styles.priceTag}>
                           <Text style={styles.priceLabel}>Kilos</Text>
-                          <Text style={styles.variantPrice}>₹{salePrice.toFixed(2)}</Text>
+                          <Text style={styles.variantPrice}>₹{(Number(salePrice) || 0).toFixed(2)}</Text>
                         </View>
                         {variant.discount > 0 && (
                           <>
                             <Text style={styles.mrpLabel}>MRP</Text>
-                            <Text style={styles.variantOriginalPrice}>₹{variant.price.toFixed(2)}</Text>
+                            <Text style={styles.variantOriginalPrice}>₹{Number(variant.price || 0).toFixed(2)}</Text>
                           </>
                         )}
                       </View>
@@ -295,7 +296,7 @@ const ProductDetailScreen = () => {
                   </View>
                   <View style={styles.variantRight}>
                     <Text style={styles.variantWeight}>{variant.name}</Text>
-                    <Text style={styles.variantRate}>@ ₹{(salePrice / parseFloat(variant.name.replace(/\D/g, '')) * 250).toFixed(1)}/250g</Text>
+                    <Text style={styles.variantRate}>@ ₹{(Number(salePrice) / parseFloat(variant.name.replace(/\D/g, '')) * 250 || 0).toFixed(1)}/250g</Text>
                   </View>
                 </TouchableOpacity>
               );
@@ -369,7 +370,7 @@ const ProductDetailScreen = () => {
             horizontal
             keyExtractor={item => item.id}
             renderItem={({ item }) => (
-              <ProductCard id={item.id} name={item.name} price={item.price} image={item.images[0]} rating={item.rating} reviewCount={item.reviewCount} discount={item.discount} isOutOfStock={item.isOutOfStock} onPress={() => router.push(`/product/${item.id}`)} onAddToCart={() => addToCart(item.id)} />
+              <ProductCard id={item.id} name={item.name ?? 'No Name'} price={item.price ?? 0} image={Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : 'https://via.placeholder.com/150?text=No+Image'} rating={item.rating ?? 0} reviewCount={item.reviewCount ?? 0} discount={item.discount ?? 0} isOutOfStock={item.isOutOfStock ?? false} onPress={() => router.push(`/product/${item.id}`)} onAddToCart={() => addToCart(item.id)} />
             )}
             showsHorizontalScrollIndicator={false}
           />
@@ -415,7 +416,7 @@ const ProductDetailScreen = () => {
             horizontal
             keyExtractor={item => item.id}
             renderItem={({ item }) => (
-              <ProductCard id={item.id} name={item.name} price={item.price} image={item.images[0]} rating={item.rating} reviewCount={item.reviewCount} discount={item.discount} isOutOfStock={item.isOutOfStock} onPress={() => router.push(`/product/${item.id}`)} onAddToCart={() => addToCart(item.id)} />
+              <ProductCard id={item.id} name={item.name ?? 'No Name'} price={item.price ?? 0} image={Array.isArray(item.images) && item.images.length > 0 ? item.images[0] : 'https://via.placeholder.com/150?text=No+Image'} rating={item.rating ?? 0} reviewCount={item.reviewCount ?? 0} discount={item.discount ?? 0} isOutOfStock={item.isOutOfStock ?? false} onPress={() => router.push(`/product/${item.id}`)} onAddToCart={() => addToCart(item.id)} />
             )}
             showsHorizontalScrollIndicator={false}
           />

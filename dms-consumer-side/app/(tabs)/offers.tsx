@@ -22,6 +22,13 @@ export default function OffersPage() {
         router.push({ pathname: '/product/[id]', params: { id: productId } });
     };
 
+    function getValidImageUrl(images: any): string {
+        if (Array.isArray(images) && images.length > 0 && typeof images[0] === 'string' && images[0].startsWith('http')) {
+            return images[0];
+        }
+        return 'https://via.placeholder.com/150?text=No+Image';
+    }
+
     if (loading) {
         return (
             <View style={styles.centered}><ActivityIndicator size="large" color="#CB202D" /></View>
@@ -47,13 +54,13 @@ export default function OffersPage() {
                                 style={styles.productCard}
                                 onPress={() => handleProductPress(product.id)}
                             >
-                                <Image source={{ uri: product.images?.[0] }} style={styles.productImage} />
-                                <Text style={styles.productName}>{product.name}</Text>
+                                <Image source={{ uri: getValidImageUrl(product.images) }} style={styles.productImage} />
+                                <Text style={styles.productName}>{product.name ?? 'No Name'}</Text>
                                 {product.OfferProduct?.customOfferText ? (
                                     <Text style={styles.productOfferText}>{product.OfferProduct.customOfferText}</Text>
                                 ) : null}
                                 <Text style={styles.productPrice}>
-                                    ₹{product.price}
+                                    ₹{typeof product.price === 'number' ? product.price : 0}
                                     {product.OfferProduct?.extraDiscount > 0 && (
                                         <Text style={styles.productDiscount}>  -{product.OfferProduct.extraDiscount}%</Text>
                                     )}
