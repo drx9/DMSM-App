@@ -29,9 +29,9 @@ export default function TabLayout() {
   useEffect(() => {
     const checkAddressSet = async () => {
       try {
-      const uid = await AsyncStorage.getItem('userId');
-      setUserId(uid);
-        
+        const uid = await AsyncStorage.getItem('userId');
+        setUserId(uid);
+
         if (!uid) {
           console.log('[TabLayout] No userId found, setting addressSet = false');
           setAddressSet(false);
@@ -40,36 +40,41 @@ export default function TabLayout() {
         }
 
         // Check if user has ever set an address
-        const hasSetOnce = await AsyncStorage.getItem('hasSetAddressOnce');
-        if (hasSetOnce === 'true') {
-          setHasSetAddressOnce(true);
-          setAddressSet(true);
-          return;
-        }
-        
-        setHasSetAddressOnce(false);
-        
-      // Only check backend for addresses, do not clear AsyncStorage
+        let hasSetOnce = await AsyncStorage.getItem('hasSetAddressOnce');
+        // Only check backend for addresses, do not clear AsyncStorage
         try {
           console.log('[TabLayout] Fetching addresses from backend for userId:', uid);
           const res = await axios.get(`${API_URL}/addresses/${uid}`);
           console.log('[TabLayout] Backend address response:', res.data);
-          
+
           if (res.data && Array.isArray(res.data) && res.data.length > 0) {
             await AsyncStorage.setItem('userAddress', JSON.stringify(res.data[0]));
             await AsyncStorage.setItem('addressSet', 'true');
+            await AsyncStorage.setItem('hasSetAddressOnce', 'true'); // Always set flag if addresses exist
             setAddressSet(true);
-            console.log('[TabLayout] Address found, setting addressSet = true');
+            setHasSetAddressOnce(true);
             return;
           } else {
             console.log('[TabLayout] No addresses found for user, setting addressSet = false');
             setAddressSet(false);
+            setHasSetAddressOnce(false);
             return;
           }
-        } catch (err: any) {
-          console.log('[TabLayout] Error fetching addresses from backend:', err?.response?.data || err.message || err);
+        } catch (err) {
+          if (typeof err === 'object' && err !== null) {
+            const hasResponse = 'response' in err && typeof (err as any).response === 'object';
+            const hasMessage = 'message' in err;
+            const errorObj = err as { response?: { data?: any }; message?: string };
+            console.log(
+              '[TabLayout] Error fetching addresses from backend:',
+              hasResponse ? errorObj.response?.data : hasMessage ? errorObj.message : errorObj
+            );
+          } else {
+            console.log('[TabLayout] Error fetching addresses from backend:', err);
+          }
           // On error, assume no address is set
           setAddressSet(false);
+          setHasSetAddressOnce(false);
           return;
         }
       } catch (error) {
@@ -80,6 +85,15 @@ export default function TabLayout() {
     };
     checkAddressSet();
   }, []);
+
+  useEffect(() => {
+    AsyncStorage.getItem('hasSetAddressOnce').then(val => {
+      console.log('DEBUG: hasSetAddressOnce in TabLayout:', val);
+    });
+    AsyncStorage.getItem('userAddress').then(val => {
+      console.log('DEBUG: userAddress in TabLayout:', val);
+    });
+  }, [addressSet, hasSetAddressOnce]);
 
   useEffect(() => {
     console.log('[TabLayout] Render: addressSet =', addressSet, 'userId =', userId);
@@ -122,6 +136,11 @@ export default function TabLayout() {
     fetchActiveOrder();
   }, [userId]);
 
+  const setHasSetAddressOnceFlag = async () => {
+    await AsyncStorage.setItem('hasSetAddressOnce', 'true');
+    setHasSetAddressOnce(true);
+  };
+
   if (addressSet === null || hasSetAddressOnce === null) {
     return <ActivityIndicator size="large" color="#CB202D" style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }} />;
   }
@@ -132,10 +151,16 @@ export default function TabLayout() {
         onLocationSelected={async (address: any) => {
           await AsyncStorage.setItem('userAddress', JSON.stringify(address));
           await AsyncStorage.setItem('addressSet', 'true');
-          await AsyncStorage.setItem('hasSetAddressOnce', 'true');
+          await setHasSetAddressOnceFlag();
           setAddressSet(true);
-          setHasSetAddressOnce(true);
-          // router.replace('/');
+          // Re-check addresses to update UI
+          const uid = await AsyncStorage.getItem('userId');
+          if (uid) {
+            const res = await axios.get(`${API_URL}/addresses/${uid}`);
+            if (res.data && Array.isArray(res.data) && res.data.length > 0) {
+              setAddressSet(true);
+            }
+          }
         }}
         userId={userId}
         editingAddress={null}

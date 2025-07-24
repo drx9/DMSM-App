@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,8 @@ import {
   Dimensions,
   TextInput,
   ActivityIndicator,
-  Alert
+  Alert,
+  Modal
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
@@ -28,6 +29,7 @@ import AddressManagerModal, { Address } from '../../components/AddressManagerMod
 import { useFocusEffect } from '@react-navigation/native';
 import ProductCard from '../../components/ProductCard';
 import { useCart } from '../context/CartContext';
+import SearchWithFilters from '../../components/SearchWithFilters';
 
 const { width } = Dimensions.get('window');
 const PRODUCT_CARD_WIDTH = (width - 32 - 20) / 3; // 3 cards per row with proper spacing
@@ -70,6 +72,48 @@ const HomeScreen = () => {
   const [showLocationSelector, setShowLocationSelector] = useState(false);
   const { addToCart } = useCart();
   const [activeOffers, setActiveOffers] = useState<any[]>([]);
+  const [currentBanner, setCurrentBanner] = useState(0);
+  const bannerScrollRef = useRef<ScrollView>(null);
+  const [hasSetAddressOnce, setHasSetAddressOnce] = useState<boolean | null>(null);
+  // Remove modal-related state and logic
+  const [viewMoreModalVisible, setViewMoreModalVisible] = useState(false);
+  const [modalProducts, setModalProducts] = useState<Product[]>([]);
+  const [modalTitle, setModalTitle] = useState('');
+  const [modalFilterType, setModalFilterType] = useState<'top-picks' | 'new-arrivals' | 'category' | null>(null);
+  const [modalQuery, setModalQuery] = useState('');
+  const [modalSortBy, setModalSortBy] = useState<'name_asc' | 'name_desc' | 'price_asc' | 'price_desc' | 'rating_desc' | 'newest'>('name_asc');
+  const [modalFilterBy, setModalFilterBy] = useState<'all' | 'in_stock' | 'on_sale' | 'new_arrivals'>('all');
+
+  // Remove modal-related functions
+  const openViewMoreModal = (type: 'top-picks' | 'new-arrivals' | 'category', products: Product[], title: string) => {
+    setModalProducts(products);
+    setModalTitle(title);
+    setModalFilterType(type);
+    setViewMoreModalVisible(true);
+    setModalQuery('');
+    setModalSortBy('name_asc');
+    setModalFilterBy('all');
+  };
+
+  const filterAndSortModalProducts = () => {
+    let filtered = [...modalProducts];
+    if (modalQuery) {
+      filtered = filtered.filter(p => p.name.toLowerCase().includes(modalQuery.toLowerCase()));
+    }
+    if (modalFilterBy === 'in_stock') filtered = filtered.filter(p => !p.isOutOfStock);
+    if (modalFilterBy === 'on_sale') filtered = filtered.filter(p => p.discount > 0);
+    if (modalFilterBy === 'new_arrivals') filtered = filtered.slice(0, 10); // or use a flag
+    switch (modalSortBy) {
+      case 'name_asc': filtered.sort((a, b) => a.name.localeCompare(b.name)); break;
+      case 'name_desc': filtered.sort((a, b) => b.name.localeCompare(a.name)); break;
+      case 'price_asc': filtered.sort((a, b) => a.price - b.price); break;
+      case 'price_desc': filtered.sort((a, b) => b.price - a.price); break;
+      case 'rating_desc': filtered.sort((a, b) => (b.rating || 0) - (a.rating || 0)); break;
+      case 'newest': break; // implement if you have a date field
+    }
+    return filtered;
+  };
+
 
   // Get current date and time
   const getCurrentDateTime = () => {
@@ -85,29 +129,48 @@ const HomeScreen = () => {
     };
   };
 
+
   const { date, time } = getCurrentDateTime();
+
 
   // Minimal fetch test
   const fetchData = async () => {
     try {
       setLoading(true);
       setError(null);
-      console.log('FETCH TEST START');
-      const res = await fetch(`${API_URL}/products`);
-      const data = await res.json();
-      setPopularProducts(data.products);
-      setNewArrivals(data.products);
+      // Use productService.getProducts for unified fetching
+      const res = await productService.getProducts({ limit: 100 });
+      // Map products: ensure price/discount are numbers, handle images
+      const mappedProducts = (res.products || []).map((item: any) => ({
+        ...item,
+        price: Number(item.price),
+        discount: Number(item.discount) || 0,
+        images: Array.isArray(item.images) ? item.images : [item.image || ''],
+      }));
+      // For now, just slice for popular/new arrivals (could sort/filter if needed)
+      setPopularProducts(mappedProducts.slice(0, 6));
+      setNewArrivals(mappedProducts.slice(0, 6));
       setError(null);
     } catch (err) {
       console.error('FETCH TEST ERROR:', err);
       const errorMessage = (err as any)?.message ?? 'Unknown error';
       setError('Fetch failed: ' + errorMessage);
+      setPopularProducts([]);
+      setNewArrivals([]);
     } finally {
       setLoading(false);
     }
   };
 
+
+  const [categoryProducts, setCategoryProducts] = useState<{ [categoryId: string]: Product[] }>({});
+  const [mostBought, setMostBought] = useState<Product[]>([]);
+
+
   useEffect(() => {
+    AsyncStorage.getItem('hasSetAddressOnce').then(val => {
+      setHasSetAddressOnce(val === 'true');
+    });
     const fetchAddresses = async () => {
       const uid = await AsyncStorage.getItem('userId');
       setUserId(uid);
@@ -150,6 +213,25 @@ const HomeScreen = () => {
     }).catch(() => setActiveOffers([]));
   }, []);
 
+
+  // Banner carousel auto-scroll (optional, can be commented out if not desired)
+  useEffect(() => {
+    if (activeOffers.length > 1) {
+      const interval = setInterval(() => {
+        setCurrentBanner(prev => {
+          const nextIndex = (prev + 1) % activeOffers.length;
+          bannerScrollRef.current?.scrollTo({
+            x: nextIndex * (width - 32),
+            animated: true,
+          });
+          return nextIndex;
+        });
+      }, 4000);
+      return () => clearInterval(interval);
+    }
+  }, [activeOffers.length]);
+
+
   const fetchCartTotal = async () => {
     try {
       const userId = await AsyncStorage.getItem('userId');
@@ -161,10 +243,12 @@ const HomeScreen = () => {
     }
   };
 
+
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
     fetchData().finally(() => setRefreshing(false));
   }, []);
+
 
   const handleCategoryPress = (category: Category) => {
     router.push({
@@ -173,12 +257,14 @@ const HomeScreen = () => {
     });
   };
 
+
   const handleProductPress = (productId: string) => {
     router.push({
       pathname: '/product/[id]',
       params: { id: productId }
     });
   };
+
 
   const handleSetPrimary = async (id: string) => {
     try {
@@ -193,11 +279,14 @@ const HomeScreen = () => {
     }
   };
 
+
   const handleAddAddress = async (address: Omit<Address, 'id' | 'isDefault'>) => {
     try {
       const uid = userId || (await AsyncStorage.getItem('userId'));
       const res = await axios.post(`${API_URL}/addresses`, { ...address, userId: uid });
       setAddresses(prev => [...prev, res.data]);
+      await AsyncStorage.setItem('hasSetAddressOnce', 'true'); // Set flag when address is added
+      setHasSetAddressOnce(true);
       if (addresses.length === 0) {
         // If first address, set as primary
         await handleSetPrimary(res.data.id);
@@ -207,6 +296,7 @@ const HomeScreen = () => {
     }
   };
 
+
   const handleEditAddress = async (id: string, address: Omit<Address, 'id' | 'isDefault'>) => {
     try {
       await axios.put(`${API_URL}/addresses/${id}`, address);
@@ -215,6 +305,7 @@ const HomeScreen = () => {
       Alert.alert('Error', 'Failed to edit address.');
     }
   };
+
 
   const handleDeleteAddress = async (id: string) => {
     try {
@@ -232,15 +323,20 @@ const HomeScreen = () => {
     }
   };
 
+
   const handleRequestLocation = () => {
     setShowAddressModal(false);
     setShowLocationSelector(true);
   };
 
+
   const handleLocationSelected = async (address: any) => {
     setShowLocationSelector(false);
     await handleAddAddress(address);
+    await AsyncStorage.setItem('hasSetAddressOnce', 'true'); // Set flag when address is set via map
+    setHasSetAddressOnce(true);
   };
+
 
   useFocusEffect(
     React.useCallback(() => {
@@ -249,38 +345,12 @@ const HomeScreen = () => {
     }, [])
   );
 
+
   // Handler for View All Offers
   const handleViewAllOffers = () => {
     router.push('/offers' as any);
   };
 
-  if (showLocationScreen) {
-    return (
-      <LocationSelectionScreen
-        onLocationSelected={(address: any) => {
-          setUserLocation(address);
-          setShowLocationScreen(false);
-        }}
-        savedAddress={userLocation}
-      />
-    );
-  }
-
-  if (!primaryAddress && !showLocationSelector) {
-    // If no address exists, force location selector
-    setShowLocationSelector(true);
-    return null;
-  }
-
-  if (showLocationSelector) {
-    return (
-      <LocationSelectionScreen
-        onLocationSelected={handleLocationSelected}
-        userId={userId}
-        onBack={() => setShowLocationSelector(false)}
-      />
-    );
-  }
 
   if (loading) {
     return (
@@ -289,6 +359,7 @@ const HomeScreen = () => {
       </View>
     );
   }
+
 
   if (error) {
     return (
@@ -300,6 +371,7 @@ const HomeScreen = () => {
       </View>
     );
   }
+
 
   return (
     <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
@@ -356,8 +428,26 @@ const HomeScreen = () => {
         onEdit={handleEditAddress}
         onDelete={handleDeleteAddress}
         loading={false}
-        onRequestLocation={handleRequestLocation}
+        onRequestLocation={() => {
+          setShowAddressModal(false);
+          router.push({ pathname: '/location/location-select', params: { userId } });
+        }}
       />
+
+      {showLocationSelector && (
+        <LocationSelectionScreen
+          onLocationSelected={async (address: any) => {
+            setShowLocationSelector(false);
+            await handleAddAddress(address);
+            await AsyncStorage.setItem('hasSetAddressOnce', 'true');
+            setHasSetAddressOnce(true);
+            // Optionally refresh addresses here
+          }}
+          userId={userId}
+          savedAddress={null}
+          onBack={() => setShowLocationSelector(false)}
+        />
+      )}
 
       {/* Search Bar */}
       <TouchableOpacity
@@ -381,100 +471,80 @@ const HomeScreen = () => {
         }
         showsVerticalScrollIndicator={false}
       >
-        {/* Top Picks Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <View>
-              <Text style={styles.sectionTitle}>Top Picks for You</Text>
-              <Text style={styles.sectionSubtitle}>Based on what is popular around you</Text>
+        {/* Sale Banner Carousel */}
+        <View style={styles.bannerContainer}>
+          {activeOffers.length > 0 ? (
+            <View style={styles.bannerCarouselContainer}>
+              <ScrollView
+                ref={bannerScrollRef}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                onMomentumScrollEnd={e => {
+                  const index = Math.round(e.nativeEvent.contentOffset.x / (width - 32));
+                  setCurrentBanner(index);
+                }}
+                style={styles.bannerCarousel}
+                contentContainerStyle={{ alignItems: 'center' }}
+              >
+                {activeOffers.map((offer, idx) => (
+                  <View key={offer.id} style={[styles.carouselBanner, { width: width - 32 }]}> 
+                    <Text style={styles.bannerTitle}>{offer.name}</Text>
+                    <Text style={styles.bannerDesc}>{offer.description}</Text>
+                    <TouchableOpacity style={styles.viewOffersButton} onPress={handleViewAllOffers}>
+                      <Text style={styles.viewOffersText}>View All Offers</Text>
+                      <Ionicons name="sparkles" size={14} color="#FF6B35" />
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
+              {/* Dot Indicators */}
+              <View style={styles.carouselIndicators}>
+                {activeOffers.map((_, idx) => (
+                  <View
+                    key={idx}
+                    style={[
+                      styles.carouselDot,
+                      currentBanner === idx && styles.carouselDotActive,
+                    ]}
+                  />
+                ))}
+              </View>
             </View>
-            <TouchableOpacity style={styles.arrowButton}>
-              <Ionicons name="arrow-forward" size={16} color="white" />
-            </TouchableOpacity>
-          </View>
+          ) : (
+            <Text style={styles.noOffersText}>No active offers right now.</Text>
+          )}
+        </View>
 
-          <ScrollView
-            horizontal
+        {/* Category Chips Section */}
+        <View style={styles.categoryChipsContainer}>
+          <ScrollView 
+            horizontal 
             showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.horizontalScroll}
+            contentContainerStyle={styles.categoryChipsScroll}
           >
-            {popularProducts.slice(0, 6).map((product, index) => (
-              <ProductCard
-                key={product.id}
-                id={product.id}
-                name={product.name}
-                price={product.price}
-                image={product.images[0]}
-                rating={4.5}
-                reviewCount={123}
-                discount={20}
-                isOutOfStock={false}
-                onPress={() => handleProductPress(product.id)}
-                onAddToCart={() => addToCart(product.id)}
-              />
-            ))}
+            <TouchableOpacity style={styles.categoryChip}>
+              <Text style={styles.categoryChipText}>For You</Text>
+              <View style={styles.categoryChipIndicator} />
+            </TouchableOpacity>
+            <TouchableOpacity style={[styles.categoryChip, styles.categoryChipActive]}>
+              <Text style={[styles.categoryChipText, styles.categoryChipTextActive]}>Groceries</Text>
+              <View style={[styles.categoryChipIndicator, styles.categoryChipIndicatorActive]} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.categoryChip}>
+              <Text style={styles.categoryChipText}>Cosmetics</Text>
+              <View style={styles.categoryChipIndicator} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.categoryChip}>
+              <Text style={styles.categoryChipText}>Bakery</Text>
+              <View style={styles.categoryChipIndicator} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.categoryChip}>
+              <Text style={styles.categoryChipText}>Pharmacy</Text>
+              <View style={styles.categoryChipIndicator} />
+            </TouchableOpacity>
           </ScrollView>
         </View>
-
-        {/* Festival/Offer Banner (dynamic) */}
-        {activeOffers.length > 0 && (
-          <View style={styles.bannerContainer}>
-            <View style={styles.festivalBanner}>
-              <Text style={styles.bannerTitle}>{activeOffers[0].name}</Text>
-              <Text style={styles.bannerDesc}>{activeOffers[0].description}</Text>
-              <TouchableOpacity style={styles.viewOffersButton} onPress={handleViewAllOffers}>
-                <Text style={styles.viewOffersText}>View All Offers</Text>
-                <Ionicons name="sparkles" size={14} color="white" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {/* Categories Section */}
-        {categories.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Categories</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.categoryContainer}
-            >
-              {categories.map((category) => (
-                <TouchableOpacity
-                  key={category.id}
-                  style={styles.categoryCard}
-                  onPress={() => handleCategoryPress(category)}
-                >
-                  <Image source={{ uri: category.image }} style={styles.categoryImage} />
-                  <Text style={styles.categoryName}>{category.name}</Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-
-        {/* New Arrivals Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>New Arrivals</Text>
-          <View style={styles.productGrid}>
-            {newArrivals.slice(0, 6).map((product) => (
-              <ProductCard
-                key={product.id}
-                id={product.id}
-                name={product.name}
-                price={product.price}
-                image={product.images[0]}
-                rating={4.5}
-                reviewCount={123}
-                discount={20}
-                isOutOfStock={false}
-                onPress={() => handleProductPress(product.id)}
-                onAddToCart={() => addToCart(product.id)}
-              />
-            ))}
-          </View>
-        </View>
-
 
       </ScrollView>
 
@@ -500,6 +570,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
   },
+  // App Icons
   appIconsContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
@@ -528,6 +599,7 @@ const styles = StyleSheet.create({
     color: '#333',
     fontWeight: '500',
   },
+  // Location Header
   locationHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -573,6 +645,7 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: 'white',
   },
+  // Search Bar
   searchContainer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -597,244 +670,141 @@ const styles = StyleSheet.create({
   filterIcon: {
     padding: 4,
   },
-  scrollView: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
+  // Category Chips
+  categoryChipsContainer: {
+    paddingVertical: 12,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
   },
-  section: {
+  categoryChipsScroll: {
     paddingHorizontal: 16,
-    paddingVertical: 16,
   },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sectionTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  sectionSubtitle: {
-    fontSize: 11,
-    color: '#666',
-    marginTop: 2,
-  },
-  arrowButton: {
-    backgroundColor: '#333',
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  horizontalScroll: {
-    paddingRight: 16,
-  },
-  topPickCard: {
-    width: PRODUCT_CARD_WIDTH,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    marginRight: 12,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    position: 'relative',
-  },
-  topPickImage: {
-    width: '100%',
-    height: 80,
-    resizeMode: 'contain',
-    backgroundColor: '#F8F8F8',
-    borderTopLeftRadius: 8,
-    borderTopRightRadius: 8,
-  },
-  ratingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    backgroundColor: 'white',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  rating: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#333',
-    marginRight: 2,
-  },
-  productWeight: {
-    fontSize: 9,
-    color: '#666',
-    paddingHorizontal: 8,
-    marginTop: 8,
-  },
-  topPickName: {
-    fontSize: 10,
-    color: '#333',
-    paddingHorizontal: 8,
-    marginTop: 4,
-    fontWeight: '500',
-    lineHeight: 12,
-  },
-  discountBadge: {
-    backgroundColor: '#00A86B',
-    alignSelf: 'flex-start',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginHorizontal: 8,
-    marginTop: 6,
-  },
-  discountText: {
-    fontSize: 8,
-    color: 'white',
-    fontWeight: 'bold',
-  },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 8,
-    marginTop: 6,
-    marginBottom: 8,
-  },
-  currentPrice: {
-    fontSize: 12,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  originalPrice: {
-    fontSize: 10,
-    color: '#999',
-    textDecorationLine: 'line-through',
-    marginLeft: 6,
-  },
-  addButton: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
-    backgroundColor: '#F0F0F0',
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#00A86B',
-  },
-  bannerContainer: {
+  categoryChip: {
     paddingHorizontal: 16,
     paddingVertical: 8,
+    marginRight: 12,
+    borderRadius: 20,
+    backgroundColor: '#f8f8f8',
+    alignItems: 'center',
   },
-  festivalBanner: {
-    backgroundColor: 'linear-gradient(135deg, #FFB6C1 0%, #87CEEB 100%)',
+  categoryChipActive: {
+    backgroundColor: '#00A86B',
+  },
+  categoryChipText: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#666',
+  },
+  categoryChipTextActive: {
+    color: '#fff',
+  },
+  categoryChipIndicator: {
+    height: 3,
+    width: 20,
+    backgroundColor: 'transparent',
+    marginTop: 4,
+    borderRadius: 2,
+  },
+  categoryChipIndicatorActive: {
+    backgroundColor: '#fff',
+  },
+  // Banner
+  bannerContainer: {
+    minHeight: 140,
+    width: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#FFF8E1',
+    borderWidth: 2,
+    borderColor: '#FFB300',
+    marginBottom: 8,
+  },
+  bannerCarouselContainer: {
+    marginTop: 8,
+    marginBottom: 8,
+    alignItems: 'center',
+  },
+  bannerCarousel: {
+    width: '100%',
+    maxHeight: 180,
+  },
+  carouselBanner: {
+    backgroundColor: '#FF6B35',
     borderRadius: 12,
     padding: 20,
+    marginHorizontal: 8,
     alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOpacity: 0.15,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 5 },
+    minHeight: 140,
     position: 'relative',
     overflow: 'hidden',
   },
   bannerTitle: {
-    fontSize: 18,
+    fontSize: 22,
     fontWeight: 'bold',
-    color: '#FF1493',
-    textAlign: 'center',
-  },
-  bannerDesc: {
-    fontSize: 12,
     color: '#FFFFFF',
     textAlign: 'center',
-    marginTop: 4,
+    marginBottom: 8,
+  },
+  bannerDesc: {
+    fontSize: 14,
+    color: '#FFE5D9',
+    textAlign: 'center',
+    marginBottom: 16,
+    fontWeight: '500',
   },
   viewOffersButton: {
-    backgroundColor: '#8A2BE2',
+    backgroundColor: '#FFFFFF',
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginTop: 12,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 25,
+    shadowColor: '#000',
+    shadowOpacity: 0.1,
+    shadowRadius: 5,
+    shadowOffset: { width: 0, height: 2 },
   },
   viewOffersText: {
-    color: 'white',
-    fontSize: 11,
+    color: '#FF6B35',
+    fontSize: 13,
     fontWeight: 'bold',
     marginRight: 6,
   },
-  categoryContainer: {
-    paddingVertical: 8,
-  },
-  categoryCard: {
-    width: 80,
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  categoryImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 8,
-    backgroundColor: '#F8F8F8',
-  },
-  categoryName: {
-    fontSize: 10,
-    color: '#333',
-    textAlign: 'center',
-    marginTop: 6,
-    fontWeight: '500',
-  },
-  productGrid: {
+  carouselIndicators: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 12,
   },
-  gridProductCard: {
-    width: (width - 48) / 2,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 8,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E0E0E0',
-    padding: 8,
+  carouselDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#D0D0D0',
+    marginHorizontal: 3,
   },
-  gridProductImage: {
-    width: '100%',
-    height: 80,
-    resizeMode: 'contain',
-    backgroundColor: '#F8F8F8',
-    borderRadius: 6,
+  carouselDotActive: {
+    backgroundColor: '#FF6B35',
+    width: 20,
+    borderRadius: 10,
   },
-  gridProductName: {
-    fontSize: 10,
-    color: '#333',
-    marginTop: 8,
-    fontWeight: '500',
-    lineHeight: 12,
-  },
-  gridProductPrice: {
-    fontSize: 11,
+  noOffersText: {
+    color: '#FFB300',
     fontWeight: 'bold',
-    color: '#00A86B',
-    marginTop: 4,
+    fontSize: 16,
   },
-  deliveryBanner: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#FFF3CD',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    marginHorizontal: 16,
-    marginVertical: 8,
-    borderRadius: 8,
+  // Scroll View
+  scrollView: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
   },
-  deliveryText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#856404',
-  },
+  // Sticky Delivery Bar
   stickyDeliveryBar: {
     position: 'absolute',
     left: 0,

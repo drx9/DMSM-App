@@ -109,11 +109,74 @@ const productController = {
 
   createProduct: async (req, res) => {
     try {
-      const product = await Product.create(req.body);
+      const {
+        name,
+        description,
+        price,
+        mrp,
+        discount = 0,
+        stock = 0,
+        images = [],
+        categoryId,
+        details = {},
+      } = req.body;
+
+      // Validate required fields
+      if (!name || !description || !price || !mrp || !categoryId) {
+        return res.status(400).json({
+          message: 'Missing required fields',
+          required: ['name', 'description', 'price', 'mrp', 'categoryId']
+        });
+      }
+
+      // Validate numeric fields
+      if (isNaN(price) || isNaN(mrp) || isNaN(discount) || isNaN(stock)) {
+        return res.status(400).json({
+          message: 'Invalid numeric values',
+          details: 'price, mrp, discount, and stock must be numbers'
+        });
+      }
+
+      // Validate categoryId exists
+      const category = await Category.findByPk(categoryId);
+      if (!category) {
+        return res.status(400).json({
+          message: 'Invalid categoryId',
+          details: 'Category does not exist'
+        });
+      }
+
+      // Get createdBy from authenticated user or request
+      const createdBy = req.user?.id || req.body.createdBy;
+      if (!createdBy) {
+        return res.status(400).json({
+          message: 'Missing createdBy field',
+          details: 'Product must have a creator'
+        });
+      }
+
+      // Create the product with validated data
+      const product = await Product.create({
+        name,
+        description,
+        price,
+        mrp,
+        discount,
+        stock,
+        images,
+        categoryId,
+        createdBy,
+        details,
+        isOutOfStock: stock <= 0,
+      });
+
       res.status(201).json(product);
     } catch (error) {
       console.error('Error creating product:', error);
-      res.status(500).json({ message: 'Error creating product' });
+      res.status(500).json({ 
+        message: 'Error creating product',
+        details: error.message 
+      });
     }
   },
 
@@ -123,7 +186,6 @@ const productController = {
       if (!product) {
         return res.status(404).json({ message: 'Product not found' });
       }
-
       await product.update(req.body);
       res.json(product);
     } catch (error) {
@@ -177,7 +239,7 @@ const productController = {
       }));
 
       await Product.bulkCreate(products);
-      fs.unlinkSync(filePath); // Clean up uploaded file
+      fs.unlinkSync(filePath);
       res.json({ message: 'Products uploaded successfully', count: products.length });
     } catch (error) {
       console.error('Error bulk uploading products:', error);

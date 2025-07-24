@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, FlatList, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, FlatList, ActivityIndicator, Platform, StatusBar } from 'react-native';
 import ProductCard from '../components/ProductCard';
 import { useWishlist } from './context/WishlistContext';
+import { Ionicons } from '@expo/vector-icons';
 
 const WishlistScreen = () => {
     const { wishlistProducts, wishlistIds, remove, fetchWishlist, loading } = useWishlist();
@@ -18,7 +19,10 @@ const WishlistScreen = () => {
             {loading ? (
                 <ActivityIndicator size="large" color="#CB202D" style={{ marginTop: 40 }} />
             ) : wishlistProducts.length === 0 ? (
-                <Text style={styles.empty}>Your wishlist is empty.</Text>
+                <View style={styles.emptyContainer}>
+                    <Ionicons name="heart-outline" size={64} color="#eee" style={{ marginBottom: 12 }} />
+                    <Text style={styles.empty}>Your wishlist is empty.</Text>
+                </View>
             ) : (
                 <FlatList
                     data={wishlistProducts}
@@ -30,6 +34,10 @@ const WishlistScreen = () => {
                             onToggleWishlist={(wish) => handleToggleWishlist(item, wish)}
                         />
                     )}
+                    numColumns={2}
+                    columnWrapperStyle={styles.row}
+                    contentContainerStyle={styles.listContent}
+                    showsVerticalScrollIndicator={false}
                 />
             )}
         </SafeAreaView>
@@ -37,9 +45,25 @@ const WishlistScreen = () => {
 };
 
 const styles = StyleSheet.create({
-    container: { flex: 1, padding: 20, backgroundColor: '#fff' },
-    title: { fontSize: 20, fontWeight: 'bold', marginBottom: 20 },
-    empty: { fontSize: 16, color: '#999', marginTop: 40, textAlign: 'center' },
+    container: {
+        flex: 1,
+        paddingHorizontal: 8,
+        paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight || 32 : 32,
+        backgroundColor: '#f9f9f9',
+    },
+    title: {
+        fontSize: 22,
+        fontWeight: 'bold',
+        marginBottom: 18,
+        textAlign: 'center',
+        color: '#CB202D',
+        letterSpacing: 1,
+        marginTop: 8,
+    },
+    row: { flex: 1, justifyContent: 'space-between' },
+    listContent: { paddingBottom: 24, marginTop: 8 },
+    emptyContainer: { flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 60 },
+    empty: { fontSize: 16, color: '#bbb', textAlign: 'center', marginTop: 4 },
 });
 
 export default WishlistScreen; 

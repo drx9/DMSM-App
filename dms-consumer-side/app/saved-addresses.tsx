@@ -4,6 +4,7 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { API_URL } from '../config';
+import LocationSelectionScreen from './location/LocationSelectionScreen';
 
 const SavedAddressesScreen = () => {
     const [addresses, setAddresses] = useState<any[]>([]);
@@ -13,6 +14,7 @@ const SavedAddressesScreen = () => {
     const [showAddressModal, setShowAddressModal] = useState(false);
     const [newAddress, setNewAddress] = useState({ line1: '', city: '', state: '', postalCode: '', country: 'India' });
     const [addingAddress, setAddingAddress] = useState(false);
+    const [showLocationSelector, setShowLocationSelector] = useState(false);
 
     useEffect(() => {
         const fetchAddresses = async () => {
@@ -43,7 +45,24 @@ const SavedAddressesScreen = () => {
         try {
             const res = await axios.post(`${API_URL}/addresses`, { ...newAddress, userId });
             setAddresses(prev => [...prev, res.data]);
+            await AsyncStorage.setItem('hasSetAddressOnce', 'true');
             setShowAddressModal(false);
+            setNewAddress({ line1: '', city: '', state: '', postalCode: '', country: 'India' });
+        } catch (err) {
+            // handle error
+        } finally {
+            setAddingAddress(false);
+        }
+    };
+
+    const handleLocationSelected = async (selectedAddress: any) => {
+        if (!userId) return;
+        setAddingAddress(true);
+        try {
+            const res = await axios.post(`${API_URL}/addresses`, { ...selectedAddress, userId });
+            setAddresses(prev => [...prev, res.data]);
+            await AsyncStorage.setItem('hasSetAddressOnce', 'true');
+            setShowLocationSelector(false);
             setNewAddress({ line1: '', city: '', state: '', postalCode: '', country: 'India' });
         } catch (err) {
             // handle error
@@ -74,12 +93,20 @@ const SavedAddressesScreen = () => {
                     )}
                 />
             )}
-            <TouchableOpacity style={styles.addAddressButton} onPress={() => setShowAddressModal(true)}>
+            <TouchableOpacity style={styles.addAddressButton} onPress={() => setShowLocationSelector(true)}>
                 <Ionicons name="add-circle-outline" size={20} color="#CB202D" />
                 <Text style={styles.addAddressText}>Add New Address</Text>
             </TouchableOpacity>
+            {showLocationSelector && (console.log('Rendering LocationSelectionScreen'), (
+                <LocationSelectionScreen
+                    onLocationSelected={handleLocationSelected}
+                    userId={userId}
+                    savedAddress={null}
+                    onBack={() => setShowLocationSelector(false)}
+                />
+            ))}
             {/* Address Modal */}
-            <Modal visible={showAddressModal} animationType="slide" transparent>
+            <Modal visible={showAddressModal && !showLocationSelector} animationType="slide" transparent>
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <Text style={styles.modalTitle}>Add New Address</Text>

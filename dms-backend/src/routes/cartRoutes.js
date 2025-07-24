@@ -10,7 +10,6 @@ router.get('/:userId', async (req, res) => {
             where: { userId: req.params.userId },
             include: [{ model: Product, where: { isActive: true }, required: true }],
         });
-        console.log('[CartRoute] Cart items with product join:', items);
         res.json(items);
     } catch (err) {
         res.status(500).json({ error: err.message });

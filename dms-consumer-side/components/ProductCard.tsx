@@ -27,6 +27,7 @@ interface ProductCardProps {
   onAddToCart?: () => void;
   isWishlisted?: boolean;
   onToggleWishlist?: (wishlisted: boolean) => void;
+  cardWidth?: number;
 }
 
 const { width } = Dimensions.get('window');
@@ -45,6 +46,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
   onAddToCart,
   isWishlisted = false,
   onToggleWishlist,
+  cardWidth,
 }) => {
   const router = useRouter();
   const { addToCart } = useCart();
@@ -90,23 +92,25 @@ const ProductCard: React.FC<ProductCardProps> = ({
 
   const safePrice = Number(price) || 0;
   const safeDiscount = Math.max(0, Math.min(100, Number(discount) || 0));
-  const discountedPrice = safePrice - (safePrice * safeDiscount) / 100;
+  const salePrice = safePrice - (safePrice * safeDiscount) / 100;
+
+  const computedCardWidth = cardWidth || (width - 48) / 2;
 
   return (
     <TouchableOpacity
-      style={[styles.container, { width: cardWidth }]}
+      style={[styles.container, { width: computedCardWidth }]}
       onPress={handlePress}
       disabled={isOutOfStock}
     >
-      <View style={styles.imageContainer}>
+      <View style={[styles.imageContainer, { height: computedCardWidth }]}>
         <Image
           source={{ uri: image }}
           style={styles.image}
           resizeMode="cover"
         />
-        {discount && (
+        {safeDiscount > 0 && (
           <View style={styles.discountBadge}>
-            <Text style={styles.discountText}>{discount}% OFF</Text>
+            <Text style={styles.discountText}>{safeDiscount}% OFF</Text>
           </View>
         )}
         {isOutOfStock && (
@@ -138,7 +142,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
         </Text>
 
         <View style={styles.priceContainer}>
-          <Text style={styles.price}>₹{Number(discountedPrice).toFixed(2)}</Text>
+          <Text style={styles.price}>₹{Number(salePrice).toFixed(2)}</Text>
           {safeDiscount > 0 && (
             <Text style={styles.originalPrice}>₹{Number(safePrice).toFixed(2)}</Text>
           )}
@@ -171,7 +175,6 @@ const styles = StyleSheet.create({
   imageContainer: {
     position: 'relative',
     width: '100%',
-    height: cardWidth,
     borderTopLeftRadius: 8,
     borderTopRightRadius: 8,
     overflow: 'hidden',

@@ -36,6 +36,7 @@ interface CartItem {
   originalPrice?: number;
   discount?: number;
   inStock: boolean;
+  salePrice: number;
 }
 
 function getValidImageUrl(images: any): string {
@@ -101,27 +102,27 @@ const CartScreen = () => {
   const fetchCartItems = async (userId: string) => {
     try {
       const response = await axios.get(`${API_URL}/cart/${userId}`);
-      const items = response.data
-        .filter((item: any) => (item.Product || item.product) && typeof ((item.Product?.price ?? item.product?.price)) === 'number')
-        .map((item: any) => {
-          const prod = item.Product || item.product;
-          return {
-            id: item.id,
-            productId: item.productId?.toString() || prod?.id?.toString(),
-            name: prod?.name || '',
-            price: prod?.price || 0,
-            quantity: item.quantity,
-            image: prod?.images?.[0] || '',
-            weight: `${Math.floor(Math.random() * 500) + 50} g`,
-            originalPrice: Math.floor((prod?.price || 0) * 1.4),
-            discount: Math.floor(Math.random() * 30) + 10,
-            inStock: prod?.stock > 0 && !prod?.isOutOfStock,
-          };
-        });
+      const items = response.data.map((item: any) => {
+        const prod = item.Product || item.product;
+        const mrp = Number(prod?.price) || 0;
+        const discount = Number(prod?.discount) || 0;
+        const salePrice = mrp - (mrp * discount / 100);
+        return {
+          id: item.id,
+          productId: item.productId?.toString() || prod?.id?.toString(),
+          name: prod?.name || '',
+          mrp,
+          salePrice,
+          discount,
+          quantity: item.quantity,
+          image: prod?.images?.[0] || '',
+          inStock: prod?.stock > 0 && !prod?.isOutOfStock,
+        };
+      });
 
       // Separate in-stock and out-of-stock items
-      const inStockItems = items.filter((item: CartItem) => item.inStock);
-      const outOfStockItems = items.filter((item: CartItem) => !item.inStock);
+      const inStockItems = items.filter((item: any) => item.inStock);
+      const outOfStockItems = items.filter((item: any) => !item.inStock);
 
       setCartItems(inStockItems);
       setOutOfStockItems(outOfStockItems);
@@ -135,16 +136,23 @@ const CartScreen = () => {
     loadUserDataAndCart().finally(() => setRefreshing(false));
   }, []);
 
-  const calculateSubtotal = () => {
-    return cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  // Calculate the true MRP (original price) total
+  const calculateMRPTotal = () => {
+    return cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   };
 
-  const calculateTotalSavings = () => {
-    return cartItems.reduce((sum, item) => {
-      const originalPrice = item.originalPrice || item.price * 1.4;
-      return sum + (originalPrice - item.price) * item.quantity;
-    }, 0);
+  // Subtotal (discounted price)
+  const calculateSubtotal = () => {
+    return cartItems.reduce((sum, item) => sum + (item.salePrice * item.quantity), 0);
   };
+
+  // Discount is the difference between MRP and subtotal
+  const mrpTotal = calculateMRPTotal();
+  const subtotal = calculateSubtotal();
+  const savings = mrpTotal - subtotal;
+  const deliveryFee = subtotal >= FREE_DELIVERY_THRESHOLD ? 0 : 39;
+  const platformFee = 9;
+  const totalAmount = subtotal + deliveryFee + platformFee;
 
   const handleQuantityChange = async (productId: string, newQuantity: number) => {
     if (newQuantity < 1) return;
@@ -201,7 +209,7 @@ const CartScreen = () => {
     }
   };
 
-  const renderInStockItem = ({ item }: { item: CartItem }) => (
+  const renderInStockItem = ({ item }: { item: any }) => (
     <Swipeable
       renderRightActions={() => (
         <TouchableOpacity
@@ -212,18 +220,20 @@ const CartScreen = () => {
         </TouchableOpacity>
       )}
     >
-      <View style={styles.cartItemCard}>
+      <TouchableOpacity
+        activeOpacity={0.85}
+        onPress={() => router.push({ pathname: '/product/[id]', params: { id: item.productId } })}
+        style={styles.cartItemCard}
+      >
         <Image source={{ uri: getValidImageUrl(item.image ? [item.image] : []) }} style={styles.cartItemImage} />
         <View style={styles.cartItemDetails}>
           <Text style={styles.cartItemName} numberOfLines={2}>{item.name}</Text>
-          <Text style={styles.cartItemWeight}>{item.weight}</Text>
           <View style={styles.priceContainer}>
-            <Text style={styles.currentPrice}>₹{typeof item.price === 'number' ? item.price : 0}</Text>
-            {item.originalPrice && (
-              <Text style={styles.originalPrice}>₹{typeof item.originalPrice === 'number' ? item.originalPrice : 0}</Text>
+            <Text style={styles.currentPrice}>₹{typeof item.salePrice === 'number' ? item.salePrice.toFixed(2) : 0}</Text>
+            {item.discount > 0 && (
+              <Text style={styles.originalPrice}>₹{typeof item.mrp === 'number' ? item.mrp.toFixed(2) : 0}</Text>
             )}
           </View>
-          <Text style={styles.coinReward}>Or Pay ₹{typeof item.price === 'number' ? item.price - 2 : 0} + 🪙 2</Text>
         </View>
         <View style={styles.rightSection}>
           <View style={styles.quantityControls}>
@@ -254,7 +264,7 @@ const CartScreen = () => {
             <Ionicons name="trash" size={18} color="#CB202D" />
           </TouchableOpacity>
         </View>
-      </View>
+      </TouchableOpacity>
     </Swipeable>
   );
 
@@ -285,12 +295,6 @@ const CartScreen = () => {
       </View>
     );
   }
-
-  const subtotal = calculateSubtotal();
-  const savings = calculateTotalSavings();
-  const deliveryFee = subtotal >= FREE_DELIVERY_THRESHOLD ? 0 : 39;
-  const platformFee = 9;
-  const totalAmount = subtotal + deliveryFee + platformFee;
 
   return (
     <SafeAreaView style={[styles.container, { paddingTop: insets.top }]}>
@@ -489,7 +493,7 @@ const CartScreen = () => {
 
             <View style={styles.priceRow}>
               <Text style={styles.priceLabel}>MRP ({cartItems.length} item{cartItems.length > 1 ? 's' : ''})</Text>
-              <Text style={styles.priceValue}>₹{Math.round(subtotal + savings)}</Text>
+              <Text style={styles.priceValue}>₹{Math.round(mrpTotal)}</Text>
             </View>
 
             <View style={styles.priceRow}>

@@ -26,11 +26,11 @@ const { width } = Dimensions.get('window');
 interface CartItem {
     id: string;
     name: string;
-    price: number;
+    mrp: number;
+    salePrice: number;
+    discount: number;
     quantity: number;
     image: string;
-    originalPrice?: number;
-    discount?: number;
 }
 
 interface Address {
@@ -76,7 +76,7 @@ const CheckoutScreen = () => {
     const router = useRouter();
     const { refreshCartFromBackend } = useCart();
     const [showStatusBar, setShowStatusBar] = useState(false);
-    const [countdown, setCountdown] = useState(30);
+    const [countdown, setCountdown] = useState(10);
     const [orderPlacing, setOrderPlacing] = useState(false);
     const [orderPlaced, setOrderPlaced] = useState(false);
     const countdownRef = useRef<any>(null);
@@ -92,7 +92,10 @@ const CheckoutScreen = () => {
                 if (buyNow) {
                     // If buyNow param is present, use it as the only cart item
                     const parsed = JSON.parse(Array.isArray(buyNow) ? buyNow[0] : buyNow);
-                    items = [{ ...parsed }];
+                    const mrp = Number(parsed.price) || 0;
+                    const discount = Number(parsed.discount) || 0;
+                    const salePrice = mrp - (mrp * discount / 100);
+                    items = [{ ...parsed, mrp, salePrice, discount }];
                     if (storedUserId) {
                         const addrRes = await axios.get(`${API_URL}/addresses/${storedUserId}`);
                         fetchedAddresses = addrRes.data;
@@ -104,15 +107,21 @@ const CheckoutScreen = () => {
                         axios.get(`${API_URL}/addresses/${storedUserId}`),
                         axios.get(`${API_URL}/payment-methods/${storedUserId}`),
                     ]);
-                    items = cartRes.data.map((item: any) => ({
-                        id: item.productId?.toString() || item.Product?.id?.toString(),
-                        name: item.Product?.name || '',
-                        price: item.Product?.price || 0,
-                        quantity: item.quantity,
-                        image: item.Product?.images?.[0] || '',
-                        originalPrice: Math.floor((item.Product?.price || 0) * 1.25),
-                        discount: Math.floor(Math.random() * 20) + 5,
-                    }));
+                    items = cartRes.data.map((item: any) => {
+                        const prod = item.Product || item.product;
+                        const mrp = Number(prod?.price) || 0;
+                        const discount = Number(prod?.discount) || 0;
+                        const salePrice = mrp - (mrp * discount / 100);
+                        return {
+                            id: item.productId?.toString() || prod?.id?.toString(),
+                            name: prod?.name || '',
+                            mrp,
+                            salePrice,
+                            discount,
+                            quantity: item.quantity,
+                            image: prod?.images?.[0] || '',
+                        };
+                    });
                     fetchedAddresses = addrRes.data;
                     setAddresses(fetchedAddresses);
                     setPaymentMethods(paymentRes.data || []);
@@ -132,17 +141,23 @@ const CheckoutScreen = () => {
         fetchCartAndAddressesAndPayments();
     }, [buyNow]);
 
-    const calculateSubtotal = () => {
-        return cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+    // Calculate the true MRP (original price) total
+    const calculateMRPTotal = () => {
+        return cartItems.reduce((sum, item) => sum + (item.mrp * item.quantity), 0);
     };
 
-    const calculateTotal = () => {
-        const subtotal = calculateSubtotal();
-        const deliveryFee = subtotal >= 399 ? 0 : 39;
-        const platformFee = 9;
-        const discount = Math.floor(subtotal * 0.05); // 5% discount
-        return subtotal + deliveryFee + platformFee - discount;
+    // Subtotal (discounted price)
+    const calculateSubtotal = () => {
+        return cartItems.reduce((sum, item) => sum + (item.salePrice * item.quantity), 0);
     };
+
+    // Discount is the difference between MRP and subtotal
+    const mrpTotal = calculateMRPTotal();
+    const subtotal = calculateSubtotal();
+    const savings = mrpTotal - subtotal;
+    const deliveryFee = subtotal >= 399 ? 0 : 39;
+    const platformFee = 9;
+    const totalAmount = subtotal + deliveryFee + platformFee;
 
     const getDeliveryDate = () => {
         const today = new Date();
@@ -178,6 +193,7 @@ const CheckoutScreen = () => {
                 country: newAddress.country || 'India'
             });
             setAddresses((prev) => [...prev, res.data]);
+            await AsyncStorage.setItem('hasSetAddressOnce', 'true');
             setShowAddAddress(false);
             setNewAddress({});
             setSelectedAddressId(res.data.id);
@@ -207,7 +223,7 @@ const CheckoutScreen = () => {
             return;
         }
         setShowStatusBar(true);
-        setCountdown(30);
+        setCountdown(10);
         setOrderPlacing(true);
         setOrderPlaced(false);
         if (countdownRef.current) clearInterval(countdownRef.current);
@@ -231,9 +247,13 @@ const CheckoutScreen = () => {
             await axios.post(`${API_URL}/orders/place-order`, {
                 userId,
                 address: addresses.find(addr => addr.id === selectedAddressId),
-                cartItems,
+                cartItems: cartItems.map(item => ({
+                    id: item.id,
+                    price: item.salePrice,
+                    quantity: item.quantity,
+                })),
                 paymentMethod: selectedPayment,
-                total: calculateTotal(),
+                total: totalAmount,
             });
             await refreshCartFromBackend();
             Alert.alert('Success', 'Order placed successfully!');
@@ -274,6 +294,7 @@ const CheckoutScreen = () => {
                 country: locationAddress.country || 'India',
             });
             setAddresses((prev) => [...prev, res.data]);
+            await AsyncStorage.setItem('hasSetAddressOnce', 'true');
             setSelectedAddressId(res.data.id);
             setShowLocationSelector(false);
         } catch (error) {
@@ -386,28 +407,21 @@ const CheckoutScreen = () => {
 
     const renderOrderSummaryStep = () => {
         const deliveryDates = getDeliveryDate();
-        const subtotal = calculateSubtotal();
-        const deliveryFee = subtotal >= 399 ? 0 : 39;
-        const platformFee = 9;
-        const discount = Math.floor(subtotal * 0.05);
-
         return (
             <ScrollView style={styles.stepContent}>
                 <View style={styles.groceryBasket}>
                     <Text style={styles.basketTitle}>Grocery basket ({cartItems.length} item{cartItems.length > 1 ? 's' : ''})</Text>
-
                     {cartItems.map((item) => (
                         <View key={item.id} style={styles.basketItem}>
                             <Image source={{ uri: getValidImageUrl(item.image ? [item.image] : []) }} style={styles.itemImage} />
                             <View style={styles.itemDetails}>
                                 <Text style={styles.itemName} numberOfLines={2}>{item.name ?? 'No Name'}</Text>
                                 <View style={styles.itemPricing}>
-                                    <Text style={styles.itemPrice}>₹{typeof item.price === 'number' ? item.price : 0}</Text>
-                                    {item.originalPrice && (
-                                        <Text style={styles.itemOriginalPrice}>₹{typeof item.originalPrice === 'number' ? item.originalPrice : 0}</Text>
+                                    <Text style={styles.itemPrice}>₹{typeof item.salePrice === 'number' ? item.salePrice.toFixed(2) : 0}</Text>
+                                    {item.discount > 0 && (
+                                        <Text style={styles.itemOriginalPrice}>₹{typeof item.mrp === 'number' ? item.mrp.toFixed(2) : 0}</Text>
                                     )}
                                 </View>
-                                <Text style={styles.paymentOption}>Or Pay ₹{Math.floor((typeof item.price === 'number' ? item.price : 0) * 0.9)} + 💎 2</Text>
                             </View>
                         </View>
                     ))}
@@ -442,11 +456,11 @@ const CheckoutScreen = () => {
                     <Text style={styles.priceDetailsTitle}>Price Details</Text>
                     <View style={styles.priceRow}>
                         <Text style={styles.priceLabel}>MRP ({cartItems.length} item{cartItems.length > 1 ? 's' : ''})</Text>
-                        <Text style={styles.priceValue}>₹{subtotal + discount}</Text>
+                        <Text style={styles.priceValue}>₹{Math.round(mrpTotal)}</Text>
                     </View>
                     <View style={styles.priceRow}>
                         <Text style={styles.priceLabel}>Product Discount</Text>
-                        <Text style={[styles.priceValue, styles.discountValue]}>-₹{discount}</Text>
+                        <Text style={[styles.priceValue, styles.discountValue]}>-₹{Math.round(savings)}</Text>
                     </View>
                     <View style={styles.priceRow}>
                         <Text style={styles.priceLabel}>Platform Fee</Text>
@@ -459,9 +473,9 @@ const CheckoutScreen = () => {
                     <View style={styles.divider} />
                     <View style={styles.priceRow}>
                         <Text style={styles.totalLabel}>Total Amount</Text>
-                        <Text style={styles.totalValue}>₹{calculateTotal()}</Text>
+                        <Text style={styles.totalValue}>₹{totalAmount}</Text>
                     </View>
-                    <Text style={styles.savings}>You will save ₹{discount} on this order</Text>
+                    <Text style={styles.savings}>You will save ₹{Math.round(savings)} on this order</Text>
                 </View>
 
                 <View style={styles.securityInfo}>
@@ -481,7 +495,7 @@ const CheckoutScreen = () => {
                     <View style={styles.totalAmountContainer}>
                         <Text style={styles.totalAmountLabel}>Total Amount</Text>
                         <Ionicons name="chevron-down" size={16} color="#2874F0" />
-                        <Text style={styles.totalAmountValue}>₹{calculateTotal()}</Text>
+                        <Text style={styles.totalAmountValue}>₹{totalAmount}</Text>
                     </View>
 
                     <View style={styles.cashbackOffer}>
@@ -553,7 +567,7 @@ const CheckoutScreen = () => {
                                             <Text style={styles.subMethodLabel}>{subMethod.label}</Text>
                                             {subMethod.id === 'googlepay' && selectedUpiMethod === subMethod.id && (
                                                 <TouchableOpacity style={styles.payButton}>
-                                                    <Text style={styles.payButtonText}>Pay ₹{calculateTotal()}</Text>
+                                                    <Text style={styles.payButtonText}>Pay ₹{totalAmount}</Text>
                                                 </TouchableOpacity>
                                             )}
                                         </TouchableOpacity>
@@ -576,7 +590,7 @@ const CheckoutScreen = () => {
     const renderBottomButton = () => {
         const buttonText = currentStep === 1 ? 'Continue' :
             currentStep === 2 ? 'Continue' : 'Place Order';
-        const total = calculateTotal();
+        const total = totalAmount;
 
         return (
             <View style={styles.bottomContainer}>

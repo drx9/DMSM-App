@@ -106,6 +106,7 @@ const ProfileScreen = () => {
       const uid = userId || (await AsyncStorage.getItem('userId'));
       const res = await axios.post(`${API_URL}/addresses`, { ...address, userId: uid });
       setAddresses(prev => [...prev, res.data]);
+      await AsyncStorage.setItem('hasSetAddressOnce', 'true');
       if (addresses.length === 0) {
         // If first address, set as primary
         await handleSetPrimary(res.data.id);
@@ -179,6 +180,7 @@ const ProfileScreen = () => {
   const handleLocationSelected = async (address: any) => {
     setShowLocationSelector(false);
     await handleAddAddress(address);
+    await AsyncStorage.setItem('hasSetAddressOnce', 'true');
     // Optionally, refresh addresses
     if (userId) fetchAddresses(userId);
   };

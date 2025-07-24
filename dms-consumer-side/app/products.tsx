@@ -10,6 +10,7 @@ import {
   Modal,
   ScrollView,
   Alert,
+  Dimensions,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from './context/LanguageContext';
@@ -22,7 +23,7 @@ import { searchProducts } from '../src/utils/searchUtils';
 import ProductCard from '../components/ProductCard';
 import SearchWithFilters from '../components/SearchWithFilters';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getWishlist } from './services/wishlistService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
@@ -49,12 +50,30 @@ interface GetProductsParams {
   filters?: string;
 }
 
+interface ProductCardProps {
+  id: string;
+  name: string;
+  price: number;
+  image: string;
+  rating: number;
+  reviewCount: number;
+  discount: number;
+  isOutOfStock: boolean;
+  onPress?: () => void;
+  onAddToCart?: () => void;
+  isWishlisted?: boolean;
+  onToggleWishlist?: (wishlisted: boolean) => void;
+  cardWidth?: number;
+}
+
 const ProductsScreen = () => {
   const { t } = useLanguage();
   const router = useRouter();
   const dispatch = useAppDispatch();
   const { addToCart } = useCart();
   const { wishlistIds, add, remove } = useWishlist();
+
+  const params = useLocalSearchParams();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(false);
@@ -66,16 +85,32 @@ const ProductsScreen = () => {
   const [sortBy, setSortBy] = useState<'name_asc' | 'name_desc' | 'price_asc' | 'price_desc' | 'rating_desc' | 'newest'>('name_asc');
   const [filterBy, setFilterBy] = useState<'all' | 'in_stock' | 'on_sale' | 'new_arrivals'>('all');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [offerId, setOfferId] = useState<string | null>(null);
+  const [niche, setNiche] = useState<string | null>(null);
 
-  // Fetch products from backend with search term
+  useEffect(() => {
+    // If params are present, set filters accordingly
+    if (params.category) setSelectedCategory(params.category as string);
+    if (params.offer) setOfferId(params.offer as string);
+    if (params.niche) setNiche(params.niche as string);
+  }, [params]);
+
+  // Fetch products from backend with search term and filters
   const fetchProducts = async (searchTerm: string) => {
     setLoading(true);
     setError(null);
     try {
-      const params: any = { limit: 100 };
-      if (searchTerm && searchTerm.trim()) params.search = searchTerm.trim();
-      const response = await axios.get(`${API_URL}/products`, { params });
-      setProducts(response.data.products || []);
+      const reqParams: any = { limit: 100 };
+      if (searchTerm && searchTerm.trim()) reqParams.search = searchTerm.trim();
+      if (selectedCategory) reqParams.category = selectedCategory;
+      if (offerId) reqParams.offer = offerId;
+      if (niche) reqParams.niche = niche;
+      const response = await axios.get(`${API_URL}/products`, { params: reqParams });
+      setProducts((response.data.products || []).map((item: any) => ({
+        ...item,
+        price: Number(item.price),
+        discount: Number(item.discount) || 0,
+      })));
     } catch (err: any) {
       setError('Failed to fetch products');
       setProducts([]);
@@ -84,15 +119,15 @@ const ProductsScreen = () => {
     }
   };
 
-  // Fetch products on mount and when query changes
+  // Fetch products on mount and when query, selectedCategory, offerId, or niche changes
   useEffect(() => {
     fetchProducts(query);
-  }, [query]);
+  }, [query, selectedCategory, offerId, niche]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
     fetchProducts(query).finally(() => setRefreshing(false));
-  }, [query]);
+  }, [query, selectedCategory, offerId, niche]);
 
   const handleProductPress = (productId: string) => {
     router.push({
@@ -177,6 +212,7 @@ const ProductsScreen = () => {
             onAddToCart={() => addToCart(item.id)}
             isWishlisted={wishlistIds.includes(item.id)}
             onToggleWishlist={(wish) => handleToggleWishlist(item, wish)}
+            // cardWidth removed for 2-column grid
           />
         )}
         keyExtractor={(item) => item.id}
