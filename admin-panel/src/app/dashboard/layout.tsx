@@ -11,6 +11,7 @@ import {
     Cog6ToothIcon,
     TruckIcon,
     GiftIcon,
+    TicketIcon,
 } from '@heroicons/react/24/outline';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -21,6 +22,7 @@ const navigation = [
     { name: 'Add Sale', href: '/dashboard/offers', icon: GiftIcon },
     { name: 'Orders', href: '/dashboard/orders', icon: ClipboardDocumentListIcon },
     { name: 'Delivery Boys', href: '/dashboard/delivery-boys', icon: TruckIcon },
+    { name: 'Coupons', href: '/dashboard/coupons', icon: TicketIcon },
     { name: 'Settings', href: '/dashboard/settings', icon: Cog6ToothIcon },
 ];
 

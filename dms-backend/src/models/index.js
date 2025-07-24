@@ -18,6 +18,8 @@ const db = {
   Wishlist: require('./Wishlist')(sequelize),
   Offer: require('./Offer'),
   OfferProduct: require('./OfferProduct'),
+  Coupon: require('./Coupon'),
+  CouponUsage: require('./CouponUsage'),
 };
 
 // Define associations

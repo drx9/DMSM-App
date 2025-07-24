@@ -1,4 +1,5 @@
-const { Order, OrderItem, User, Product, CartItem, Address } = require('../models');
+const { Order, OrderItem, User, Product, CartItem, Address, Coupon } = require('../models');
+const couponController = require('./couponController');
 
 const orderController = {
     // Get all orders (for admin)
@@ -140,7 +141,7 @@ const orderController = {
         try {
             console.log('[placeOrder] Incoming body:', req.body);
             const userId = req.body.userId || req.query.userId || (req.user && req.user.id);
-            const { address, cartItems, paymentMethod, total } = req.body;
+            const { address, cartItems, paymentMethod, total, couponCode } = req.body;
             if (!userId || !address || !cartItems || !cartItems.length) {
                 return res.status(400).json({ message: 'userId, address, and cartItems are required' });
             }
@@ -157,6 +158,23 @@ const orderController = {
                     return res.status(400).json({ message: `Product ${product.name} is out of stock` });
                 }
             }
+            // Coupon logic
+            let discount = 0;
+            let coupon = null;
+            if (couponCode) {
+                const couponRes = await Coupon.findOne({ where: { code: couponCode.toUpperCase(), isActive: true } });
+                if (!couponRes || couponRes.remainingUses <= 0) {
+                    return res.status(400).json({ message: 'Invalid or expired coupon' });
+                }
+                if (couponRes.discountType === 'flat') {
+                    discount = parseFloat(couponRes.discountValue);
+                } else if (couponRes.discountType === 'percent') {
+                    const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                    discount = (parseFloat(couponRes.discountValue) / 100) * subtotal;
+                }
+                discount = Math.min(discount, total);
+                coupon = couponRes;
+            }
             // Generate 4-digit delivery key
             const deliveryKey = Math.floor(1000 + Math.random() * 9000).toString();
             // Create order
@@ -164,7 +182,7 @@ const orderController = {
                 userId,
                 shippingAddress: address, // full address object with lat/lng
                 status: 'pending',
-                totalAmount: total,
+                totalAmount: total - discount,
                 paymentStatus: paymentMethod === 'cod' ? 'pending' : 'paid',
                 deliveryKey,
             });
@@ -176,6 +194,10 @@ const orderController = {
                     quantity: item.quantity,
                     price: item.price,
                 });
+            }
+            // Mark coupon as used
+            if (coupon && couponCode) {
+                await couponController.markCouponUsed(couponCode, userId, order.id);
             }
             // Clear cart
             await CartItem.destroy({ where: { userId } });

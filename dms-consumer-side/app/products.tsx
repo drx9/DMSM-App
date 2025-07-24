@@ -79,6 +79,7 @@ const ProductsScreen = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [categories, setCategories] = useState<any[]>([]);
 
   // Local state for search and filters
   const [query, setQuery] = useState('');
@@ -95,23 +96,87 @@ const ProductsScreen = () => {
     if (params.niche) setNiche(params.niche as string);
   }, [params]);
 
+  // Fetch categories first
+  const fetchCategories = async () => {
+    try {
+      const response = await axios.get(`${API_URL}/categories`);
+      setCategories(response.data.categories || response.data);
+    } catch (err) {
+      console.error('Failed to fetch categories:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  // Map frontend sort options to backend parameters
+  const getSortParams = (sortOption: string) => {
+    switch (sortOption) {
+      case 'name_asc':
+        return { sort: 'name', order: 'ASC' };
+      case 'name_desc':
+        return { sort: 'name', order: 'DESC' };
+      case 'price_asc':
+        return { sort: 'price', order: 'ASC' };
+      case 'price_desc':
+        return { sort: 'price', order: 'DESC' };
+      case 'rating_desc':
+        return { sort: 'rating', order: 'DESC' };
+      case 'newest':
+        return { sort: 'createdAt', order: 'DESC' };
+      default:
+        return { sort: 'createdAt', order: 'DESC' };
+    }
+  };
+
   // Fetch products from backend with search term and filters
   const fetchProducts = async (searchTerm: string) => {
     setLoading(true);
     setError(null);
     try {
       const reqParams: any = { limit: 100 };
-      if (searchTerm && searchTerm.trim()) reqParams.search = searchTerm.trim();
-      if (selectedCategory) reqParams.category = selectedCategory;
+      
+      // Add search parameter
+      if (searchTerm && searchTerm.trim()) {
+        reqParams.search = searchTerm.trim();
+      }
+      
+      // Add category parameter
+      if (selectedCategory) {
+        const category = categories.find(c => 
+          c.name.toLowerCase() === selectedCategory.toLowerCase()
+        );
+        if (category) {
+          reqParams.category = category.id;
+        }
+      }
+
+      // Add sort parameters
+      const { sort, order } = getSortParams(sortBy);
+      reqParams.sort = sort;
+      reqParams.order = order;
+
+      // Add other filters
+      if (filterBy === 'in_stock') {
+        reqParams.filters = JSON.stringify({ inStock: true });
+      } else if (filterBy === 'on_sale') {
+        reqParams.filters = JSON.stringify({ discount: true });
+      }
+
       if (offerId) reqParams.offer = offerId;
       if (niche) reqParams.niche = niche;
+
+      console.log('Fetching products with params:', reqParams);
       const response = await axios.get(`${API_URL}/products`, { params: reqParams });
+      
       setProducts((response.data.products || []).map((item: any) => ({
         ...item,
         price: Number(item.price),
         discount: Number(item.discount) || 0,
       })));
     } catch (err: any) {
+      console.error('Failed to fetch products:', err);
       setError('Failed to fetch products');
       setProducts([]);
     } finally {
@@ -119,10 +184,10 @@ const ProductsScreen = () => {
     }
   };
 
-  // Fetch products on mount and when query, selectedCategory, offerId, or niche changes
+  // Update useEffect to refetch when sort changes
   useEffect(() => {
     fetchProducts(query);
-  }, [query, selectedCategory, offerId, niche]);
+  }, [query, selectedCategory, offerId, niche, sortBy, filterBy]); // Added sortBy and filterBy
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);

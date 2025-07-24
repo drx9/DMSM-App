@@ -9,6 +9,7 @@ import {
   TextInput,
   Alert,
   FlatList,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
@@ -19,6 +20,11 @@ import axios from 'axios';
 import { API_URL } from '../config';
 import ProductCard from '../../components/ProductCard';
 import { useCart } from '../context/CartContext';
+import { useWishlist } from '../context/WishlistContext';
+import { addToWishlist, removeFromWishlist } from '../services/wishlistService';
+import Toast from 'react-native-root-toast';
+import ProductImageSlider from '../../components/ProductImageSlider';
+import AddressManagerModal from '../../components/AddressManagerModal';
 
 const FREE_DELIVERY_THRESHOLD = 399; // Example value, adjust as needed
 
@@ -69,12 +75,27 @@ const ProductDetailScreen = () => {
   const [reviewComment, setReviewComment] = useState('');
   const [cartCount, setCartCount] = useState(0);
   const { addToCart } = useCart();
+  const { wishlistIds, add, remove, fetchWishlist } = useWishlist();
+  const [wishloading, setWishLoading] = useState(false);
+  const [wishError, setWishError] = useState<string | null>(null);
+  const [localWish, setLocalWish] = useState<string[]>([]);
+  const [address, setAddress] = useState<any>(null);
+  const [addresses, setAddresses] = useState<any[]>([]);
+  const [addressLoading, setAddressLoading] = useState(true);
+  const [showAddressModal, setShowAddressModal] = useState(false);
 
   useEffect(() => {
     fetchProductDetails();
     fetchCartTotal();
     fetchCartCount();
+    fetchUserAddresses();
   }, [id]);
+
+  useEffect(() => {
+    if (product && wishlistIds) {
+      setLocalWish(wishlistIds);
+    }
+  }, [wishlistIds, product]);
 
   const fetchProductDetails = async () => {
     try {
@@ -169,6 +190,70 @@ const ProductDetailScreen = () => {
     { key: 'flavour', label: 'Flavour' },
   ];
 
+  const isWishlisted = product && localWish.includes(product.id);
+  const handleToggleWishlist = async () => {
+    if (!product) return;
+    setWishLoading(true);
+    setWishError(null);
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      if (!userId) {
+        Toast.show('Please login to use wishlist', { duration: 1500 });
+        setWishLoading(false);
+        return;
+      }
+      if (isWishlisted) {
+        await removeFromWishlist(userId, product.id);
+        setLocalWish((prev) => prev.filter(pid => pid !== product.id));
+        remove(product.id);
+      } else {
+        await addToWishlist(userId, product.id);
+        setLocalWish((prev) => [...prev, product.id]);
+        add(product.id, product);
+      }
+      await fetchWishlist();
+      console.log('Wishlist updated');
+    } catch (err: any) {
+      setWishError(err.message || 'Failed to update wishlist');
+      Toast.show('Failed to update wishlist', { duration: 1500 });
+    } finally {
+      setWishLoading(false);
+    }
+  };
+
+  const fetchUserAddresses = async () => {
+    setAddressLoading(true);
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      if (!userId) {
+        setAddresses([]);
+        setAddress(null);
+        setAddressLoading(false);
+        return;
+      }
+      const res = await axios.get(`${API_URL}/addresses/${userId}`);
+      setAddresses(res.data);
+      // Find default/primary address
+      const primary = res.data.find((a: any) => a.isDefault) || res.data[0] || null;
+      setAddress(primary);
+    } catch (err) {
+      setAddresses([]);
+      setAddress(null);
+    } finally {
+      setAddressLoading(false);
+    }
+  };
+
+  const handleSetPrimaryAddress = async (id: string) => {
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      if (!userId) return;
+      await axios.patch(`${API_URL}/addresses/${id}/set-primary`, { userId });
+      await fetchUserAddresses();
+      setShowAddressModal(false);
+    } catch (err) {}
+  };
+
   // --- UI ---
   if (!product) return <View style={styles.loading}><Text>Loading...</Text></View>;
 
@@ -194,17 +279,25 @@ const ProductDetailScreen = () => {
       </View>
 
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
-        {/* Product Image */}
+        {/* Product Image Slider */}
         <View style={styles.imageContainer}>
-          <Image
-            source={{ uri: Array.isArray(product?.images) && product.images.length > 0 ? product.images[0] : 'https://via.placeholder.com/280x200?text=No+Image' }}
-            style={styles.productImage}
-          />
-          <View style={styles.imageDots}>
-            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16].map((dot, index) => (
-              <View key={index} style={[styles.dot, index === 0 && styles.activeDot]} />
-            ))}
-          </View>
+          <ProductImageSlider images={Array.isArray(product?.images) ? product.images : []} />
+          {/* Heart/Wishlist Icon */}
+          <TouchableOpacity
+            style={{ position: 'absolute', top: 16, right: 16, zIndex: 10, backgroundColor: 'rgba(255,255,255,0.85)', borderRadius: 20, padding: 8 }}
+            onPress={handleToggleWishlist}
+            disabled={wishloading}
+          >
+            {wishloading ? (
+              <ActivityIndicator size={20} color={isWishlisted ? '#CB202D' : '#888'} />
+            ) : (
+              <Ionicons
+                name={isWishlisted ? 'heart' : 'heart-outline'}
+                size={28}
+                color={isWishlisted ? '#CB202D' : '#888'}
+              />
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Product Info */}
@@ -376,15 +469,23 @@ const ProductDetailScreen = () => {
           />
         </View>
 
-        {/* Delivery Info */}
+        {/* Delivery Info (below similar products) */}
         <View style={styles.deliveryInfo}>
           <View style={styles.deliveryAddress}>
-            <Text style={styles.deliveryLabel}>Deliver to: <Text style={styles.deliveryName}>Anish..., 784001</Text> HOME</Text>
-            <TouchableOpacity>
+            {addressLoading ? (
+              <Text style={styles.deliveryLabel}>Loading address...</Text>
+            ) : address ? (
+              <Text style={styles.deliveryLabel}>
+                Deliver to: <Text style={styles.deliveryName}>{address.line1}, {address.postalCode}</Text> HOME
+              </Text>
+            ) : (
+              <Text style={styles.deliveryLabel}>No address set</Text>
+            )}
+            <TouchableOpacity onPress={() => setShowAddressModal(true)}>
               <Text style={styles.changeButton}>Change</Text>
             </TouchableOpacity>
           </View>
-          <Text style={styles.deliveryFullAddress}>Railgate no 1, Chandmari, Tezpur, N...</Text>
+          <Text style={styles.deliveryFullAddress}>{address ? `${address.line1}, ${address.city}, ${address.state}` : ''}</Text>
 
           <View style={styles.sellerInfo}>
             <Text style={styles.sellerText}>Sold by <Text style={styles.sellerName}>Dhunumunu supermarket</Text></Text>
@@ -459,6 +560,28 @@ const ProductDetailScreen = () => {
           </TouchableOpacity>
         </View>
       </View>
+      {/* Address Manager Modal */}
+      <AddressManagerModal
+        visible={showAddressModal}
+        onClose={() => setShowAddressModal(false)}
+        addresses={addresses}
+        onSetPrimary={handleSetPrimaryAddress}
+        onAdd={async (addr) => {
+          const userId = await AsyncStorage.getItem('userId');
+          if (!userId) return;
+          await axios.post(`${API_URL}/addresses`, { ...addr, userId });
+          await fetchUserAddresses();
+        }}
+        onEdit={async (id, addr) => {
+          await axios.put(`${API_URL}/addresses/${id}`, addr);
+          await fetchUserAddresses();
+        }}
+        onDelete={async (id) => {
+          await axios.delete(`${API_URL}/addresses/${id}`);
+          await fetchUserAddresses();
+        }}
+        loading={addressLoading}
+      />
     </SafeAreaView>
   );
 };

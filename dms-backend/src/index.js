@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const sequelize = require('./config/database');
 const routes = require('./routes');
+const couponRoutes = require('./routes/couponRoutes');
 const { errorHandler } = require('./middleware/errorHandler');
 const { syncModels } = require('./models');
 
@@ -31,6 +32,7 @@ app.use(express.json());
 
 // Routes
 app.use('/api', routes);
+app.use('/api/coupons', couponRoutes);
 app.get('/api/health', (req, res) => res.send('OK'));
 
 // Error handling

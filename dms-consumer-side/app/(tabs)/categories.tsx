@@ -25,11 +25,14 @@ const SUB_CATEGORY_CARD_WIDTH = (width - (16 * 2) - (SUB_CATEGORY_CARD_MARGIN * 
 
 const CategoriesScreen = () => {
   const [categories, setCategories] = useState<Category[]>([]);
+  const [filteredCategories, setFilteredCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
   const [subCategories, setSubCategories] = useState<Category[]>([]);
+  const [filteredSubCategories, setFilteredSubCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
   const [productsError, setProductsError] = useState<string | null>(null);
   const [selectedSubCategory, setSelectedSubCategory] = useState<Category | null>(null);
@@ -37,6 +40,7 @@ const CategoriesScreen = () => {
   const router = useRouter();
   const { t } = useLanguage();
 
+  // Fetch categories
   useEffect(() => {
     setLoading(true);
     setError(null);
@@ -44,6 +48,7 @@ const CategoriesScreen = () => {
       .then((res) => {
         const topCategories = res.categories.filter((cat) => !cat.parentId);
         setCategories(topCategories);
+        setFilteredCategories(topCategories);
         if (topCategories.length > 0) {
           setSelectedCategory(topCategories[0]);
         }
@@ -54,6 +59,7 @@ const CategoriesScreen = () => {
       .finally(() => setLoading(false));
   }, []);
 
+  // Fetch subcategories
   useEffect(() => {
     if (selectedCategory) {
       setLoading(true);
@@ -61,14 +67,17 @@ const CategoriesScreen = () => {
       categoryService.getSubCategories(selectedCategory.id)
         .then((data) => {
           setSubCategories(data);
+          setFilteredSubCategories(data);
         })
         .catch(() => setError('Failed to load subcategories'))
         .finally(() => setLoading(false));
     } else {
       setSubCategories([]);
+      setFilteredSubCategories([]);
     }
   }, [selectedCategory]);
 
+  // Fetch products
   useEffect(() => {
     let categoryId = selectedSubCategory?.id || selectedCategory?.id;
     if (categoryId) {
@@ -77,24 +86,52 @@ const CategoriesScreen = () => {
       productService.getProducts({ category: categoryId })
         .then((res) => {
           setProducts(res.products);
+          setFilteredProducts(res.products);
         })
         .catch(() => setProductsError('Failed to load products'))
         .finally(() => setProductsLoading(false));
     } else {
       setProducts([]);
+      setFilteredProducts([]);
     }
   }, [selectedCategory, selectedSubCategory]);
 
+  // Reset subcategory when category changes
   useEffect(() => {
     setSelectedSubCategory(null);
   }, [selectedCategory]);
 
+  // Search filtering
+  useEffect(() => {
+    if (!searchQuery) {
+      setFilteredCategories(categories);
+      setFilteredSubCategories(subCategories);
+      setFilteredProducts(products);
+      return;
+    }
+    const q = searchQuery.toLowerCase();
+    setFilteredCategories(categories.filter(cat => cat.name.toLowerCase().includes(q)));
+    setFilteredSubCategories(subCategories.filter(sub => sub.name.toLowerCase().includes(q)));
+    setFilteredProducts(products.filter(prod => prod.name.toLowerCase().includes(q)));
+  }, [searchQuery, categories, subCategories, products]);
+
+  // Quick Actions
   const quickActions = [
-    { icon: 'flash', label: 'Flash Sale', color: '#FF6B6B' },
-    { icon: 'gift', label: 'Offers', color: '#4ECDC4' },
-    { icon: 'heart', label: 'Wishlist', color: '#FF8A80' },
-    { icon: 'star', label: 'Top Rated', color: '#FFD93D' },
+    { icon: 'flash-outline' as const, label: 'Flash Sale', color: '#FF6B6B', action: () => filterByQuickAction('flash') },
+    { icon: 'gift-outline' as const, label: 'Offers', color: '#4ECDC4', action: () => filterByQuickAction('offer') },
+    { icon: 'heart-outline' as const, label: 'Wishlist', color: '#FF8A80', action: () => router.push('/wishlist') },
+    { icon: 'star-outline' as const, label: 'Top Rated', color: '#FFD93D', action: () => filterByQuickAction('top') },
   ];
+
+  function filterByQuickAction(type: string) {
+    if (type === 'flash') {
+      setFilteredProducts(products.filter(p => p.discount && p.discount > 0));
+    } else if (type === 'offer') {
+      setFilteredProducts(products.filter(p => p.discount && p.discount > 10));
+    } else if (type === 'top') {
+      setFilteredProducts(products.filter(p => (p.rating || 0) >= 4.5));
+    }
+  }
 
   return (
     <SafeAreaView style={[styles.container, { flex: 1, paddingTop: 16 }]}>
@@ -112,10 +149,11 @@ const CategoriesScreen = () => {
           <Ionicons name="search" size={20} color="#10B981" style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search categories & products"
+            placeholder="Search categories, subcategories & products"
             placeholderTextColor="#9CA3AF"
             value={searchQuery}
             onChangeText={setSearchQuery}
+            clearButtonMode="while-editing"
           />
         </View>
       </View>
@@ -124,8 +162,8 @@ const CategoriesScreen = () => {
       <View style={styles.quickActionsContainer}>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickActionsList}>
           {quickActions.map((action, index) => (
-            <TouchableOpacity key={index} style={styles.quickActionItem}>
-              <View style={[styles.quickActionIconContainer, { backgroundColor: action.color }]}>
+            <TouchableOpacity key={index} style={styles.quickActionItem} onPress={action.action}>
+              <View style={[styles.quickActionIconContainer, { backgroundColor: action.color, borderWidth: 2, borderColor: '#fff' }]}>
                 <Ionicons name={action.icon} size={24} color="#FFFFFF" />
               </View>
               <Text style={styles.quickActionLabel}>{action.label}</Text>
@@ -138,30 +176,39 @@ const CategoriesScreen = () => {
         {/* Left Side: Main Categories List */}
         <View style={styles.mainCategoryContainer}>
           <ScrollView style={styles.mainCategoryList} showsVerticalScrollIndicator={false}>
-            {categories.map((category) => (
-              <TouchableOpacity
-                key={category.id}
-                style={[
-                  styles.mainCategoryItem,
-                  selectedCategory?.id === category.id && styles.mainCategoryItemActive,
-                ]}
-                onPress={() => setSelectedCategory(category)}
-              >
-                <View style={styles.mainCategoryContent}>
-                  <Text
-                    style={[
-                      styles.mainCategoryText,
-                      selectedCategory?.id === category.id && styles.mainCategoryTextActive,
-                    ]}
-                  >
-                    {category.name}
-                  </Text>
-                  {selectedCategory?.id === category.id && (
-                    <View style={styles.activeIndicator} />
-                  )}
-                </View>
-              </TouchableOpacity>
-            ))}
+            {filteredCategories.length === 0 ? (
+              <View style={styles.emptyContainer}>
+                <Ionicons name="folder-open" size={36} color="#D1D5DB" />
+                <Text style={styles.emptyText}>No categories found</Text>
+              </View>
+            ) : (
+              filteredCategories.map((category) => (
+                <TouchableOpacity
+                  key={category.id}
+                  style={[
+                    styles.mainCategoryItem,
+                    selectedCategory?.id === category.id && styles.mainCategoryItemActive,
+                    { borderRadius: 12, marginVertical: 4, borderWidth: selectedCategory?.id === category.id ? 2 : 1, borderColor: selectedCategory?.id === category.id ? '#10B981' : '#F3F4F6', backgroundColor: selectedCategory?.id === category.id ? '#F0FDF4' : '#F9FAFB' }
+                  ]}
+                  onPress={() => setSelectedCategory(category)}
+                >
+                  <View style={styles.mainCategoryContent}>
+                    <Text
+                      style={[
+                        styles.mainCategoryText,
+                        selectedCategory?.id === category.id && styles.mainCategoryTextActive,
+                        { fontSize: 15 }
+                      ]}
+                    >
+                      {category.name}
+                    </Text>
+                    {selectedCategory?.id === category.id && (
+                      <View style={styles.activeIndicator} />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))
+            )}
           </ScrollView>
         </View>
 
@@ -181,14 +228,15 @@ const CategoriesScreen = () => {
             </View>
           ) : selectedCategory ? (
             <FlatList
-              data={subCategories}
+              data={filteredSubCategories}
               keyExtractor={(item) => item.id.toString()}
               numColumns={3}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={[
                     styles.subCategoryCard,
-                    selectedSubCategory?.id === item.id && styles.subCategoryCardActive
+                    selectedSubCategory?.id === item.id && styles.subCategoryCardActive,
+                    { borderWidth: selectedSubCategory?.id === item.id ? 2 : 1, borderColor: selectedSubCategory?.id === item.id ? '#10B981' : '#F3F4F6', backgroundColor: selectedSubCategory?.id === item.id ? '#F0FDF4' : '#FFFFFF', shadowOpacity: selectedSubCategory?.id === item.id ? 0.15 : 0.08 }
                   ]}
                   onPress={() => setSelectedSubCategory(item)}
                 >
@@ -222,7 +270,7 @@ const CategoriesScreen = () => {
       <View style={styles.productsSection}>
         <View style={styles.productsSectionHeader}>
           <Text style={styles.productsHeader}>Featured Products</Text>
-          <TouchableOpacity style={styles.viewAllButton}>
+          <TouchableOpacity style={styles.viewAllButton} onPress={() => router.push('/products')}>
             <Text style={styles.viewAllText}>View All</Text>
             <Ionicons name="chevron-forward" size={16} color="#10B981" />
           </TouchableOpacity>
@@ -236,14 +284,14 @@ const CategoriesScreen = () => {
           <View style={styles.productsError}>
             <Text style={styles.errorText}>{productsError}</Text>
           </View>
-        ) : products.length === 0 ? (
+        ) : filteredProducts.length === 0 ? (
           <View style={styles.noProductsContainer}>
             <Ionicons name="cube" size={48} color="#D1D5DB" />
             <Text style={styles.noProductsText}>No products found</Text>
           </View>
         ) : (
           <FlatList
-            data={products}
+            data={filteredProducts}
             keyExtractor={(item) => item.id.toString()}
             horizontal
             showsHorizontalScrollIndicator={false}

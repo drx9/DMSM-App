@@ -20,6 +20,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import LocationSelectionScreen from './location/LocationSelectionScreen';
 import { useCart } from './context/CartContext';
+import { applyCoupon } from './services/couponService';
 
 const { width } = Dimensions.get('window');
 
@@ -80,6 +81,10 @@ const CheckoutScreen = () => {
     const [orderPlacing, setOrderPlacing] = useState(false);
     const [orderPlaced, setOrderPlaced] = useState(false);
     const countdownRef = useRef<any>(null);
+    const [promoCode, setPromoCode] = useState('');
+    const [promoError, setPromoError] = useState('');
+    const [promoDiscount, setPromoDiscount] = useState(0);
+    const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
 
     useEffect(() => {
         const fetchCartAndAddressesAndPayments = async () => {
@@ -157,7 +162,7 @@ const CheckoutScreen = () => {
     const savings = mrpTotal - subtotal;
     const deliveryFee = subtotal >= 399 ? 0 : 39;
     const platformFee = 9;
-    const totalAmount = subtotal + deliveryFee + platformFee;
+    const totalAmount = subtotal + deliveryFee + platformFee - promoDiscount;
 
     const getDeliveryDate = () => {
         const today = new Date();
@@ -239,6 +244,21 @@ const CheckoutScreen = () => {
         }, 1000);
     };
 
+    const handleApplyPromo = async () => {
+        setPromoError('');
+        if (!promoCode) return;
+        try {
+            const res = await applyCoupon({ code: promoCode, userId: userId || '', cartTotal: subtotal + deliveryFee + platformFee });
+            setPromoDiscount(res.discount);
+            setAppliedCoupon(res.coupon);
+            setPromoError('');
+        } catch (err: any) {
+            setPromoDiscount(0);
+            setAppliedCoupon(null);
+            setPromoError(err.response?.data?.message || 'Invalid coupon');
+        }
+    };
+
     const actuallyPlaceOrder = async () => {
         if (orderPlaced) return;
         setOrderPlacing(false);
@@ -254,6 +274,7 @@ const CheckoutScreen = () => {
                 })),
                 paymentMethod: selectedPayment,
                 total: totalAmount,
+                couponCode: appliedCoupon?.code || undefined,
             });
             await refreshCartFromBackend();
             Alert.alert('Success', 'Order placed successfully!');
@@ -470,6 +491,10 @@ const CheckoutScreen = () => {
                         <Text style={styles.priceLabel}>Delivery Fee</Text>
                         <Text style={styles.priceValue}>₹{deliveryFee}</Text>
                     </View>
+                    <View style={styles.priceRow}>
+                        <Text style={styles.priceLabel}>Promo Discount</Text>
+                        <Text style={[styles.priceValue, styles.discountValue]}>-₹{promoDiscount}</Text>
+                    </View>
                     <View style={styles.divider} />
                     <View style={styles.priceRow}>
                         <Text style={styles.totalLabel}>Total Amount</Text>
@@ -483,6 +508,30 @@ const CheckoutScreen = () => {
                     <Text style={styles.securityText}>
                         Safe and secure payments. Easy returns. 100% Authentic products.
                     </Text>
+                </View>
+
+                {/* Promo Code Input */}
+                <View style={{ marginVertical: 16 }}>
+                    <Text style={{ fontWeight: 'bold', fontSize: 16 }}>Enter Promo Code</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 8 }}>
+                        <TextInput
+                            style={{ flex: 1, borderWidth: 1, borderColor: '#ccc', borderRadius: 8, padding: 8 }}
+                            placeholder="Promo code"
+                            value={promoCode}
+                            onChangeText={setPromoCode}
+                            autoCapitalize="characters"
+                        />
+                        <TouchableOpacity
+                            style={{ marginLeft: 8, backgroundColor: '#28a745', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 8 }}
+                            onPress={handleApplyPromo}
+                        >
+                            <Text style={{ color: 'white', fontWeight: 'bold' }}>Apply</Text>
+                        </TouchableOpacity>
+                    </View>
+                    {promoError ? <Text style={{ color: 'red', marginTop: 4 }}>{promoError}</Text> : null}
+                    {promoDiscount > 0 && appliedCoupon && (
+                        <Text style={{ color: 'green', marginTop: 4 }}>Coupon applied: -₹{promoDiscount.toFixed(2)}</Text>
+                    )}
                 </View>
             </ScrollView>
         );

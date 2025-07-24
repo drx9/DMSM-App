@@ -13,7 +13,8 @@ import {
   TextInput,
   ActivityIndicator,
   Alert,
-  Modal
+  Modal,
+  FlatList
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useLanguage } from '../context/LanguageContext';
@@ -29,6 +30,7 @@ import AddressManagerModal, { Address } from '../../components/AddressManagerMod
 import { useFocusEffect } from '@react-navigation/native';
 import ProductCard from '../../components/ProductCard';
 import { useCart } from '../context/CartContext';
+import Toast from 'react-native-root-toast';
 import SearchWithFilters from '../../components/SearchWithFilters';
 
 const { width } = Dimensions.get('window');
@@ -50,12 +52,11 @@ function isWithinNalbari(lat: number, lng: number) {
 }
 
 const HomeScreen = () => {
-  console.log('HomeScreen loaded at', new Date().toISOString());
+  const [selectedCategory, setSelectedCategory] = useState('for-you');
   const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [popularProducts, setPopularProducts] = useState<Product[]>([]);
-  const [newArrivals, setNewArrivals] = useState<Product[]>([]);
+  const [categoryProducts, setCategoryProducts] = useState<{ [key: string]: Product[] }>({});
+  const [recommendedProducts, setRecommendedProducts] = useState<Product[]>([]);
   const [error, setError] = useState<string | null>(null);
   const { t } = useLanguage();
   const router = useRouter();
@@ -138,34 +139,184 @@ const HomeScreen = () => {
     try {
       setLoading(true);
       setError(null);
+      console.log('Fetching products from:', `${API_URL}/products`);
+      
       // Use productService.getProducts for unified fetching
-      const res = await productService.getProducts({ limit: 100 });
+      const res = await productService.getProducts({ 
+        limit: 100,
+        sort: 'created_at_desc' // Get newest products first
+      });
+      
+      console.log('Products response:', res);
+      
       // Map products: ensure price/discount are numbers, handle images
       const mappedProducts = (res.products || []).map((item: any) => ({
-        ...item,
-        price: Number(item.price),
-        discount: Number(item.discount) || 0,
-        images: Array.isArray(item.images) ? item.images : [item.image || ''],
+        id: item.id,
+        name: item.name,
+        description: item.description,
+        // Use price from the backend directly (it's already the MRP)
+        price: parseFloat(item.price) || 0,
+        // Ensure discount is a number between 0-100
+        discount: Math.min(100, Math.max(0, parseFloat(item.discount) || 0)),
+        stock: parseInt(item.stock) || 0,
+        images: Array.isArray(item.images) ? item.images : [item.image || 'https://via.placeholder.com/150'],
+        rating: parseFloat(item.rating) || 0,
+        reviewCount: parseInt(item.reviewCount) || 0,
+        isOutOfStock: Boolean(item.isOutOfStock),
+        isActive: item.isActive !== false,
+        category: item.category,
       }));
-      // For now, just slice for popular/new arrivals (could sort/filter if needed)
-      setPopularProducts(mappedProducts.slice(0, 6));
-      setNewArrivals(mappedProducts.slice(0, 6));
+      
+      console.log('Mapped products with prices:', mappedProducts.map(p => ({ 
+        name: p.name, 
+        price: p.price, 
+        discount: p.discount 
+      })));
+      
+      // setPopularProducts(mappedProducts); // This line is removed as per new_code
+      // setNewArrivals(mappedProducts.slice(0, 6)); // This line is removed as per new_code
       setError(null);
-    } catch (err) {
-      console.error('FETCH TEST ERROR:', err);
-      const errorMessage = (err as any)?.message ?? 'Unknown error';
-      setError('Fetch failed: ' + errorMessage);
-      setPopularProducts([]);
-      setNewArrivals([]);
+    } catch (err: any) {
+      console.error('FETCH ERROR:', err);
+      console.error('Error details:', {
+        message: err.message,
+        response: err.response?.data,
+        status: err.response?.status,
+      });
+      const errorMessage = err.response?.data?.message || err.message || 'Failed to fetch products';
+      setError(errorMessage);
+      // setPopularProducts([]); // This line is removed as per new_code
+      // setNewArrivals([]); // This line is removed as per new_code
     } finally {
       setLoading(false);
     }
   };
 
 
-  const [categoryProducts, setCategoryProducts] = useState<{ [categoryId: string]: Product[] }>({});
-  const [mostBought, setMostBought] = useState<Product[]>([]);
+  // const [categoryProducts, setCategoryProducts] = useState<{ [categoryId: string]: Product[] }>({}); // This line is removed as per new_code
+  // const [mostBought, setMostBought] = useState<Product[]>([]); // This line is removed as per new_code
 
+
+  // Fetch products for a specific category
+  const fetchCategoryProducts = async (categoryId: string) => {
+    try {
+      // First get the category ID from the backend
+      const categoriesRes = await axios.get(`${API_URL}/categories`);
+      const categories = categoriesRes.data.categories || categoriesRes.data;
+      const category = categories.find((c: any) => 
+        c.name.toLowerCase() === categoryId.toLowerCase()
+      );
+      
+      if (!category) {
+        console.error(`Category not found: ${categoryId}`);
+        return [];
+      }
+
+      const res = await productService.getProducts({ 
+        category: category.id,
+        limit: 100,
+        sort: 'created_at_desc'
+      });
+      
+      return (res.products || []).map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        description: item.description,
+        price: parseFloat(item.price) || 0,
+        discount: Math.min(100, Math.max(0, parseFloat(item.discount) || 0)),
+        stock: parseInt(item.stock) || 0,
+        images: Array.isArray(item.images) ? item.images : [item.image || 'https://via.placeholder.com/150'],
+        rating: parseFloat(item.rating) || 0,
+        reviewCount: parseInt(item.reviewCount) || 0,
+        isOutOfStock: Boolean(item.isOutOfStock),
+        isActive: item.isActive !== false,
+        category: item.category,
+      }));
+    } catch (err) {
+      console.error(`Error fetching ${categoryId} products:`, err);
+      return [];
+    }
+  };
+
+  // Fetch recommended products for "For You" section
+  const fetchRecommendedProducts = async () => {
+    try {
+      // You can customize this to fetch recommended products based on user preferences
+      const res = await productService.getProducts({ 
+        limit: 100,
+        sort: 'rating_desc' // Sort by highest rated products for now
+      });
+      
+      const products = (res.products || []).map((item: any) => ({
+        id: item.id,
+        name: item.name,
+        description: item.description,
+        price: parseFloat(item.price) || 0,
+        discount: Math.min(100, Math.max(0, parseFloat(item.discount) || 0)),
+        stock: parseInt(item.stock) || 0,
+        images: Array.isArray(item.images) ? item.images : [item.image || 'https://via.placeholder.com/150'],
+        rating: parseFloat(item.rating) || 0,
+        reviewCount: parseInt(item.reviewCount) || 0,
+        isOutOfStock: Boolean(item.isOutOfStock),
+        isActive: item.isActive !== false,
+        category: item.category,
+      }));
+
+      setRecommendedProducts(products);
+    } catch (err) {
+      console.error('Error fetching recommended products:', err);
+      setRecommendedProducts([]);
+    }
+  };
+
+  const fetchAllCategoryProducts = async () => {
+    setLoading(true);
+    try {
+      const categories = ['groceries', 'cosmetics', 'dairy', 'bakery'];
+      const productsMap: { [key: string]: Product[] } = {};
+      
+      await Promise.all(
+        categories.map(async (category) => {
+          productsMap[category] = await fetchCategoryProducts(category);
+        })
+      );
+      
+      setCategoryProducts(productsMap);
+      await fetchRecommendedProducts();
+    } catch (err) {
+      console.error('Error fetching all products:', err);
+      setError('Failed to fetch products');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Add state for new sections
+  const [newArrivals, setNewArrivals] = useState<Product[]>([]);
+  const [frequentlyBought, setFrequentlyBought] = useState<Product[]>([]);
+  const [highestPurchase, setHighestPurchase] = useState<Product[]>([]);
+
+  // Fetch data for new sections
+  useEffect(() => {
+    const fetchExtraSections = async () => {
+      try {
+        // New Arrivals: sort by created_at descending (assuming backend supports it)
+        const newArrivalsRes = await productService.getProducts({ limit: 9, sort: 'created_at_desc' });
+        setNewArrivals(newArrivalsRes.products || []);
+        // Frequently Bought Together: sort by a custom field or fallback to random
+        const freqRes = await productService.getProducts({ limit: 9, sort: 'frequently_bought_desc' });
+        setFrequentlyBought(freqRes.products || []);
+        // Highest Purchase: sort by purchase count or rating
+        const highRes = await productService.getProducts({ limit: 9, sort: 'purchase_count_desc' });
+        setHighestPurchase(highRes.products || []);
+      } catch (err) {
+        setNewArrivals([]);
+        setFrequentlyBought([]);
+        setHighestPurchase([]);
+      }
+    };
+    fetchExtraSections();
+  }, []);
 
   useEffect(() => {
     AsyncStorage.getItem('hasSetAddressOnce').then(val => {
@@ -211,6 +362,7 @@ const HomeScreen = () => {
     axios.get(`${API_URL}/offers/active`).then(res => {
       setActiveOffers(res.data || []);
     }).catch(() => setActiveOffers([]));
+    fetchAllCategoryProducts(); // Call fetchAllCategoryProducts here
   }, []);
 
 
@@ -246,15 +398,12 @@ const HomeScreen = () => {
 
   const onRefresh = React.useCallback(() => {
     setRefreshing(true);
-    fetchData().finally(() => setRefreshing(false));
+    fetchAllCategoryProducts().finally(() => setRefreshing(false));
   }, []);
 
 
-  const handleCategoryPress = (category: Category) => {
-    router.push({
-      pathname: '/products',
-      params: { category: category.id }
-    });
+  const handleCategoryPress = (category: string) => {
+    setSelectedCategory(category);
   };
 
 
@@ -365,12 +514,65 @@ const HomeScreen = () => {
     return (
       <View style={styles.loadingContainer}>
         <Text style={{ color: '#FF6347', fontSize: 14 }}>{error}</Text>
-        <TouchableOpacity onPress={fetchData} style={{ marginTop: 16, padding: 12, backgroundColor: '#00A86B', borderRadius: 12 }}>
+        <TouchableOpacity onPress={fetchAllCategoryProducts} style={{ marginTop: 16, padding: 12, backgroundColor: '#00A86B', borderRadius: 12 }}>
           <Text style={{ color: 'white', fontWeight: '600' }}>Retry</Text>
         </TouchableOpacity>
       </View>
     );
   }
+
+
+  const getProductsToShow = () => {
+    const products = selectedCategory === 'for-you' 
+      ? recommendedProducts 
+      : (categoryProducts[selectedCategory] || []);
+    return products.slice(0, 9); // Only show first 9 products
+  };
+
+  const handleViewMore = () => {
+    router.push({
+      pathname: '/products',
+      params: { 
+        category: selectedCategory === 'for-you' ? undefined : selectedCategory
+      }
+    });
+  };
+
+  const handleAddToCart = async (productId: string) => {
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      if (!userId) {
+        Toast.show('Please login to add items to cart', {
+          duration: Toast.durations.LONG,
+          position: Toast.positions.BOTTOM,
+          shadow: true,
+          animation: true,
+          hideOnPress: true,
+          delay: 0,
+        });
+        return;
+      }
+
+      await addToCart(productId);
+      Toast.show('Added to cart!', {
+        duration: Toast.durations.SHORT,
+        position: Toast.positions.BOTTOM,
+        shadow: true,
+        animation: true,
+        hideOnPress: true,
+        delay: 0,
+      });
+    } catch (error) {
+      Toast.show('Failed to add to cart. Please try again.', {
+        duration: Toast.durations.LONG,
+        position: Toast.positions.BOTTOM,
+        shadow: true,
+        animation: true,
+        hideOnPress: true,
+        delay: 0,
+      });
+    }
+  };
 
 
   return (
@@ -523,28 +725,301 @@ const HomeScreen = () => {
               showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.categoryChipsScroll}
             >
-            <TouchableOpacity style={styles.categoryChip}>
-              <Text style={styles.categoryChipText}>For You</Text>
-              <View style={styles.categoryChipIndicator} />
+                <TouchableOpacity
+              style={[styles.categoryChip, selectedCategory === 'for-you' && styles.categoryChipActive]}
+              onPress={() => handleCategoryPress('for-you')}
+            >
+              <Text style={[styles.categoryChipText, selectedCategory === 'for-you' && styles.categoryChipTextActive]}>
+                For You
+              </Text>
+              <View style={[styles.categoryChipIndicator, selectedCategory === 'for-you' && styles.categoryChipIndicatorActive]} />
                 </TouchableOpacity>
-            <TouchableOpacity style={[styles.categoryChip, styles.categoryChipActive]}>
-              <Text style={[styles.categoryChipText, styles.categoryChipTextActive]}>Groceries</Text>
-              <View style={[styles.categoryChipIndicator, styles.categoryChipIndicatorActive]} />
+            <TouchableOpacity 
+              style={[styles.categoryChip, selectedCategory === 'groceries' && styles.categoryChipActive]}
+              onPress={() => handleCategoryPress('groceries')}
+            >
+              <Text style={[styles.categoryChipText, selectedCategory === 'groceries' && styles.categoryChipTextActive]}>
+                Groceries
+              </Text>
+              <View style={[styles.categoryChipIndicator, selectedCategory === 'groceries' && styles.categoryChipIndicatorActive]} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.categoryChip}>
-              <Text style={styles.categoryChipText}>Cosmetics</Text>
-              <View style={styles.categoryChipIndicator} />
-              </TouchableOpacity>
-            <TouchableOpacity style={styles.categoryChip}>
-              <Text style={styles.categoryChipText}>Bakery</Text>
-              <View style={styles.categoryChipIndicator} />
+            <TouchableOpacity 
+              style={[styles.categoryChip, selectedCategory === 'cosmetics' && styles.categoryChipActive]}
+              onPress={() => handleCategoryPress('cosmetics')}
+            >
+              <Text style={[styles.categoryChipText, selectedCategory === 'cosmetics' && styles.categoryChipTextActive]}>
+                Cosmetics
+              </Text>
+              <View style={[styles.categoryChipIndicator, selectedCategory === 'cosmetics' && styles.categoryChipIndicatorActive]} />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.categoryChip, selectedCategory === 'dairy' && styles.categoryChipActive]}
+              onPress={() => handleCategoryPress('dairy')}
+            >
+              <Text style={[styles.categoryChipText, selectedCategory === 'dairy' && styles.categoryChipTextActive]}>
+                Dairy
+              </Text>
+              <View style={[styles.categoryChipIndicator, selectedCategory === 'dairy' && styles.categoryChipIndicatorActive]} />
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.categoryChip, selectedCategory === 'bakery' && styles.categoryChipActive]}
+              onPress={() => handleCategoryPress('bakery')}
+            >
+              <Text style={[styles.categoryChipText, selectedCategory === 'bakery' && styles.categoryChipTextActive]}>
+                Bakery
+              </Text>
+              <View style={[styles.categoryChipIndicator, selectedCategory === 'bakery' && styles.categoryChipIndicatorActive]} />
+            </TouchableOpacity>
+            </ScrollView>
+          </View>
+
+        {/* Products Grid */}
+        <View style={styles.productsGridContainer}>
+          <View style={styles.productsGrid}>
+            {getProductsToShow().map((product) => (
+              <View key={product.id} style={styles.productCardWrapper}>
+                <TouchableOpacity onPress={() => handleProductPress(product.id)} activeOpacity={0.85}>
+                  <View style={styles.productCard}>
+                    <View style={styles.imageContainer}>
+                      <Image
+                        source={{ uri: product.images[0] || 'https://via.placeholder.com/150' }}
+                        style={styles.productImage}
+                        resizeMode="cover"
+                      />
+                      {product.discount > 0 && (
+                        <View style={styles.discountBadge}>
+                          <Text style={styles.discountText}>{product.discount}% OFF</Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.productInfo}>
+                      <Text style={styles.productName} numberOfLines={2}>
+                        {product.name}
+                      </Text>
+                      <Text style={styles.productWeight}>
+                        {product.description?.match(/\d+\s*(?:ml|g|kg|pcs)/i)?.[0] || '500g'}
+                      </Text>
+                      <View style={styles.priceRow}>
+                        <Text style={styles.currentPrice}>
+                          ₹{(product.price - (product.price * (product.discount || 0)) / 100).toFixed(2)}
+                        </Text>
+                        {product.discount > 0 && (
+                          <Text style={styles.originalPrice}>₹{product.price}</Text>
+                        )}
+                      </View>
+                    </View>
+                    <TouchableOpacity 
+                      style={styles.addButton}
+                      onPress={(e) => {
+                        e.stopPropagation && e.stopPropagation();
+                        handleAddToCart(product.id);
+                      }}
+                    >
+                      <Text style={styles.addButtonText}>ADD +</Text>
+                    </TouchableOpacity>
+                  </View>
                 </TouchableOpacity>
-            <TouchableOpacity style={styles.categoryChip}>
-              <Text style={styles.categoryChipText}>Pharmacy</Text>
-              <View style={styles.categoryChipIndicator} />
-            </TouchableOpacity>
-          </ScrollView>
               </View>
+            ))}
+          </View>
+          
+          {/* View More Button */}
+          {getProductsToShow().length > 0 && (
+            <TouchableOpacity 
+              style={styles.viewMoreButton}
+              onPress={handleViewMore}
+            >
+              <Text style={styles.viewMoreText}>View More</Text>
+              <Ionicons name="arrow-forward" size={16} color="#00A86B" />
+            </TouchableOpacity>
+          )}
+        </View>
+
+        {/* New Arrival Section */}
+        <View style={styles.productsGridContainer}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, marginLeft: 8, marginRight: 8 }}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold' }}>New Arrival</Text>
+            <TouchableOpacity onPress={() => router.push({ pathname: '/products', params: { section: 'new-arrival' } })}>
+              <Text style={{ color: '#00A86B', fontWeight: '600' }}>View More</Text>
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={newArrivals}
+            keyExtractor={(item) => item.id.toString()}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            renderItem={({ item: product }) => (
+              <View style={[styles.productCardWrapper, { width: PRODUCT_CARD_WIDTH }]}> {/* consistent card width */}
+                <TouchableOpacity onPress={() => handleProductPress(product.id)} activeOpacity={0.85}>
+                  <View style={styles.productCard}>
+                    <View style={styles.imageContainer}>
+                      <Image
+                        source={{ uri: product.images[0] || 'https://via.placeholder.com/150' }}
+                        style={styles.productImage}
+                        resizeMode="cover"
+                      />
+                      {product.discount > 0 && (
+                        <View style={styles.discountBadge}>
+                          <Text style={styles.discountText}>{product.discount}% OFF</Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.productInfo}>
+                      <Text style={styles.productName} numberOfLines={2}>
+                        {product.name}
+                      </Text>
+                      <Text style={styles.productWeight}>
+                        {product.description?.match(/\d+\s*(?:ml|g|kg|pcs)/i)?.[0] || '500g'}
+                      </Text>
+                      <View style={styles.priceRow}>
+                        <Text style={styles.currentPrice}>
+                          ₹{(product.price - (product.price * (product.discount || 0)) / 100).toFixed(2)}
+                        </Text>
+                        {product.discount > 0 && (
+                          <Text style={styles.originalPrice}>₹{product.price}</Text>
+                        )}
+                      </View>
+                    </View>
+                    <TouchableOpacity 
+                      style={styles.addButton}
+                      onPress={(e) => {
+                        e.stopPropagation && e.stopPropagation();
+                        handleAddToCart(product.id);
+                      }}
+                    >
+                      <Text style={styles.addButtonText}>ADD +</Text>
+                    </TouchableOpacity>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            )}
+            contentContainerStyle={{ paddingLeft: 8, paddingRight: 8 }}
+          />
+        </View>
+
+        {/* Frequently Bought Together Section */}
+        <View style={styles.productsGridContainer}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, marginLeft: 8, marginRight: 8 }}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Frequently Bought Together</Text>
+            <TouchableOpacity onPress={() => router.push({ pathname: '/products', params: { section: 'frequently-bought' } })}>
+              <Text style={{ color: '#00A86B', fontWeight: '600' }}>View More</Text>
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={frequentlyBought}
+            keyExtractor={(item) => item.id.toString()}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            renderItem={({ item: product }) => (
+              <View style={[styles.productCardWrapper, { width: PRODUCT_CARD_WIDTH }]}> {/* consistent card width */}
+                <TouchableOpacity onPress={() => handleProductPress(product.id)} activeOpacity={0.85}>
+                  <View style={styles.productCard}>
+                    <View style={styles.imageContainer}>
+                      <Image
+                        source={{ uri: product.images[0] || 'https://via.placeholder.com/150' }}
+                        style={styles.productImage}
+                        resizeMode="cover"
+                      />
+                      {product.discount > 0 && (
+                        <View style={styles.discountBadge}>
+                          <Text style={styles.discountText}>{product.discount}% OFF</Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.productInfo}>
+                      <Text style={styles.productName} numberOfLines={2}>
+                        {product.name}
+                      </Text>
+                      <Text style={styles.productWeight}>
+                        {product.description?.match(/\d+\s*(?:ml|g|kg|pcs)/i)?.[0] || '500g'}
+                      </Text>
+                      <View style={styles.priceRow}>
+                        <Text style={styles.currentPrice}>
+                          ₹{(product.price - (product.price * (product.discount || 0)) / 100).toFixed(2)}
+                        </Text>
+                        {product.discount > 0 && (
+                          <Text style={styles.originalPrice}>₹{product.price}</Text>
+                        )}
+                      </View>
+                    </View>
+                    <TouchableOpacity 
+                      style={styles.addButton}
+                      onPress={(e) => {
+                        e.stopPropagation && e.stopPropagation();
+                        handleAddToCart(product.id);
+                      }}
+                    >
+                      <Text style={styles.addButtonText}>ADD +</Text>
+                    </TouchableOpacity>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            )}
+            contentContainerStyle={{ paddingLeft: 8, paddingRight: 8 }}
+          />
+        </View>
+
+        {/* Highest Purchase Section */}
+        <View style={styles.productsGridContainer}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, marginLeft: 8, marginRight: 8 }}>
+            <Text style={{ fontSize: 18, fontWeight: 'bold' }}>Highest Purchase</Text>
+            <TouchableOpacity onPress={() => router.push({ pathname: '/products', params: { section: 'highest-purchase' } })}>
+              <Text style={{ color: '#00A86B', fontWeight: '600' }}>View More</Text>
+            </TouchableOpacity>
+          </View>
+          <FlatList
+            data={highestPurchase}
+            keyExtractor={(item) => item.id.toString()}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            renderItem={({ item: product }) => (
+              <View style={[styles.productCardWrapper, { width: PRODUCT_CARD_WIDTH }]}> {/* consistent card width */}
+                <TouchableOpacity onPress={() => handleProductPress(product.id)} activeOpacity={0.85}>
+                  <View style={styles.productCard}>
+                    <View style={styles.imageContainer}>
+                      <Image
+                        source={{ uri: product.images[0] || 'https://via.placeholder.com/150' }}
+                        style={styles.productImage}
+                        resizeMode="cover"
+                      />
+                      {product.discount > 0 && (
+                        <View style={styles.discountBadge}>
+                          <Text style={styles.discountText}>{product.discount}% OFF</Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.productInfo}>
+                      <Text style={styles.productName} numberOfLines={2}>
+                        {product.name}
+                      </Text>
+                      <Text style={styles.productWeight}>
+                        {product.description?.match(/\d+\s*(?:ml|g|kg|pcs)/i)?.[0] || '500g'}
+                      </Text>
+                      <View style={styles.priceRow}>
+                        <Text style={styles.currentPrice}>
+                          ₹{(product.price - (product.price * (product.discount || 0)) / 100).toFixed(2)}
+                        </Text>
+                        {product.discount > 0 && (
+                          <Text style={styles.originalPrice}>₹{product.price}</Text>
+                        )}
+                      </View>
+                    </View>
+                    <TouchableOpacity 
+                      style={styles.addButton}
+                      onPress={(e) => {
+                        e.stopPropagation && e.stopPropagation();
+                        handleAddToCart(product.id);
+                      }}
+                    >
+                      <Text style={styles.addButtonText}>ADD +</Text>
+                    </TouchableOpacity>
+                  </View>
+                </TouchableOpacity>
+              </View>
+            )}
+            contentContainerStyle={{ paddingLeft: 8, paddingRight: 8 }}
+          />
+        </View>
 
       </ScrollView>
 
@@ -820,6 +1295,115 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
     fontSize: 15,
+  },
+  productsGridContainer: {
+    padding: 8,
+    backgroundColor: '#fff',
+  },
+  productsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginHorizontal: -4,
+  },
+  productCardWrapper: {
+    width: '33.333%',
+    padding: 4,
+  },
+  productCard: {
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E8E8E8',
+    overflow: 'hidden',
+  },
+  imageContainer: {
+    width: '100%',
+    aspectRatio: 1,
+    position: 'relative',
+  },
+  productImage: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#f8f8f8',
+  },
+  productInfo: {
+    padding: 8,
+    paddingBottom: 40,
+  },
+  productName: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#333',
+    marginBottom: 4,
+    minHeight: 32,
+  },
+  productWeight: {
+    fontSize: 11,
+    color: '#666',
+    marginBottom: 4,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
+  currentPrice: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  originalPrice: {
+    fontSize: 12,
+    color: '#999',
+    textDecorationLine: 'line-through',
+    marginLeft: 4,
+  },
+  discountBadge: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    backgroundColor: '#FF4444',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderTopLeftRadius: 8,
+    borderBottomRightRadius: 8,
+  },
+  discountText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: 'bold',
+  },
+  addButton: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    right: 8,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#00A86B',
+    borderRadius: 4,
+    paddingVertical: 6,
+    alignItems: 'center',
+  },
+  addButtonText: {
+    color: '#00A86B',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  viewMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    marginTop: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#f0f0f0',
+  },
+  viewMoreText: {
+    fontSize: 14,
+    color: '#00A86B',
+    fontWeight: '600',
+    marginRight: 4,
   },
 });
 

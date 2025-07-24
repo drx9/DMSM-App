@@ -29,14 +29,14 @@ interface CartItem {
   id: number;
   productId: string;
   name: string;
-  price: number;
+  price: number;      // Original MRP
+  mrp: number;        // Same as price, for clarity
+  salePrice: number;  // Price after discount
   quantity: number;
   image: string;
   weight?: string;
-  originalPrice?: number;
-  discount?: number;
+  discount: number;
   inStock: boolean;
-  salePrice: number;
 }
 
 function getValidImageUrl(images: any): string {
@@ -104,16 +104,19 @@ const CartScreen = () => {
       const response = await axios.get(`${API_URL}/cart/${userId}`);
       const items = response.data.map((item: any) => {
         const prod = item.Product || item.product;
-        const mrp = Number(prod?.price) || 0;
-        const discount = Number(prod?.discount) || 0;
+        // Parse all numeric values with fallbacks
+        const mrp = parseFloat(prod?.price) || 0;
+        const discount = parseFloat(prod?.discount) || 0;
         const salePrice = mrp - (mrp * discount / 100);
+        
         return {
           id: item.id,
           productId: item.productId?.toString() || prod?.id?.toString(),
           name: prod?.name || '',
-          mrp,
-          salePrice,
-          discount,
+          price: mrp, // This is the MRP
+          mrp: mrp,   // Store MRP separately
+          salePrice: salePrice, // Store calculated sale price
+          discount: discount,
           quantity: item.quantity,
           image: prod?.images?.[0] || '',
           inStock: prod?.stock > 0 && !prod?.isOutOfStock,
@@ -138,10 +141,10 @@ const CartScreen = () => {
 
   // Calculate the true MRP (original price) total
   const calculateMRPTotal = () => {
-    return cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+    return cartItems.reduce((sum, item) => sum + (item.mrp * item.quantity), 0);
   };
 
-  // Subtotal (discounted price)
+  // Calculate subtotal (after discount)
   const calculateSubtotal = () => {
     return cartItems.reduce((sum, item) => sum + (item.salePrice * item.quantity), 0);
   };
@@ -229,9 +232,9 @@ const CartScreen = () => {
         <View style={styles.cartItemDetails}>
           <Text style={styles.cartItemName} numberOfLines={2}>{item.name}</Text>
           <View style={styles.priceContainer}>
-            <Text style={styles.currentPrice}>₹{typeof item.salePrice === 'number' ? item.salePrice.toFixed(2) : 0}</Text>
+            <Text style={styles.currentPrice}>₹{item.salePrice.toFixed(2)}</Text>
             {item.discount > 0 && (
-              <Text style={styles.originalPrice}>₹{typeof item.mrp === 'number' ? item.mrp.toFixed(2) : 0}</Text>
+              <Text style={styles.originalPrice}>₹{item.mrp.toFixed(2)}</Text>
             )}
           </View>
         </View>

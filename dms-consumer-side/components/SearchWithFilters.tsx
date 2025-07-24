@@ -9,11 +9,16 @@ import {
     StyleSheet,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { useAppDispatch, useAppSelector } from '../src/store/hooks';
-import { fetchProducts } from '../src/store/slices/productsSlice';
+import axios from 'axios';
+import { API_URL } from '../app/config';
 
 type SortOption = 'name_asc' | 'name_desc' | 'price_asc' | 'price_desc' | 'rating_desc' | 'newest';
 type FilterOption = 'all' | 'in_stock' | 'on_sale' | 'new_arrivals';
+
+interface Category {
+    id: string;
+    name: string;
+}
 
 interface SearchWithFiltersProps {
     onSearchChange: (query: string) => void;
@@ -36,20 +41,23 @@ const SearchWithFilters: React.FC<SearchWithFiltersProps> = ({
     filterBy,
     selectedCategory,
 }) => {
-    const dispatch = useAppDispatch();
-    const { items: products = [], loading, lastFetched } = useAppSelector((state: any) => state.products);
-
     const [localQuery, setLocalQuery] = useState(query);
     const [showSortModal, setShowSortModal] = useState(false);
     const [showFilterModal, setShowFilterModal] = useState(false);
+    const [categories, setCategories] = useState<Category[]>([]);
 
-    // Fetch products on component mount if not already fetched
+    // Fetch categories from backend
     useEffect(() => {
-        const shouldFetch = !lastFetched || Date.now() - lastFetched > 3600000; // 1 hour
-        if (shouldFetch) {
-            dispatch(fetchProducts());
-        }
-    }, [dispatch, lastFetched]);
+        const fetchCategories = async () => {
+            try {
+                const response = await axios.get(`${API_URL}/categories`);
+                setCategories(response.data.categories || response.data);
+            } catch (err) {
+                console.error('Failed to fetch categories:', err);
+            }
+        };
+        fetchCategories();
+    }, []);
 
     // Debounced search effect
     useEffect(() => {
@@ -80,11 +88,6 @@ const SearchWithFilters: React.FC<SearchWithFiltersProps> = ({
         { value: 'on_sale', label: 'On Sale', icon: 'pricetag' },
         { value: 'new_arrivals', label: 'New Arrivals', icon: 'sparkles' },
     ];
-
-    // Extract unique categories from products
-    const categories = Array.from(
-        new Set((products || []).map((product: any) => product.category?.name).filter(Boolean))
-    );
 
     return (
         <View style={styles.container}>
@@ -268,32 +271,32 @@ const SearchWithFilters: React.FC<SearchWithFiltersProps> = ({
                                 {!selectedCategory && <Ionicons name="checkmark" size={20} color="#007AFF" />}
                             </TouchableOpacity>
 
-                            {categories.map((category: any) => (
+                            {categories.map((category) => (
                                 <TouchableOpacity
-                                    key={category}
+                                    key={category.id}
                                     style={[
                                         styles.optionItem,
-                                        selectedCategory === category && styles.selectedOption,
+                                        selectedCategory === category.name && styles.selectedOption,
                                     ]}
                                     onPress={() => {
-                                        onCategoryChange(category);
+                                        onCategoryChange(category.name);
                                         setShowFilterModal(false);
                                     }}
                                 >
                                     <Ionicons
                                         name="folder"
                                         size={20}
-                                        color={selectedCategory === category ? '#007AFF' : '#666'}
+                                        color={selectedCategory === category.name ? '#007AFF' : '#666'}
                                     />
                                     <Text
                                         style={[
                                             styles.optionText,
-                                            selectedCategory === category && styles.selectedOptionText,
+                                            selectedCategory === category.name && styles.selectedOptionText,
                                         ]}
                                     >
-                                        {category}
+                                        {category.name}
                                     </Text>
-                                    {selectedCategory === category && (
+                                    {selectedCategory === category.name && (
                                         <Ionicons name="checkmark" size={20} color="#007AFF" />
                                     )}
                                 </TouchableOpacity>
