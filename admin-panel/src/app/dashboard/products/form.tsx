@@ -11,7 +11,7 @@ import { useRouter } from 'next/navigation';
 const productSchema = z.object({
     name: z.string().min(1, 'Name is required'),
     description: z.string().min(1, 'Description is required'),
-    price: z.coerce.number().min(0.01, 'MRP must be > 0'), // Change label to MRP
+    price: z.coerce.number().min(0.01, 'MRP must be > 0'),
     discount: z.coerce.number().min(0).max(100, 'Discount 0–100'),
     stock: z.coerce.number().int().min(0, 'Stock ≥ 0'),
     images: z.string().min(1, 'Need at least one image URL'),
@@ -19,6 +19,8 @@ const productSchema = z.object({
     isActive: z.coerce.boolean(),
     rating: z.coerce.number().min(0).max(5),
     reviewCount: z.coerce.number().int().min(0),
+    createdBy: z.string().optional(), // Will be set from auth context
+    details: z.record(z.any()).optional().default({}),
 });
 
 // Now every property is required
@@ -43,7 +45,6 @@ export default function ProductForm({ productId }: { productId?: string }) {
     } = useForm<FormData>({
         resolver: zodResolver(productSchema) as Resolver<FormData, any>,
         defaultValues: {
-            // Must include every key in FormData
             name: '',
             description: '',
             price: 0,
@@ -54,6 +55,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
             isActive: true,
             rating: 0,
             reviewCount: 0,
+            details: {},
         },
     });
 
@@ -138,10 +140,16 @@ export default function ProductForm({ productId }: { productId?: string }) {
                 .split(',')
                 .map((u) => u.trim())
                 .filter(Boolean);
+
+            // Calculate price from MRP and discount
+            const price = data.price - (data.price * data.discount) / 100;
+
             const payload = {
                 ...data,
+                price,
                 images: imagesArr,
                 isOutOfStock: data.stock === 0,
+                createdBy: '11111111-1111-1111-1111-111111111111', // Default admin ID
             };
 
             if (productId) {
@@ -326,10 +334,10 @@ export default function ProductForm({ productId }: { productId?: string }) {
                                 Pricing & Inventory
                             </h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                {/* Price */}
+                                {/* MRP */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        MRP (₹)
+                                        MRP (Maximum Retail Price) (₹)
                                     </label>
                                     <div className="relative">
                                         <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">₹</span>
@@ -341,6 +349,9 @@ export default function ProductForm({ productId }: { productId?: string }) {
                                             placeholder="0.00"
                                         />
                                     </div>
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Maximum retail price printed on product
+                                    </p>
                                     {errors.price && (
                                         <p className="mt-2 text-sm text-red-600 flex items-center">
                                             <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
@@ -368,6 +379,9 @@ export default function ProductForm({ productId }: { productId?: string }) {
                                         />
                                         <span className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-500">%</span>
                                     </div>
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Percentage off from MRP
+                                    </p>
                                     {errors.discount && (
                                         <p className="mt-2 text-sm text-red-600 flex items-center">
                                             <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
@@ -376,6 +390,29 @@ export default function ProductForm({ productId }: { productId?: string }) {
                                             {errors.discount.message}
                                         </p>
                                     )}
+                                </div>
+
+                                {/* Calculated Selling Price (Read-only) */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Selling Price (₹)
+                                    </label>
+                                    <div className="relative">
+                                        <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-500">₹</span>
+                                        <input
+                                            type="number"
+                                            value={
+                                                watchedValues.price && watchedValues.discount
+                                                    ? (watchedValues.price - (watchedValues.price * watchedValues.discount) / 100).toFixed(2)
+                                                    : watchedValues.price || 0
+                                            }
+                                            className="w-full pl-8 pr-4 py-3 rounded-xl border-gray-200 bg-gray-100 text-gray-600"
+                                            readOnly
+                                        />
+                                    </div>
+                                    <p className="mt-1 text-xs text-gray-500">
+                                        Final selling price after discount (automatically calculated)
+                                    </p>
                                 </div>
 
                                 {/* Stock */}
