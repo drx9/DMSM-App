@@ -85,6 +85,7 @@ const CheckoutScreen = () => {
     const [promoError, setPromoError] = useState('');
     const [promoDiscount, setPromoDiscount] = useState(0);
     const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
+    const [selectedDeliverySlot, setSelectedDeliverySlot] = useState<string>('');
 
     useEffect(() => {
         const fetchCartAndAddressesAndPayments = async () => {
@@ -222,6 +223,10 @@ const CheckoutScreen = () => {
             Alert.alert('Error', 'Please select a delivery address.');
             return;
         }
+        if (!selectedDeliverySlot) {
+            Alert.alert('Error', 'Please select a delivery slot.');
+            return;
+        }
         const selectedAddress = addresses.find(addr => addr.id === selectedAddressId);
         if (!selectedAddress) {
             Alert.alert('Error', 'Selected address not found.');
@@ -237,7 +242,6 @@ const CheckoutScreen = () => {
                 if (prev <= 1) {
                     clearInterval(countdownRef.current!);
                     actuallyPlaceOrder();
-                    return 0;
                 }
                 return prev - 1;
             });
@@ -275,6 +279,7 @@ const CheckoutScreen = () => {
                 paymentMethod: selectedPayment,
                 total: totalAmount,
                 couponCode: appliedCoupon?.code || undefined,
+                deliverySlot: selectedDeliverySlot,
             });
             await refreshCartFromBackend();
             Alert.alert('Success', 'Order placed successfully!');
@@ -426,8 +431,22 @@ const CheckoutScreen = () => {
         );
     };
 
+    // Delivery slot options: today and tomorrow
+    const today = new Date();
+    const tomorrow = new Date();
+    tomorrow.setDate(today.getDate() + 1);
+    const slotOptions = [
+        {
+            label: `Today (${today.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })})`,
+            value: today.toISOString().split('T')[0],
+        },
+        {
+            label: `Tomorrow (${tomorrow.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })})`,
+            value: tomorrow.toISOString().split('T')[0],
+        },
+    ];
+
     const renderOrderSummaryStep = () => {
-        const deliveryDates = getDeliveryDate();
         return (
             <ScrollView style={styles.stepContent}>
                 <View style={styles.groceryBasket}>
@@ -451,20 +470,15 @@ const CheckoutScreen = () => {
                 <View style={styles.deliverySlot}>
                     <Text style={styles.deliveryTitle}>Choose a Delivery slot</Text>
                     <View style={styles.dateOptions}>
-                        <TouchableOpacity style={[styles.dateOption, styles.dateOptionSelected]}>
-                            <Text style={styles.dateOptionDay}>Fri</Text>
-                            <Text style={styles.dateOptionDate}>27 Jun</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.dateOption}>
-                            <Text style={styles.dateOptionDay}>Sat</Text>
-                            <Text style={styles.dateOptionDate}>28 Jun</Text>
-                        </TouchableOpacity>
-                    </View>
-                    <View style={styles.timeSlot}>
-                        <View style={styles.timeSlotOption}>
-                            <View style={styles.radioSelected} />
-                            <Text style={styles.timeSlotText}>8:00 AM to 8:00 PM</Text>
-                        </View>
+                        {slotOptions.map(slot => (
+                            <TouchableOpacity
+                                key={slot.value}
+                                style={[styles.dateOption, selectedDeliverySlot === slot.value && styles.dateOptionSelected]}
+                                onPress={() => setSelectedDeliverySlot(slot.value)}
+                            >
+                                <Text style={styles.dateOptionDate}>{slot.label}</Text>
+                            </TouchableOpacity>
+                        ))}
                     </View>
                 </View>
 

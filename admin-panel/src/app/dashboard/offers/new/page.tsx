@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import api from '@/lib/api';
 import { useRouter } from 'next/navigation';
 
@@ -19,6 +19,9 @@ export default function AddOfferPage() {
     const router = useRouter();
     const [search, setSearch] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [bannerImage, setBannerImage] = useState('');
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [uploading, setUploading] = useState(false);
 
     useEffect(() => {
         api.get('/api/products?limit=1000').then(res => {
@@ -45,6 +48,22 @@ export default function AddOfferPage() {
         ));
     };
 
+    const handleBannerImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setUploading(true);
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', 'dmsmart'); // Change to your Cloudinary unsigned preset
+        const res = await fetch('https://api.cloudinary.com/v1_1/dmsmart/image/upload', {
+            method: 'POST',
+            body: formData,
+        });
+        const data = await res.json();
+        setBannerImage(data.secure_url);
+        setUploading(false);
+    };
+
     const handleSubmit = async (e: any) => {
         e.preventDefault();
         await api.post('/api/offers', {
@@ -54,6 +73,7 @@ export default function AddOfferPage() {
             endDate,
             isActive,
             products: selectedProducts,
+            banner_image: bannerImage,
         });
         router.push('/dashboard/offers');
     };
@@ -84,6 +104,12 @@ export default function AddOfferPage() {
                         <option value="active">Active</option>
                         <option value="inactive">Inactive</option>
                     </select>
+                </div>
+                <div>
+                    <label>Banner Image</label>
+                    <input type="file" accept="image/*" ref={fileInputRef} onChange={handleBannerImageChange} />
+                    {uploading && <span>Uploading...</span>}
+                    {bannerImage && <img src={bannerImage} alt="Banner Preview" className="mt-2 w-full max-h-32 object-contain" />}
                 </div>
                 <div>
                     <label>Products</label>

@@ -6,8 +6,8 @@ const offerController = {
     // Create a new offer
     createOffer: async (req, res) => {
         try {
-            const { name, description, startDate, endDate, isActive, products } = req.body;
-            const offer = await Offer.create({ name, description, startDate, endDate, isActive });
+            const { name, description, startDate, endDate, isActive, products, banner_image } = req.body;
+            const offer = await Offer.create({ name, description, startDate, endDate, isActive, banner_image });
             if (products && Array.isArray(products)) {
                 for (const prod of products) {
                     await OfferProduct.create({
@@ -69,10 +69,10 @@ const offerController = {
     updateOffer: async (req, res) => {
         try {
             const { id } = req.params;
-            const { name, description, startDate, endDate, isActive, products } = req.body;
+            const { name, description, startDate, endDate, isActive, products, banner_image } = req.body;
             const offer = await Offer.findByPk(id);
             if (!offer) return res.status(404).json({ message: 'Offer not found' });
-            await offer.update({ name, description, startDate, endDate, isActive });
+            await offer.update({ name, description, startDate, endDate, isActive, banner_image });
             // Update products
             if (products && Array.isArray(products)) {
                 await OfferProduct.destroy({ where: { offerId: id } });

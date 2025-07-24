@@ -674,49 +674,19 @@ const HomeScreen = () => {
         showsVerticalScrollIndicator={false}
       >
         {/* Sale Banner Carousel */}
-        <View style={styles.bannerContainer}>
-        {activeOffers.length > 0 ? (
-          <View style={styles.bannerCarouselContainer}>
-            <ScrollView
-              ref={bannerScrollRef}
-              horizontal
-              pagingEnabled
-              showsHorizontalScrollIndicator={false}
-              onMomentumScrollEnd={e => {
-                const index = Math.round(e.nativeEvent.contentOffset.x / (width - 32));
-                setCurrentBanner(index);
-              }}
-              style={styles.bannerCarousel}
-              contentContainerStyle={{ alignItems: 'center' }}
-            >
-              {activeOffers.map((offer, idx) => (
-                <View key={offer.id} style={[styles.carouselBanner, { width: width - 32 }]}> 
-                  <Text style={styles.bannerTitle}>{offer.name}</Text>
-                  <Text style={styles.bannerDesc}>{offer.description}</Text>
-                  <TouchableOpacity style={styles.viewOffersButton} onPress={handleViewAllOffers}>
-                    <Text style={styles.viewOffersText}>View All Offers</Text>
-                    <Ionicons name="sparkles" size={14} color="#FF6B35" />
-                  </TouchableOpacity>
-                </View>
-              ))}
-            </ScrollView>
-            {/* Dot Indicators */}
-            <View style={styles.carouselIndicators}>
-              {activeOffers.map((_, idx) => (
-                <View
-                  key={idx}
-                  style={[
-                    styles.carouselDot,
-                    currentBanner === idx && styles.carouselDotActive,
-                  ]}
-                />
-              ))}
-            </View>
-          </View>
-        ) : (
-            <Text style={styles.noOffersText}>No active offers right now.</Text>
-        )}
-      </View>
+        <View style={[styles.bannerContainer, { height: 120, marginBottom: 8 }]}> {/* Reduced height */}
+          {activeOffers.length > 0 && activeOffers[0].banner_image ? (
+            <TouchableOpacity onPress={handleViewAllOffers} activeOpacity={0.9} style={{ flex: 1 }}>
+              <Image source={{ uri: activeOffers[0].banner_image }} style={{ width: '100%', height: '100%', borderRadius: 12, resizeMode: 'cover' }} />
+            </TouchableOpacity>
+          ) : null}
+        </View>
+        {/* Move View All Offers below banner */}
+        <View style={{ alignItems: 'center', marginBottom: 16 }}>
+          <TouchableOpacity style={{ backgroundColor: '#FF6B35', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 24 }} onPress={handleViewAllOffers}>
+            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>View All Offers</Text>
+          </TouchableOpacity>
+        </View>
 
         {/* Category Chips Section */}
         <View style={styles.categoryChipsContainer}>

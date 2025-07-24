@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import api from '@/lib/api';
 import { useRouter, useParams } from 'next/navigation';
 
@@ -18,6 +18,9 @@ export default function EditOfferPage() {
     const [isActive, setIsActive] = useState(true);
     const [products, setProducts] = useState<Product[]>([]);
     const [selectedProducts, setSelectedProducts] = useState<any[]>([]); // [{productId, extraDiscount, customOfferText}]
+    const [bannerImage, setBannerImage] = useState('');
+    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [uploading, setUploading] = useState(false);
     const router = useRouter();
 
     useEffect(() => {
@@ -31,6 +34,7 @@ export default function EditOfferPage() {
             setStartDate(offer.startDate?.slice(0, 10));
             setEndDate(offer.endDate?.slice(0, 10));
             setIsActive(!!offer.isActive);
+            setBannerImage(offer.banner_image || '');
             setSelectedProducts(
                 (offer.products || []).map((p: any) => ({
                     productId: p.id,
@@ -55,6 +59,22 @@ export default function EditOfferPage() {
         ));
     };
 
+    const handleBannerImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setUploading(true);
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', 'dmsmart'); // Change to your Cloudinary unsigned preset
+        const res = await fetch('https://api.cloudinary.com/v1_1/dmsmart/image/upload', {
+            method: 'POST',
+            body: formData,
+        });
+        const data = await res.json();
+        setBannerImage(data.secure_url);
+        setUploading(false);
+    };
+
     const handleSubmit = async (e: any) => {
         e.preventDefault();
         await api.put(`/api/offers/${id}`, {
@@ -64,6 +84,7 @@ export default function EditOfferPage() {
             endDate,
             isActive,
             products: selectedProducts,
+            banner_image: bannerImage,
         });
         router.push('/dashboard/offers');
     };
@@ -94,6 +115,12 @@ export default function EditOfferPage() {
                         <option value="active">Active</option>
                         <option value="inactive">Inactive</option>
                     </select>
+                </div>
+                <div>
+                    <label>Banner Image</label>
+                    <input type="file" accept="image/*" ref={fileInputRef} onChange={handleBannerImageChange} />
+                    {uploading && <span>Uploading...</span>}
+                    {bannerImage && <img src={bannerImage} alt="Banner Preview" className="mt-2 w-full max-h-32 object-contain" />}
                 </div>
                 <div>
                     <label>Products</label>

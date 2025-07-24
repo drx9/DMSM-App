@@ -23,6 +23,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useCart } from '../context/CartContext';
+import LocationSelectionScreen from '../location/LocationSelectionScreen';
+import AddressManagerModal from '../../components/AddressManagerModal';
 
 // Cart Item Interface
 interface CartItem {
@@ -53,13 +55,37 @@ const CartScreen = () => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [userAddress, setUserAddress] = useState<string>('');
+  const [showLocationSelector, setShowLocationSelector] = useState(false);
+  const [primaryAddress, setPrimaryAddress] = useState<any>(null);
   const router = useRouter();
   const { t } = useLanguage();
   const insets = useSafeAreaInsets();
   const { removeFromCart } = useCart();
+  const [showAddressModal, setShowAddressModal] = useState(false);
+  const [addresses, setAddresses] = useState<any[]>([]);
+  const [addressLoading, setAddressLoading] = useState(true);
 
   // Free delivery threshold
   const FREE_DELIVERY_THRESHOLD = 399;
+
+  // Fetch addresses for the user
+  const fetchAddresses = async (uid: string) => {
+    setAddressLoading(true);
+    try {
+      const res = await axios.get(`${API_URL}/addresses/${uid}`);
+      setAddresses(res.data);
+      const primary = res.data.find((a: any) => a.isDefault) || res.data[0] || null;
+      setPrimaryAddress(primary);
+      setUserAddress(primary ? `${primary.line1}, ${primary.city}, ${primary.state}, ${primary.pincode || primary.postalCode || ''}` : '');
+      if (primary) await AsyncStorage.setItem('userAddress', JSON.stringify(primary));
+    } catch (err) {
+      setAddresses([]);
+      setPrimaryAddress(null);
+      setUserAddress('');
+    } finally {
+      setAddressLoading(false);
+    }
+  };
 
   useFocusEffect(
     React.useCallback(() => {
@@ -91,11 +117,14 @@ const CartScreen = () => {
       const addrRes = await axios.get(`${API_URL}/addresses/${userId}`);
       const defaultAddr = addrRes.data.find((a: any) => a.isDefault) || addrRes.data[0];
       if (defaultAddr) {
-        setUserAddress(`${defaultAddr.line1}, ${defaultAddr.city}, ${defaultAddr.state}, ${defaultAddr.pincode}`);
+        setPrimaryAddress(defaultAddr);
+        setUserAddress(`${defaultAddr.line1}, ${defaultAddr.city}, ${defaultAddr.state}, ${defaultAddr.pincode || defaultAddr.postalCode || ''}`);
+        await AsyncStorage.setItem('userAddress', JSON.stringify(defaultAddr));
       }
     } catch (error) {
       console.error('Failed to fetch address:', error);
       setUserAddress('Railgate no 1, Chandmari, Tezpur, N..., 784001');
+      setPrimaryAddress(null);
     }
   };
 
@@ -212,6 +241,39 @@ const CartScreen = () => {
     }
   };
 
+  // Handler for setting primary address
+  const handleSetPrimaryAddress = async (id: string) => {
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      if (!userId) return;
+      await axios.patch(`${API_URL}/addresses/${id}/set-primary`, { userId });
+      await fetchAddresses(userId);
+      setShowAddressModal(false);
+    } catch (err) {}
+  };
+
+  // Handler for adding a new address
+  const handleAddAddress = async (addr: any) => {
+    const userId = await AsyncStorage.getItem('userId');
+    if (!userId) return;
+    await axios.post(`${API_URL}/addresses`, { ...addr, userId });
+    await fetchAddresses(userId);
+  };
+
+  // Handler for editing an address
+  const handleEditAddress = async (id: string, addr: any) => {
+    await axios.put(`${API_URL}/addresses/${id}`, addr);
+    const userId = await AsyncStorage.getItem('userId');
+    if (userId) await fetchAddresses(userId);
+  };
+
+  // Handler for deleting an address
+  const handleDeleteAddress = async (id: string) => {
+    await axios.delete(`${API_URL}/addresses/${id}`);
+    const userId = await AsyncStorage.getItem('userId');
+    if (userId) await fetchAddresses(userId);
+  };
+
   const renderInStockItem = ({ item }: { item: any }) => (
     <Swipeable
       renderRightActions={() => (
@@ -321,12 +383,25 @@ const CartScreen = () => {
 
       {/* Address Section */}
       <View style={styles.addressSection}>
-        <Text style={styles.deliverToText}>Deliver to: <Text style={styles.addressName}>Anis...</Text>, 784001</Text>
+        <Text style={styles.deliverToText}>
+          Deliver to: <Text style={styles.addressName}>{primaryAddress ? (primaryAddress.line1?.split(',')[0] || 'User') : 'User'}</Text>{primaryAddress && (primaryAddress.pincode || primaryAddress.postalCode) ? `, ${primaryAddress.pincode || primaryAddress.postalCode}` : ''}
+        </Text>
         <Text style={styles.addressDetails}>{userAddress}</Text>
-        <TouchableOpacity style={styles.changeButton}>
+        <TouchableOpacity style={styles.changeButton} onPress={() => setShowAddressModal(true)}>
           <Text style={styles.changeButtonText}>Change</Text>
         </TouchableOpacity>
       </View>
+      <AddressManagerModal
+        visible={showAddressModal}
+        onClose={() => setShowAddressModal(false)}
+        addresses={addresses}
+        onSetPrimary={handleSetPrimaryAddress}
+        onAdd={handleAddAddress}
+        onEdit={handleEditAddress}
+        onDelete={handleDeleteAddress}
+        loading={addressLoading}
+        onRequestLocation={() => setShowAddressModal(false)}
+      />
 
       {!userId ? (
         <View style={styles.emptyStateContainer}>
@@ -532,7 +607,7 @@ const CartScreen = () => {
       {(cartItems.length > 0 || outOfStockItems.length > 0) && (
         <View style={styles.bottomBar}>
           <Text style={styles.freeDeliveryText}>
-            Add items worth ₹{Math.max(0, FREE_DELIVERY_THRESHOLD - subtotal)} more for FREE delivery
+            Add items worth ₹{Math.ceil(Math.max(0, FREE_DELIVERY_THRESHOLD - subtotal))} more for FREE delivery
           </Text>
 
           <View style={styles.checkoutSection}>

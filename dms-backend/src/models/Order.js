@@ -44,6 +44,11 @@ const Order = sequelize.define('Order', {
         allowNull: true,
         field: 'delivery_key',
     },
+    deliverySlot: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        field: 'delivery_slot',
+    },
 }, {
     tableName: 'orders',
     timestamps: true,

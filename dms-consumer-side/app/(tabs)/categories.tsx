@@ -27,15 +27,12 @@ const CategoriesScreen = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [filteredCategories, setFilteredCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
-  const [subCategories, setSubCategories] = useState<Category[]>([]);
-  const [filteredSubCategories, setFilteredSubCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(false);
   const [productsError, setProductsError] = useState<string | null>(null);
-  const [selectedSubCategory, setSelectedSubCategory] = useState<Category | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const router = useRouter();
   const { t } = useLanguage();
@@ -59,27 +56,9 @@ const CategoriesScreen = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  // Fetch subcategories
-  useEffect(() => {
-    if (selectedCategory) {
-      setLoading(true);
-      setError(null);
-      categoryService.getSubCategories(selectedCategory.id)
-        .then((data) => {
-          setSubCategories(data);
-          setFilteredSubCategories(data);
-        })
-        .catch(() => setError('Failed to load subcategories'))
-        .finally(() => setLoading(false));
-    } else {
-      setSubCategories([]);
-      setFilteredSubCategories([]);
-    }
-  }, [selectedCategory]);
-
   // Fetch products
   useEffect(() => {
-    let categoryId = selectedSubCategory?.id || selectedCategory?.id;
+    let categoryId = selectedCategory?.id;
     if (categoryId) {
       setProductsLoading(true);
       setProductsError(null);
@@ -94,26 +73,19 @@ const CategoriesScreen = () => {
       setProducts([]);
       setFilteredProducts([]);
     }
-  }, [selectedCategory, selectedSubCategory]);
-
-  // Reset subcategory when category changes
-  useEffect(() => {
-    setSelectedSubCategory(null);
   }, [selectedCategory]);
 
   // Search filtering
   useEffect(() => {
     if (!searchQuery) {
       setFilteredCategories(categories);
-      setFilteredSubCategories(subCategories);
       setFilteredProducts(products);
       return;
     }
     const q = searchQuery.toLowerCase();
     setFilteredCategories(categories.filter(cat => cat.name.toLowerCase().includes(q)));
-    setFilteredSubCategories(subCategories.filter(sub => sub.name.toLowerCase().includes(q)));
     setFilteredProducts(products.filter(prod => prod.name.toLowerCase().includes(q)));
-  }, [searchQuery, categories, subCategories, products]);
+  }, [searchQuery, categories, products]);
 
   // Quick Actions
   const quickActions = [
@@ -212,58 +184,7 @@ const CategoriesScreen = () => {
           </ScrollView>
         </View>
 
-        {/* Right Side: Subcategories Grid */}
-        <View style={styles.subCategoryGridContainer}>
-          {loading ? (
-            <View style={styles.loadingContainer}>
-              <View style={styles.loadingSpinner}>
-                <Text style={styles.loadingText}>✨</Text>
-              </View>
-              <Text style={styles.loadingLabel}>Loading...</Text>
-            </View>
-          ) : error ? (
-            <View style={styles.errorContainer}>
-              <Ionicons name="alert-circle" size={48} color="#EF4444" />
-              <Text style={styles.errorText}>{error}</Text>
-            </View>
-          ) : selectedCategory ? (
-            <FlatList
-              data={filteredSubCategories}
-              keyExtractor={(item) => item.id.toString()}
-              numColumns={3}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[
-                    styles.subCategoryCard,
-                    selectedSubCategory?.id === item.id && styles.subCategoryCardActive,
-                    { borderWidth: selectedSubCategory?.id === item.id ? 2 : 1, borderColor: selectedSubCategory?.id === item.id ? '#10B981' : '#F3F4F6', backgroundColor: selectedSubCategory?.id === item.id ? '#F0FDF4' : '#FFFFFF', shadowOpacity: selectedSubCategory?.id === item.id ? 0.15 : 0.08 }
-                  ]}
-                  onPress={() => setSelectedSubCategory(item)}
-                >
-                  <View style={styles.subCategoryImageContainer}>
-                    <Image source={{ uri: item.image }} style={styles.subCategoryImage} />
-                  </View>
-                  <Text style={styles.subCategoryName}>{item.name}</Text>
-                  {selectedSubCategory?.id === item.id && (
-                    <View style={styles.subCategoryActiveIndicator} />
-                  )}
-                </TouchableOpacity>
-              )}
-              contentContainerStyle={styles.subCategoryListContent}
-              ListEmptyComponent={
-                <View style={styles.emptyContainer}>
-                  <Ionicons name="folder-open" size={48} color="#D1D5DB" />
-                  <Text style={styles.emptyText}>No subcategories found</Text>
-                </View>
-              }
-            />
-          ) : (
-            <View style={styles.noCategorySelected}>
-              <Ionicons name="arrow-back" size={48} color="#D1D5DB" />
-              <Text style={styles.noCategoryText}>Select a category to explore</Text>
-            </View>
-          )}
-        </View>
+        {/* Subcategories section removed as requested */}
       </View>
 
       {/* Products Section */}

@@ -19,7 +19,10 @@ const orderController = {
             });
 
             res.json({
-                orders: orders.rows,
+                orders: orders.rows.map(order => ({
+                    ...order.toJSON(),
+                    deliverySlot: order.deliverySlot
+                })),
                 totalOrders: orders.count,
                 currentPage: parseInt(page),
                 totalPages: Math.ceil(orders.count / limit),
@@ -95,6 +98,7 @@ const orderController = {
                 user: safeUser,
                 deliveryBoy: safeDeliveryBoy,
                 orderItems: safeOrderItems,
+                deliverySlot: order.deliverySlot,
             });
         } catch (error) {
             console.error('[getOrderById] Error fetching order:', error);
@@ -141,7 +145,7 @@ const orderController = {
         try {
             console.log('[placeOrder] Incoming body:', req.body);
             const userId = req.body.userId || req.query.userId || (req.user && req.user.id);
-            const { address, cartItems, paymentMethod, total, couponCode } = req.body;
+            const { address, cartItems, paymentMethod, total, couponCode, deliverySlot } = req.body;
             if (!userId || !address || !cartItems || !cartItems.length) {
                 return res.status(400).json({ message: 'userId, address, and cartItems are required' });
             }
@@ -185,6 +189,7 @@ const orderController = {
                 totalAmount: total - discount,
                 paymentStatus: paymentMethod === 'cod' ? 'pending' : 'paid',
                 deliveryKey,
+                deliverySlot,
             });
             // Create order items
             for (const item of cartItems) {
@@ -229,6 +234,7 @@ const orderController = {
                 shippingAddress: order.shippingAddress,
                 items: order.items,
                 deliveryKey: order.deliveryKey,
+                deliverySlot: order.deliverySlot,
             }));
             res.json(ordersWithDeliveryKey);
         } catch (error) {

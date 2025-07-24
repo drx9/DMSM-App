@@ -25,6 +25,8 @@ import { addToWishlist, removeFromWishlist } from '../services/wishlistService';
 import Toast from 'react-native-root-toast';
 import ProductImageSlider from '../../components/ProductImageSlider';
 import AddressManagerModal from '../../components/AddressManagerModal';
+import SearchWithFilters from '../../components/SearchWithFilters';
+import CartIconWithBadge from '../../components/CartIconWithBadge';
 
 const FREE_DELIVERY_THRESHOLD = 399; // Example value, adjust as needed
 
@@ -83,6 +85,12 @@ const ProductDetailScreen = () => {
   const [addresses, setAddresses] = useState<any[]>([]);
   const [addressLoading, setAddressLoading] = useState(true);
   const [showAddressModal, setShowAddressModal] = useState(false);
+
+  // Add state for search and filters (to match products.tsx)
+  const [query, setQuery] = useState('');
+  const [sortBy, setSortBy] = useState<'name_asc' | 'name_desc' | 'price_asc' | 'price_desc' | 'rating_desc' | 'newest'>('name_asc');
+  const [filterBy, setFilterBy] = useState<'all' | 'in_stock' | 'on_sale' | 'new_arrivals'>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProductDetails();
@@ -259,23 +267,23 @@ const ProductDetailScreen = () => {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Top Bar */}
-      <View style={styles.topBar}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
-        </TouchableOpacity>
-        <View style={styles.searchBar}>
-          <Ionicons name="search" size={16} color="#999" />
-          <Text style={styles.searchPlaceholder}>Search for products</Text>
+      {/* Header with Search and Cart */}
+      <View style={{ zIndex: 10, backgroundColor: '#fff' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, paddingVertical: 8 }}>
+          <TouchableOpacity onPress={() => router.back()} style={{ padding: 4, marginRight: 8 }}>
+            <Ionicons name="arrow-back" size={24} color="#333" />
+          </TouchableOpacity>
+          {/* Sleek Search Bar: no sort/filter/category, just a pressable input */}
+          <TouchableOpacity
+            style={{ flex: 1, height: 36, flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8f9fa', borderRadius: 18, paddingHorizontal: 12, marginRight: 8, borderWidth: 1, borderColor: '#eee' }}
+            activeOpacity={0.85}
+            onPress={() => router.push('/products')}
+          >
+            <Ionicons name="search" size={18} color="#666" style={{ marginRight: 6 }} />
+            <Text style={{ color: '#999', fontSize: 15, flex: 1 }}>Search products...</Text>
+          </TouchableOpacity>
+          <CartIconWithBadge onPress={() => router.push('/(tabs)/cart')} />
         </View>
-        <TouchableOpacity onPress={() => router.push('/cart' as any)} style={styles.cartIconWrap}>
-          <Ionicons name="bag-outline" size={24} color="#333" />
-          {cartCount > 0 && (
-            <View style={styles.cartBadge}>
-              <Text style={styles.cartBadgeText}>{cartCount}</Text>
-            </View>
-          )}
-        </TouchableOpacity>
       </View>
 
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
