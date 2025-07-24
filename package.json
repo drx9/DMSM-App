@@ -4,7 +4,7 @@
     "autoprefixer": "^10.4.21",
     "bcryptjs": "^3.0.2",
     "chart.js": "^4.5.0",
-    "dotenv": "^16.5.0",
+    "dotenv": "^16.6.1",
     "expo-location": "^18.1.6",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.15.1",

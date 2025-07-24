@@ -141,15 +141,23 @@ export default function ProductForm({ productId }: { productId?: string }) {
                 .map((u) => u.trim())
                 .filter(Boolean);
 
-            // Calculate price from MRP and discount
-            const price = data.price - (data.price * data.discount) / 100;
-
+            // The price field in the form is actually MRP
+            // We'll send it as both price and mrp to match the database schema
             const payload = {
-                ...data,
-                price,
+                name: data.name,
+                description: data.description,
+                price: data.price, // This is MRP from the form
+                mrp: data.price,   // Same as price since it's MRP
+                discount: data.discount,
+                stock: data.stock,
                 images: imagesArr,
+                categoryId: data.categoryId,
                 isOutOfStock: data.stock === 0,
+                isActive: data.isActive,
+                rating: data.rating,
+                reviewCount: data.reviewCount,
                 createdBy: '11111111-1111-1111-1111-111111111111', // Default admin ID
+                details: data.details || {},
             };
 
             if (productId) {
@@ -162,6 +170,7 @@ export default function ProductForm({ productId }: { productId?: string }) {
 
             router.push('/dashboard/products');
         } catch (err: any) {
+            console.error('Error saving product:', err);
             toast.error(err.response?.data?.message || 'Save failed');
         } finally {
             setLoading(false);

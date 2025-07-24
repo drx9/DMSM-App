@@ -473,60 +473,60 @@ const HomeScreen = () => {
       >
         {/* Sale Banner Carousel */}
         <View style={styles.bannerContainer}>
-          {activeOffers.length > 0 ? (
-            <View style={styles.bannerCarouselContainer}>
-              <ScrollView
-                ref={bannerScrollRef}
-                horizontal
-                pagingEnabled
-                showsHorizontalScrollIndicator={false}
-                onMomentumScrollEnd={e => {
-                  const index = Math.round(e.nativeEvent.contentOffset.x / (width - 32));
-                  setCurrentBanner(index);
-                }}
-                style={styles.bannerCarousel}
-                contentContainerStyle={{ alignItems: 'center' }}
-              >
-                {activeOffers.map((offer, idx) => (
-                  <View key={offer.id} style={[styles.carouselBanner, { width: width - 32 }]}> 
-                    <Text style={styles.bannerTitle}>{offer.name}</Text>
-                    <Text style={styles.bannerDesc}>{offer.description}</Text>
-                    <TouchableOpacity style={styles.viewOffersButton} onPress={handleViewAllOffers}>
-                      <Text style={styles.viewOffersText}>View All Offers</Text>
-                      <Ionicons name="sparkles" size={14} color="#FF6B35" />
-                    </TouchableOpacity>
-                  </View>
-                ))}
-              </ScrollView>
-              {/* Dot Indicators */}
-              <View style={styles.carouselIndicators}>
-                {activeOffers.map((_, idx) => (
-                  <View
-                    key={idx}
-                    style={[
-                      styles.carouselDot,
-                      currentBanner === idx && styles.carouselDotActive,
-                    ]}
-                  />
-                ))}
-              </View>
+        {activeOffers.length > 0 ? (
+          <View style={styles.bannerCarouselContainer}>
+            <ScrollView
+              ref={bannerScrollRef}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              onMomentumScrollEnd={e => {
+                const index = Math.round(e.nativeEvent.contentOffset.x / (width - 32));
+                setCurrentBanner(index);
+              }}
+              style={styles.bannerCarousel}
+              contentContainerStyle={{ alignItems: 'center' }}
+            >
+              {activeOffers.map((offer, idx) => (
+                <View key={offer.id} style={[styles.carouselBanner, { width: width - 32 }]}> 
+                  <Text style={styles.bannerTitle}>{offer.name}</Text>
+                  <Text style={styles.bannerDesc}>{offer.description}</Text>
+                  <TouchableOpacity style={styles.viewOffersButton} onPress={handleViewAllOffers}>
+                    <Text style={styles.viewOffersText}>View All Offers</Text>
+                    <Ionicons name="sparkles" size={14} color="#FF6B35" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </ScrollView>
+            {/* Dot Indicators */}
+            <View style={styles.carouselIndicators}>
+              {activeOffers.map((_, idx) => (
+                <View
+                  key={idx}
+                  style={[
+                    styles.carouselDot,
+                    currentBanner === idx && styles.carouselDotActive,
+                  ]}
+                />
+              ))}
             </View>
-          ) : (
+          </View>
+        ) : (
             <Text style={styles.noOffersText}>No active offers right now.</Text>
-          )}
-        </View>
+        )}
+      </View>
 
         {/* Category Chips Section */}
         <View style={styles.categoryChipsContainer}>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.categoryChipsScroll}
-          >
+            >
             <TouchableOpacity style={styles.categoryChip}>
               <Text style={styles.categoryChipText}>For You</Text>
               <View style={styles.categoryChipIndicator} />
-            </TouchableOpacity>
+                </TouchableOpacity>
             <TouchableOpacity style={[styles.categoryChip, styles.categoryChipActive]}>
               <Text style={[styles.categoryChipText, styles.categoryChipTextActive]}>Groceries</Text>
               <View style={[styles.categoryChipIndicator, styles.categoryChipIndicatorActive]} />
@@ -534,17 +534,17 @@ const HomeScreen = () => {
             <TouchableOpacity style={styles.categoryChip}>
               <Text style={styles.categoryChipText}>Cosmetics</Text>
               <View style={styles.categoryChipIndicator} />
-            </TouchableOpacity>
+              </TouchableOpacity>
             <TouchableOpacity style={styles.categoryChip}>
               <Text style={styles.categoryChipText}>Bakery</Text>
               <View style={styles.categoryChipIndicator} />
-            </TouchableOpacity>
+                </TouchableOpacity>
             <TouchableOpacity style={styles.categoryChip}>
               <Text style={styles.categoryChipText}>Pharmacy</Text>
               <View style={styles.categoryChipIndicator} />
             </TouchableOpacity>
           </ScrollView>
-        </View>
+              </View>
 
       </ScrollView>
 
