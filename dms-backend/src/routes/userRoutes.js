@@ -2,6 +2,7 @@ const express = require('express');
 const { body } = require('express-validator');
 const userController = require('../controllers/userController');
 const { authenticateToken } = require('../middleware/auth');
+const { User } = require('../models');
 const { registerExpoPushToken, removeExpoPushToken } = require('../controllers/userController');
 
 const router = express.Router();
@@ -29,6 +30,21 @@ router.put('/change-password', [
 router.delete('/delete-account', [
   body('password').notEmpty().withMessage('Password is required'),
 ], userController.deleteAccount);
+
+// Get user by ID (with 'me' support)
+router.get('/:id', authenticateToken, async (req, res) => {
+  let userId = req.params.id;
+  if (userId === 'me') {
+    userId = req.user.id;
+  }
+  try {
+    const user = await User.findByPk(userId);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch user profile' });
+  }
+});
 
 router.post('/register-expo-push-token', registerExpoPushToken);
 router.post('/remove-expo-push-token', removeExpoPushToken);
