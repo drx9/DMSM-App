@@ -104,6 +104,15 @@ router.put('/:id/assign-delivery', async (req, res) => {
         order.deliveryBoyId = deliveryBoyId;
         order.status = 'processing';
         await order.save();
+        // Real-time: emit to delivery boy and send push notification
+        const { emitToUser } = require('../socket');
+        const { ExpoPushToken } = require('../models');
+        const { sendPushNotification } = require('../services/pushService');
+        emitToUser(deliveryBoyId, 'assigned_order', { orderId: order.id });
+        const tokens = await ExpoPushToken.findAll({ where: { userId: deliveryBoyId } });
+        for (const t of tokens) {
+          await sendPushNotification(t.token, 'New Delivery Assigned', 'You have been assigned a new delivery order.', {});
+        }
         res.json(order);
     } catch (err) {
         console.error('Error in PUT /:id/assign-delivery:', err);
