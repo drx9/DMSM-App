@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
+import { onSocketEvent, offSocketEvent } from '../../../../services/socketService';
 
 interface Order {
     id: string;
@@ -86,6 +87,16 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
             fetchOrder();
         }
     }, [id]);
+
+    useEffect(() => {
+        function handleOrderStatusUpdate(data: any) {
+            if (data.orderId === order?.id) fetchOrder();
+        }
+        onSocketEvent('order_status_update', handleOrderStatusUpdate);
+        return () => {
+            offSocketEvent('order_status_update', handleOrderStatusUpdate);
+        };
+    }, [order]);
 
     const handleStatusChange = async (newStatus: string) => {
         if (!order) return;

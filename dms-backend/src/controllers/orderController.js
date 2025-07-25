@@ -1,5 +1,8 @@
 const { Order, OrderItem, User, Product, CartItem, Address, Coupon } = require('../models');
 const couponController = require('./couponController');
+const { emitToUser, emitToOrder, emitToRole } = require('../socket');
+const { sendPushNotification } = require('../services/pushService');
+const { ExpoPushToken } = require('../models');
 
 const orderController = {
     // Get all orders (for admin)
@@ -133,6 +136,18 @@ const orderController = {
 
             order.status = status;
             await order.save();
+
+            // Real-time: emit to user, order, and admin
+            emitToOrder(order.id, 'order_status_update', { orderId: order.id, status });
+            emitToUser(order.userId, 'order_status_update', { orderId: order.id, status });
+            emitToRole('admin', 'order_status_update', { orderId: order.id, status });
+
+            // Push notification fallback
+            const tokens = await ExpoPushToken.findAll({ where: { userId: order.userId } });
+            for (const t of tokens) {
+              await sendPushNotification(t.token, 'Order Update', `Your order status is now: ${status}`, { orderId: order.id, status });
+            }
+
             res.json(order);
         } catch (error) {
             console.error('Error updating order status:', error);
@@ -206,6 +221,17 @@ const orderController = {
             }
             // Clear cart
             await CartItem.destroy({ where: { userId } });
+
+            // Real-time: emit to user and admin
+            emitToUser(userId, 'order_placed', { orderId: order.id });
+            emitToRole('admin', 'order_placed', { orderId: order.id });
+
+            // Push notification fallback
+            const tokens = await ExpoPushToken.findAll({ where: { userId } });
+            for (const t of tokens) {
+              await sendPushNotification(t.token, 'Order Placed', 'Your order has been placed successfully!', { orderId: order.id });
+            }
+
             res.json(order);
         } catch (error) {
             console.error('[placeOrder] Error placing order:', error);
@@ -266,6 +292,19 @@ const orderController = {
                 { where: { id: orderIds } }
             );
             const updatedOrders = await Order.findAll({ where: { id: orderIds } });
+
+            // Real-time: emit to delivery boy and send push notification
+            const { emitToUser } = require('../socket');
+            const { ExpoPushToken } = require('../models');
+            const { sendPushNotification } = require('../services/pushService');
+            for (const order of updatedOrders) {
+              emitToUser(deliveryBoyId, 'assigned_order', { orderId: order.id });
+            }
+            const tokens = await ExpoPushToken.findAll({ where: { userId: deliveryBoyId } });
+            for (const t of tokens) {
+              await sendPushNotification(t.token, 'New Delivery Assigned', 'You have been assigned a new delivery order.', {});
+            }
+
             res.json({ updated: updated[0], orders: updatedOrders });
         } catch (error) {
             console.error('Error in bulkAssignDeliveryBoy:', error);

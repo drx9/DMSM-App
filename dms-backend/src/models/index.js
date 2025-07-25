@@ -20,6 +20,7 @@ const db = {
   OfferProduct: require('./OfferProduct'),
   Coupon: require('./Coupon'),
   CouponUsage: require('./CouponUsage'),
+  ExpoPushToken: require('./ExpoPushToken'),
 };
 
 // Define associations

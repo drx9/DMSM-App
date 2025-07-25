@@ -1,6 +1,9 @@
 const db = require('../models');
 const { Offer, Product, OfferProduct } = db;
 const { Op } = require('sequelize');
+const { emitToRole } = require('../socket');
+const { ExpoPushToken } = require('../models');
+const { sendPushNotification } = require('../services/pushService');
 
 const offerController = {
     // Create a new offer
@@ -18,6 +21,14 @@ const offerController = {
                     });
                 }
             }
+            // Real-time: notify all consumers and admins
+            emitToRole('admin', 'offer_created', { offerId: offer.id });
+            emitToRole('consumer', 'offer_created', { offerId: offer.id });
+            // Push: notify all users (optional, can filter by role)
+            // const tokens = await ExpoPushToken.findAll();
+            // for (const t of tokens) {
+            //   await sendPushNotification(t.token, 'New Offer', `A new offer is available!`, { offerId: offer.id });
+            // }
             res.status(201).json(offer);
         } catch (err) {
             console.error('Error creating offer:', err);
@@ -65,6 +76,24 @@ const offerController = {
         }
     },
 
+    // Get a single offer by ID (admin)
+    getOfferById: async (req, res) => {
+        try {
+            const { id } = req.params;
+            const offer = await Offer.findByPk(id, {
+                include: [{
+                    model: Product,
+                    as: 'products',
+                    through: { attributes: ['extraDiscount', 'customOfferText'] },
+                }],
+            });
+            if (!offer) return res.status(404).json({ message: 'Offer not found' });
+            res.json(offer);
+        } catch (err) {
+            res.status(500).json({ message: 'Error fetching offer' });
+        }
+    },
+
     // Update offer
     updateOffer: async (req, res) => {
         try {
@@ -85,6 +114,9 @@ const offerController = {
                     });
                 }
             }
+            // Real-time: notify all consumers and admins
+            emitToRole('admin', 'offer_updated', { offerId: id });
+            emitToRole('consumer', 'offer_updated', { offerId: id });
             res.json(offer);
         } catch (err) {
             res.status(500).json({ message: 'Error updating offer' });
@@ -97,6 +129,9 @@ const offerController = {
             const { id } = req.params;
             await OfferProduct.destroy({ where: { offerId: id } });
             await Offer.destroy({ where: { id } });
+            // Real-time: notify all consumers and admins
+            emitToRole('admin', 'offer_deleted', { offerId: id });
+            emitToRole('consumer', 'offer_deleted', { offerId: id });
             res.json({ message: 'Offer deleted' });
         } catch (err) {
             res.status(500).json({ message: 'Error deleting offer' });

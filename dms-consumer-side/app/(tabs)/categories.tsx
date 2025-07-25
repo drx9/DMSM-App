@@ -130,19 +130,7 @@ const CategoriesScreen = () => {
         </View>
       </View>
 
-      {/* Quick Actions */}
-      <View style={styles.quickActionsContainer}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.quickActionsList}>
-          {quickActions.map((action, index) => (
-            <TouchableOpacity key={index} style={styles.quickActionItem} onPress={action.action}>
-              <View style={[styles.quickActionIconContainer, { backgroundColor: action.color, borderWidth: 2, borderColor: '#fff' }]}>
-                <Ionicons name={action.icon} size={24} color="#FFFFFF" />
-              </View>
-              <Text style={styles.quickActionLabel}>{action.label}</Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
-      </View>
+      {/* Quick Actions removed as requested */}
 
       <View style={styles.contentContainer}>
         {/* Left Side: Main Categories List */}

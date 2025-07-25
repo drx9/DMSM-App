@@ -6,9 +6,9 @@ const routes = require('./routes');
 const couponRoutes = require('./routes/couponRoutes');
 const { errorHandler } = require('./middleware/errorHandler');
 const { syncModels } = require('./models');
+const server = require('./app');
 
-const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 // Middleware
 const allowedOrigins = [
@@ -50,7 +50,7 @@ const startServer = async () => {
     console.log('All models were synchronized successfully.');
 
     // Start server
-    app.listen(PORT, '0.0.0.0', () => {
+    server.listen(PORT, '0.0.0.0', () => {
       console.log(`Server is running on http://0.0.0.0:${PORT}`);
     });
   } catch (error) {

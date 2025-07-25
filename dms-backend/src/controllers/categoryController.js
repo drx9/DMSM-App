@@ -1,4 +1,7 @@
 const { Category } = require('../models');
+const { emitToRole } = require('../socket');
+const { ExpoPushToken } = require('../models');
+const { sendPushNotification } = require('../services/pushService');
 
 const categoryController = {
   getCategories: async (req, res) => {
@@ -30,6 +33,8 @@ const categoryController = {
     try {
       const { name } = req.body;
       const category = await Category.create({ name });
+      // Real-time: notify admins
+      emitToRole('admin', 'category_created', { categoryId: category.id });
       res.status(201).json(category);
     } catch (error) {
       console.error('Error creating category:', error);
@@ -44,6 +49,8 @@ const categoryController = {
         return res.status(404).json({ message: 'Category not found' });
       }
       await category.update(req.body);
+      // Real-time: notify admins
+      emitToRole('admin', 'category_updated', { categoryId: category.id });
       res.json(category);
     } catch (error) {
       console.error('Error updating category:', error);
@@ -58,6 +65,8 @@ const categoryController = {
         return res.status(404).json({ message: 'Category not found' });
       }
       await category.update({ isActive: false });
+      // Real-time: notify admins
+      emitToRole('admin', 'category_deleted', { categoryId: category.id });
       res.json({ message: 'Category deleted successfully' });
     } catch (error) {
       console.error('Error deleting category:', error);

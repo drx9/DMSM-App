@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import api from '@/lib/api';
 import toast from 'react-hot-toast';
 import Link from 'next/link';
+import { onSocketEvent, offSocketEvent } from '../../../services/socketService';
 
 interface Order {
     id: string;
@@ -73,6 +74,23 @@ export default function OrdersPage() {
 
     useEffect(() => {
         fetchOrders();
+    }, []);
+
+    useEffect(() => {
+        function handleOrderPlaced(data: any) {
+            // Optionally refetch or optimistically add new order
+            fetchOrders();
+        }
+        function handleOrderStatusUpdate(data: any) {
+            // Optionally refetch or update order in list
+            fetchOrders();
+        }
+        onSocketEvent('order_placed', handleOrderPlaced);
+        onSocketEvent('order_status_update', handleOrderStatusUpdate);
+        return () => {
+            offSocketEvent('order_placed', handleOrderPlaced);
+            offSocketEvent('order_status_update', handleOrderStatusUpdate);
+        };
     }, []);
 
     const openAssignModal = (orderId: string) => {

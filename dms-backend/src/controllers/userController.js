@@ -1,6 +1,9 @@
 const { validationResult } = require('express-validator');
 const { User } = require('../models');
 const bcrypt = require('bcryptjs');
+const { emitToUser } = require('../socket');
+const { ExpoPushToken } = require('../models');
+const { sendPushNotification } = require('../services/pushService');
 
 const getProfile = async (req, res) => {
   try {
@@ -72,7 +75,13 @@ const updateProfile = async (req, res) => {
     if (profileImage) updateData.profileImage = profileImage;
 
     await user.update(updateData);
-
+    // Real-time: notify user
+    emitToUser(user.id, 'profile_updated', {});
+    // Push: notify user
+    const tokens = await ExpoPushToken.findAll({ where: { userId: user.id } });
+    for (const t of tokens) {
+      await sendPushNotification(t.token, 'Profile Updated', 'Your profile was updated.', {});
+    }
     res.json({
       success: true,
       message: 'Profile updated successfully',
@@ -117,7 +126,13 @@ const changePassword = async (req, res) => {
     // Update password
     user.password = newPassword;
     await user.save();
-
+    // Real-time: notify user
+    emitToUser(user.id, 'password_changed', {});
+    // Push: notify user
+    const tokens = await ExpoPushToken.findAll({ where: { userId: user.id } });
+    for (const t of tokens) {
+      await sendPushNotification(t.token, 'Password Changed', 'Your password was changed.', {});
+    }
     res.json({
       success: true,
       message: 'Password changed successfully'
@@ -149,6 +164,13 @@ const deleteAccount = async (req, res) => {
       return res.status(400).json({ message: 'Password is incorrect' });
     }
 
+    // Real-time: notify user
+    emitToUser(user.id, 'account_deleted', {});
+    // Push: notify user
+    const tokens = await ExpoPushToken.findAll({ where: { userId: user.id } });
+    for (const t of tokens) {
+      await sendPushNotification(t.token, 'Account Deleted', 'Your account was deleted.', {});
+    }
     // Delete user account
     await user.destroy();
 
@@ -159,6 +181,31 @@ const deleteAccount = async (req, res) => {
   } catch (error) {
     console.error('Error deleting account:', error);
     res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+// Register Expo push token
+exports.registerExpoPushToken = async (req, res) => {
+  try {
+    const { userId, token } = req.body;
+    if (!userId || !token) return res.status(400).json({ message: 'userId and token required' });
+    let entry = await ExpoPushToken.findOne({ where: { userId, token } });
+    if (!entry) entry = await ExpoPushToken.create({ userId, token });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to register push token' });
+  }
+};
+
+// Remove Expo push token
+exports.removeExpoPushToken = async (req, res) => {
+  try {
+    const { userId, token } = req.body;
+    if (!userId || !token) return res.status(400).json({ message: 'userId and token required' });
+    await ExpoPushToken.destroy({ where: { userId, token } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to remove push token' });
   }
 };
 

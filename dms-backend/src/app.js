@@ -2,6 +2,8 @@ const express = require('express');
 const cors = require('cors');
 const authRoutes = require('./routes/authRoutes');
 const productRoutes = require('./routes/productRoutes');
+const http = require('http');
+const { initSocket } = require('./socket');
 
 const app = express();
 
@@ -19,4 +21,7 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Something went wrong!' });
 });
 
-module.exports = app; 
+const server = http.createServer(app);
+initSocket(server);
+
+module.exports = server; 

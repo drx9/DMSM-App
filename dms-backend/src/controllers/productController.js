@@ -3,6 +3,9 @@ const { Product, Category } = db;
 const { Op } = require('sequelize');
 const XLSX = require('xlsx');
 const fs = require('fs');
+const { emitToRole } = require('../socket');
+const { ExpoPushToken } = require('../models');
+const { sendPushNotification } = require('../services/pushService');
 
 const VALID_SORT_COLUMNS = [
   'createdAt', 'price', 'discount', 'stock', 'rating', 'reviewCount', 'isOutOfStock', 'isActive', 'name'
@@ -170,6 +173,8 @@ const productController = {
         isOutOfStock: stock <= 0,
       });
 
+      // Real-time: notify admins
+      emitToRole('admin', 'product_created', { productId: product.id });
       res.status(201).json(product);
     } catch (error) {
       console.error('Error creating product:', error);
@@ -187,6 +192,13 @@ const productController = {
         return res.status(404).json({ message: 'Product not found' });
       }
       await product.update(req.body);
+      // Real-time: notify admins
+      emitToRole('admin', 'product_updated', { productId: product.id });
+      // Push: notify all admins (optional, if you store admin tokens)
+      // const adminTokens = await ExpoPushToken.findAll({ where: { role: 'admin' } });
+      // for (const t of adminTokens) {
+      //   await sendPushNotification(t.token, 'Product Updated', `Product ${product.name} was updated.`, { productId: product.id });
+      // }
       res.json(product);
     } catch (error) {
       console.error('Error updating product:', error);
@@ -202,6 +214,8 @@ const productController = {
       }
 
       await product.update({ isActive: false });
+      // Real-time: notify admins
+      emitToRole('admin', 'product_deleted', { productId: product.id });
       res.json({ message: 'Product deleted successfully' });
     } catch (error) {
       console.error('Error deleting product:', error);

@@ -1,4 +1,7 @@
 const { Product } = require('../models');
+const { emitToUser } = require('../socket');
+const { ExpoPushToken } = require('../models');
+const { sendPushNotification } = require('../services/pushService');
 
 exports.getCartCount = async (req, res) => {
     try {
@@ -25,6 +28,13 @@ exports.updateCartItemQuantity = async (req, res) => {
         if (!item) return res.status(404).json({ message: 'Cart item not found' });
         item.quantity = quantity;
         await item.save();
+        // Real-time: notify user
+        emitToUser(userId, 'cart_updated', { productId, quantity });
+        // Push: notify user
+        const tokens = await ExpoPushToken.findAll({ where: { userId } });
+        for (const t of tokens) {
+          await sendPushNotification(t.token, 'Cart Updated', `Quantity for product updated to ${quantity}.`, { productId, quantity });
+        }
         res.json(item);
     } catch (err) {
         res.status(500).json({ message: err.message });
