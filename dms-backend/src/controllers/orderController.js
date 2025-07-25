@@ -199,12 +199,34 @@ const orderController = {
             }
             // Generate 4-digit delivery key
             const deliveryKey = Math.floor(1000 + Math.random() * 9000).toString();
+            // Log incoming total and what will be saved
+            console.log(`[placeOrder] Received total from frontend:`, total);
+            // Defensive: ensure totalAmount is not higher than what frontend sent
+            let finalTotal = total;
+            if (coupon && coupon.discountType && coupon.discountValue) {
+                // Optionally, recalculate discount for validation
+                let backendDiscount = 0;
+                if (coupon.discountType === 'flat') {
+                    backendDiscount = parseFloat(coupon.discountValue);
+                } else if (coupon.discountType === 'percent') {
+                    const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+                    backendDiscount = (parseFloat(coupon.discountValue) / 100) * subtotal;
+                }
+                backendDiscount = Math.min(backendDiscount, total);
+                const backendTotal = subtotal + (deliverySlot?.fee || 0) + (order?.platformFee || 0) - backendDiscount;
+                if (backendTotal > total) {
+                    console.warn(`[placeOrder] Backend calculated total (${backendTotal}) is higher than frontend total (${total}). Using frontend total.`);
+                    finalTotal = total;
+                } else {
+                    finalTotal = backendTotal;
+                }
+            }
             // Create order
             const order = await Order.create({
                 userId,
                 shippingAddress: address, // full address object with lat/lng
                 status: 'pending',
-                totalAmount: total, // Use the total sent from frontend, do not subtract discount again
+                totalAmount: finalTotal, // Always use the correct discounted total
                 paymentStatus: paymentMethod === 'cod' ? 'pending' : 'paid',
                 deliveryKey,
                 deliverySlot,
