@@ -23,6 +23,19 @@ function MyApp({ Component, pageProps }: { Component: any; pageProps: any }) {
     checkUser();
   }, []);
 
+  // Listen for login event and re-register push token and socket
+  useEffect(() => {
+    const listenLogin = async () => {
+      const id = await AsyncStorage.getItem('userId');
+      if (id) {
+        connectSocket();
+        joinRoom(`user_${id}`);
+        registerForPushNotificationsAsync(id);
+      }
+    };
+    listenLogin();
+  }, [userId]);
+
   useEffect(() => {
     function handleOrderStatusUpdate(data: any) {
       Alert.alert('Order Update', `Order status is now: ${data.status}`);

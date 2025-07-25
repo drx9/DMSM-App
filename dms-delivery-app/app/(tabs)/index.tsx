@@ -1,9 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Image, TouchableOpacity } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import axios from 'axios';
 import { API_URL } from '../../config';
 import { Link } from 'expo-router';
+import { connectSocket, joinRoom, onSocketEvent, offSocketEvent } from '../services/socketService';
 
 interface Order {
   id: string;
@@ -30,24 +31,38 @@ export default function TabOneScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const fetchOrders = useCallback(async () => {
+    try {
+      setError(null);
+      const response = await axios.get(`${API_URL}/delivery/orders`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      setOrders(response.data);
+    } catch (err) {
+      setError('Failed to fetch orders');
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
   useEffect(() => {
-    const fetchOrders = async () => {
-      try {
-        setError(null);
-        const response = await axios.get(`${API_URL}/delivery/orders`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setOrders(response.data);
-      } catch (err) {
-        setError('Failed to fetch orders');
-      } finally {
-        setLoading(false);
-      }
-    };
     if (token) {
       fetchOrders();
     }
-  }, [token]);
+  }, [token, fetchOrders]);
+
+  useEffect(() => {
+    if (!user) return;
+    connectSocket();
+    joinRoom(`user_${user.id}`);
+    const handleAssignedOrder = () => {
+      fetchOrders();
+    };
+    onSocketEvent('assigned_order', handleAssignedOrder);
+    return () => {
+      offSocketEvent('assigned_order', handleAssignedOrder);
+    };
+  }, [user, fetchOrders]);
 
   return (
     <View style={styles.bg}>
