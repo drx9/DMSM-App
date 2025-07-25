@@ -1,9 +1,8 @@
 const express = require('express');
 const cors = require('cors');
-const authRoutes = require('./routes/authRoutes');
-const productRoutes = require('./routes/productRoutes');
 const http = require('http');
 const { initSocket } = require('./socket');
+const mainRouter = require('./routes/index');
 
 const app = express();
 
@@ -17,9 +16,8 @@ app.use((req, res, next) => {
 app.use(cors());
 app.use(express.json());
 
-// Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/products', productRoutes);
+// Mount all API routes
+app.use('/api', mainRouter);
 
 // Error handling middleware
 app.use((err, req, res, next) => {
