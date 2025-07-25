@@ -3,6 +3,7 @@ const couponController = require('./couponController');
 const { emitToUser, emitToOrder, emitToRole } = require('../socket');
 const { sendPushNotification } = require('../services/pushService');
 const { ExpoPushToken } = require('../models');
+const { Sequelize } = require('sequelize');
 
 const orderController = {
     // Get all orders (for admin)
@@ -181,7 +182,15 @@ const orderController = {
             let discount = 0;
             let coupon = null;
             if (couponCode) {
-                const couponRes = await Coupon.findOne({ where: { code: couponCode.toUpperCase(), isActive: true } });
+                const cleanCode = couponCode.trim().toUpperCase();
+                const couponRes = await Coupon.findOne({
+                  where: {
+                    [Sequelize.Op.and]: [
+                      Sequelize.where(Sequelize.fn('upper', Sequelize.col('code')), cleanCode),
+                      { isActive: true },
+                    ]
+                  }
+                });
                 if (!couponRes || couponRes.remainingUses <= 0) {
                     return res.status(400).json({ message: 'Invalid or expired coupon' });
                 }
