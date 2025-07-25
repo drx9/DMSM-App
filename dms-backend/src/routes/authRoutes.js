@@ -4,6 +4,7 @@ const authController = require('../controllers/authController');
 const multer = require('multer');
 const path = require('path');
 const { authenticateToken } = require('../middleware/auth');
+const { User } = require('../models');
 
 const router = express.Router();
 
@@ -127,19 +128,15 @@ router.post(
   authController.deliveryLogin
 );
 
-router.get('/user/me', authenticateToken, (req, res) => {
-  res.json({
-    id: req.user.id,
-    name: req.user.name,
-    email: req.user.email,
-    role: req.user.role,
-    phoneNumber: req.user.phoneNumber,
-    isVerified: req.user.isVerified,
-    isActive: req.user.isActive,
-    createdAt: req.user.createdAt,
-    updatedAt: req.user.updatedAt,
-    // add other fields as needed
-  });
+// Get current user profile (for /auth/user/me)
+router.get('/user/me', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ message: 'Failed to fetch user profile' });
+  }
 });
 
 module.exports = router; 
