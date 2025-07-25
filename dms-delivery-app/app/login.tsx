@@ -15,6 +15,7 @@ import {
 import axios from 'axios';
 import { API_URL } from '../config';
 import { useAuth } from '../context/AuthContext';
+import { registerForPushNotificationsAsync } from './services/pushService';
 
 const LoginScreen = () => {
   const [email, setEmail] = useState('');
@@ -37,6 +38,8 @@ const LoginScreen = () => {
 
       if (response.data.success) {
         await login(response.data.token, response.data.user);
+        // Register push token after successful login
+        await registerForPushNotificationsAsync(response.data.user.id);
       } else {
         Alert.alert('Login Failed', response.data.message);
       }

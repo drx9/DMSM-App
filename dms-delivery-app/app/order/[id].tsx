@@ -10,6 +10,7 @@ import * as Location from 'expo-location';
 import polyline from '@mapbox/polyline';
 import * as Speech from 'expo-speech';
 import scootyImg from '../../assets/images/scooty.png';
+import Constants from 'expo-constants';
 
 interface Order {
   id: string;
@@ -37,7 +38,7 @@ const statusColors: Record<string, string> = {
   out_for_delivery: '#047857',
 };
 
-const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
+const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.GOOGLE_MAPS_API_KEY || Constants.manifest?.extra?.GOOGLE_MAPS_API_KEY;
 
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
