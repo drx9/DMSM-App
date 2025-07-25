@@ -210,6 +210,9 @@ const getUserById = async (req, res) => {
   try {
     let userId = req.params.userId;
     if (userId === 'me') {
+      if (!req.user || !req.user.id) {
+        return res.status(401).json({ message: 'Unauthorized: user not authenticated' });
+      }
       userId = req.user.id;
     }
     const user = await User.findByPk(userId, {
