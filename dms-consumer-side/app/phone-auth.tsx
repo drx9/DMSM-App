@@ -39,6 +39,7 @@ export default function PhoneAuthScreen() {
       const credential = PhoneAuthProvider.credential(verificationId, code);
       const userCredential = await signInWithCredential(auth, credential);
       const idToken = await userCredential.user.getIdToken();
+      console.log('Firebase ID Token:', idToken);
       // Send idToken to backend
       const response = await fetch(`${API_URL}/auth/firebase-login`, {
         method: "POST",
