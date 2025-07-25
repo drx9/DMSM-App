@@ -208,7 +208,11 @@ const adminPasswordLogin = async (req, res) => {
 
 const getUserById = async (req, res) => {
   try {
-    const user = await User.findByPk(req.params.userId, {
+    let userId = req.params.userId;
+    if (userId === 'me') {
+      userId = req.user.id;
+    }
+    const user = await User.findByPk(userId, {
       attributes: ['id', 'name', 'email', 'phoneNumber', 'role', 'isVerified', 'isActive', 'createdAt', 'updatedAt', 'photo', 'gender', 'dateOfBirth']
     });
     if (!user) {
@@ -229,7 +233,10 @@ const googleLogin = async (req, res) => {
 
 const updateUser = async (req, res) => {
   try {
-    const { userId } = req.params;
+    let userId = req.params.userId;
+    if (userId === 'me') {
+      userId = req.user.id;
+    }
     const { name, email, phoneNumber, gender, dateOfBirth, photo } = req.body;
     const user = await User.findByPk(userId);
     if (!user) return res.status(404).json({ message: 'User not found' });
