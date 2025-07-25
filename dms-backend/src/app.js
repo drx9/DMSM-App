@@ -3,6 +3,7 @@ const cors = require('cors');
 const http = require('http');
 const { initSocket } = require('./socket');
 const mainRouter = require('./routes/index');
+const db = require('./models');
 
 const app = express();
 
@@ -27,5 +28,6 @@ app.use((err, req, res, next) => {
 
 const server = http.createServer(app);
 initSocket(server);
+db.sequelize.sync({ alter: true });
 
 module.exports = server; 

@@ -22,11 +22,15 @@ export default function OffersPage() {
         router.push({ pathname: '/product/[id]', params: { id: productId } });
     };
 
-    function getValidImageUrl(images: any): string {
+    function getValidImageUrl(images: any, banner_image?: string): string {
+        if (banner_image && typeof banner_image === 'string' && banner_image.startsWith('http')) {
+            return banner_image;
+        }
         if (Array.isArray(images) && images.length > 0 && typeof images[0] === 'string' && images[0].startsWith('http')) {
             return images[0];
         }
-        return 'https://via.placeholder.com/150?text=No+Image';
+        // Fallback to public/banner.jpg if no banner_image or product image
+        return 'https://dmsm-app.vercel.app/banner.jpg';
     }
 
     if (loading) {
@@ -47,6 +51,8 @@ export default function OffersPage() {
                 <View key={offer.id} style={styles.offerSection}>
                     <Text style={styles.offerTitle}>{offer.name}</Text>
                     <Text style={styles.offerDesc}>{offer.description}</Text>
+                    {/* Show offer banner if available, else fallback */}
+                    <Image source={{ uri: getValidImageUrl(undefined, offer.banner_image) }} style={{ width: '100%', height: 120, borderRadius: 12, resizeMode: 'cover', marginBottom: 8 }} />
                     <View style={styles.productGrid}>
                         {offer.products.map((product: any) => (
                             <TouchableOpacity
