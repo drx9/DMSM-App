@@ -11,6 +11,7 @@ interface Offer {
     endDate: string;
     isActive: boolean;
     products: Array<{ id: string; name: string }>;
+    banner_image?: string; // Added banner_image to the interface
 }
 
 export default function OffersPage() {
@@ -36,6 +37,7 @@ export default function OffersPage() {
                 <table className="w-full border">
                     <thead>
                         <tr>
+                            <th>Banner</th>
                             <th>Name</th>
                             <th>Description</th>
                             <th>Start</th>
@@ -48,6 +50,13 @@ export default function OffersPage() {
                     <tbody>
                         {offers.map(offer => (
                             <tr key={offer.id}>
+                                <td>
+                                    {offer.banner_image ? (
+                                        <img src={offer.banner_image} alt="Banner" style={{ width: 80, height: 40, objectFit: 'cover', borderRadius: 4 }} />
+                                    ) : (
+                                        <span>No Image</span>
+                                    )}
+                                </td>
                                 <td>{offer.name}</td>
                                 <td>{offer.description}</td>
                                 <td>{offer.startDate?.slice(0, 10)}</td>

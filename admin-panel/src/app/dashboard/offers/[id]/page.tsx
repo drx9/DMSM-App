@@ -21,6 +21,7 @@ export default function EditOfferPage() {
     const [bannerImage, setBannerImage] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
+    const [uploadError, setUploadError] = useState('');
     const router = useRouter();
 
     useEffect(() => {
@@ -60,18 +61,29 @@ export default function EditOfferPage() {
     };
 
     const handleBannerImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        setUploadError('');
         const file = e.target.files?.[0];
         if (!file) return;
         setUploading(true);
         const formData = new FormData();
         formData.append('file', file);
         formData.append('upload_preset', 'dmsmart'); // Change to your Cloudinary unsigned preset
-        const res = await fetch('https://api.cloudinary.com/v1_1/dmsmart/image/upload', {
-            method: 'POST',
-            body: formData,
-        });
-        const data = await res.json();
-        setBannerImage(data.secure_url);
+        try {
+            const res = await fetch('https://api.cloudinary.com/v1_1/dmsmart/image/upload', {
+                method: 'POST',
+                body: formData,
+            });
+            const data = await res.json();
+            if (!data.secure_url) {
+                setUploadError(data.error?.message || 'Failed to upload image.');
+                setBannerImage('');
+            } else {
+                setBannerImage(data.secure_url);
+            }
+        } catch (err) {
+            setUploadError('Network or server error during upload.');
+            setBannerImage('');
+        }
         setUploading(false);
     };
 
@@ -120,6 +132,7 @@ export default function EditOfferPage() {
                     <label>Banner Image</label>
                     <input type="file" accept="image/*" ref={fileInputRef} onChange={handleBannerImageChange} />
                     {uploading && <span>Uploading...</span>}
+                    {uploadError && <div style={{ color: 'red' }}>{uploadError}</div>}
                     {bannerImage && <img src={bannerImage} alt="Banner Preview" className="mt-2 w-full max-h-32 object-contain" />}
                 </div>
                 <div>
