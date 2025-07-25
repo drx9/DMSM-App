@@ -149,12 +149,12 @@ const CheckoutScreen = () => {
 
     // Calculate the true MRP (original price) total
     const calculateMRPTotal = () => {
-        return cartItems.reduce((sum, item) => sum + (item.mrp * item.quantity), 0);
+        return Math.round(cartItems.reduce((sum, item) => sum + (Math.round(item.mrp) * item.quantity), 0));
     };
 
     // Subtotal (discounted price)
     const calculateSubtotal = () => {
-        return cartItems.reduce((sum, item) => sum + (item.salePrice * item.quantity), 0);
+        return Math.round(cartItems.reduce((sum, item) => sum + (Math.round(item.salePrice) * item.quantity), 0));
     };
 
     // Discount is the difference between MRP and subtotal
@@ -163,7 +163,7 @@ const CheckoutScreen = () => {
     const savings = mrpTotal - subtotal;
     const deliveryFee = subtotal >= 399 ? 0 : 39;
     const platformFee = 9;
-    const totalAmount = subtotal + deliveryFee + platformFee - promoDiscount;
+    const totalAmount = subtotal + deliveryFee + platformFee - Math.round(promoDiscount);
 
     const getDeliveryDate = () => {
         const today = new Date();
@@ -457,9 +457,9 @@ const CheckoutScreen = () => {
                             <View style={styles.itemDetails}>
                                 <Text style={styles.itemName} numberOfLines={2}>{item.name ?? 'No Name'}</Text>
                                 <View style={styles.itemPricing}>
-                                    <Text style={styles.itemPrice}>₹{typeof item.salePrice === 'number' ? item.salePrice.toFixed(2) : 0}</Text>
+                                    <Text style={styles.itemPrice}>₹{Math.round(item.salePrice)}</Text>
                                     {item.discount > 0 && (
-                                        <Text style={styles.itemOriginalPrice}>₹{typeof item.mrp === 'number' ? item.mrp.toFixed(2) : 0}</Text>
+                                        <Text style={styles.itemOriginalPrice}>₹{Math.round(item.mrp)}</Text>
                                     )}
                                 </View>
                             </View>
@@ -491,11 +491,11 @@ const CheckoutScreen = () => {
                     <Text style={styles.priceDetailsTitle}>Price Details</Text>
                     <View style={styles.priceRow}>
                         <Text style={styles.priceLabel}>MRP ({cartItems.length} item{cartItems.length > 1 ? 's' : ''})</Text>
-                        <Text style={styles.priceValue}>₹{Math.round(mrpTotal)}</Text>
+                        <Text style={styles.priceValue}>₹{mrpTotal}</Text>
                     </View>
                     <View style={styles.priceRow}>
                         <Text style={styles.priceLabel}>Product Discount</Text>
-                        <Text style={[styles.priceValue, styles.discountValue]}>-₹{Math.round(savings)}</Text>
+                        <Text style={[styles.priceValue, styles.discountValue]}>-₹{savings}</Text>
                     </View>
                     <View style={styles.priceRow}>
                         <Text style={styles.priceLabel}>Platform Fee</Text>
@@ -507,14 +507,14 @@ const CheckoutScreen = () => {
                     </View>
                     <View style={styles.priceRow}>
                         <Text style={styles.priceLabel}>Promo Discount</Text>
-                        <Text style={[styles.priceValue, styles.discountValue]}>-₹{promoDiscount}</Text>
+                        <Text style={[styles.priceValue, styles.discountValue]}>-₹{Math.round(promoDiscount)}</Text>
                     </View>
                     <View style={styles.divider} />
                     <View style={styles.priceRow}>
                         <Text style={styles.totalLabel}>Total Amount</Text>
                         <Text style={styles.totalValue}>₹{totalAmount}</Text>
                     </View>
-                    <Text style={styles.savings}>You will save ₹{Math.round(savings)} on this order</Text>
+                    <Text style={styles.savings}>You will save ₹{savings} on this order</Text>
                 </View>
 
                 <View style={styles.securityInfo}>
@@ -544,7 +544,7 @@ const CheckoutScreen = () => {
                     </View>
                     {promoError ? <Text style={{ color: 'red', marginTop: 4 }}>{promoError}</Text> : null}
                     {promoDiscount > 0 && appliedCoupon && (
-                        <Text style={{ color: 'green', marginTop: 4 }}>Coupon applied: -₹{promoDiscount.toFixed(2)}</Text>
+                        <Text style={{ color: 'green', marginTop: 4 }}>Coupon applied: -₹{Math.round(promoDiscount)}</Text>
                     )}
                 </View>
             </ScrollView>

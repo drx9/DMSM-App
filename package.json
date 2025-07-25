@@ -5,6 +5,8 @@
     "bcryptjs": "^3.0.2",
     "chart.js": "^4.5.0",
     "dotenv": "^16.6.1",
+    "expo-dev-client": "~5.2.4",
+    "expo-firebase-core": "^6.0.0",
     "expo-location": "^18.1.6",
     "expo-notifications": "^0.31.4",
     "expo-server-sdk": "^3.15.0",

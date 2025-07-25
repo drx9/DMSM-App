@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { connectSocket, joinRoom, disconnectSocket, onSocketEvent, offSocketEvent } from './services/socketService';
 import { registerForPushNotificationsAsync } from './services/pushService';
 import { Alert } from 'react-native';
+import * as Notifications from 'expo-notifications';
 
 function MyApp({ Component, pageProps }: { Component: any; pageProps: any }) {
   const [userId, setUserId] = useState<string | null>(null);
@@ -35,6 +36,22 @@ function MyApp({ Component, pageProps }: { Component: any; pageProps: any }) {
     return () => {
       offSocketEvent('order_status_update', handleOrderStatusUpdate);
       offSocketEvent('order_placed', handleOrderPlaced);
+    };
+  }, []);
+
+  // Expo push notification listeners
+  useEffect(() => {
+    const subscriptionReceived = Notifications.addNotificationReceivedListener(notification => {
+      Alert.alert('Notification', notification.request.content.title || 'You have a new notification');
+      // Optionally update state/UI here
+    });
+    const subscriptionResponse = Notifications.addNotificationResponseReceivedListener(response => {
+      // Handle notification tap (navigate, refresh, etc.)
+      // Example: Alert.alert('Notification tapped', JSON.stringify(response));
+    });
+    return () => {
+      subscriptionReceived.remove();
+      subscriptionResponse.remove();
     };
   }, []);
 

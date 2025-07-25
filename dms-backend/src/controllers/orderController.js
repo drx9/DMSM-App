@@ -185,13 +185,7 @@ const orderController = {
                 if (!couponRes || couponRes.remainingUses <= 0) {
                     return res.status(400).json({ message: 'Invalid or expired coupon' });
                 }
-                if (couponRes.discountType === 'flat') {
-                    discount = parseFloat(couponRes.discountValue);
-                } else if (couponRes.discountType === 'percent') {
-                    const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-                    discount = (parseFloat(couponRes.discountValue) / 100) * subtotal;
-                }
-                discount = Math.min(discount, total);
+                // Only validate coupon, do not apply discount again
                 coupon = couponRes;
             }
             // Generate 4-digit delivery key
@@ -201,7 +195,7 @@ const orderController = {
                 userId,
                 shippingAddress: address, // full address object with lat/lng
                 status: 'pending',
-                totalAmount: total - discount,
+                totalAmount: total, // Use the total sent from frontend, do not subtract discount again
                 paymentStatus: paymentMethod === 'cod' ? 'pending' : 'paid',
                 deliveryKey,
                 deliverySlot,

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image, StyleSheet, ActivityIndicator } from 'react-native';
 import { API_URL } from '../config';
 import { useRouter } from 'expo-router';
+import { onSocketEvent, offSocketEvent } from '../services/socketService';
 
 export default function OffersPage() {
     const [offers, setOffers] = useState<any[]>([]);
@@ -16,6 +17,22 @@ export default function OffersPage() {
                 setLoading(false);
             })
             .catch(() => setOffers([]));
+
+        // Real-time offer updates
+        function handleOffersUpdated() {
+            setLoading(true);
+            fetch(`${API_URL}/offers/active`)
+                .then(res => res.json())
+                .then(data => {
+                    setOffers(data || []);
+                    setLoading(false);
+                })
+                .catch(() => setOffers([]));
+        }
+        onSocketEvent('offers_updated', handleOffersUpdated);
+        return () => {
+            offSocketEvent('offers_updated', handleOffersUpdated);
+        };
     }, []);
 
     const handleProductPress = (productId: string) => {
@@ -49,10 +66,13 @@ export default function OffersPage() {
         <ScrollView style={styles.container}>
             {offers.map((offer) => (
                 <View key={offer.id} style={styles.offerSection}>
-                    <Text style={styles.offerTitle}>{offer.name}</Text>
-                    <Text style={styles.offerDesc}>{offer.description}</Text>
+                    {/* Show sale name and description above the banner if they exist */}
+                    {offer.name && <Text style={styles.offerTitle}>{offer.name}</Text>}
+                    {offer.description && <Text style={styles.offerDesc}>{offer.description}</Text>}
                     {/* Show offer banner if available, else fallback */}
-                    <Image source={{ uri: getValidImageUrl(undefined, offer.banner_image) }} style={{ width: '100%', height: 120, borderRadius: 12, resizeMode: 'cover', marginBottom: 8 }} />
+                    {offer.banner_image && (
+                        <Image source={{ uri: getValidImageUrl(undefined, offer.banner_image) }} style={{ width: '100%', height: 120, borderRadius: 12, resizeMode: 'cover', marginBottom: 8 }} />
+                    )}
                     <View style={styles.productGrid}>
                         {offer.products.map((product: any) => (
                             <TouchableOpacity

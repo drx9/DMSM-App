@@ -170,12 +170,12 @@ const CartScreen = () => {
 
   // Calculate the true MRP (original price) total
   const calculateMRPTotal = () => {
-    return cartItems.reduce((sum, item) => sum + (item.mrp * item.quantity), 0);
+    return Math.round(cartItems.reduce((sum, item) => sum + (Math.round(item.mrp) * item.quantity), 0));
   };
 
   // Calculate subtotal (after discount)
   const calculateSubtotal = () => {
-    return cartItems.reduce((sum, item) => sum + (item.salePrice * item.quantity), 0);
+    return Math.round(cartItems.reduce((sum, item) => sum + (Math.round(item.salePrice) * item.quantity), 0));
   };
 
   // Discount is the difference between MRP and subtotal
@@ -294,9 +294,9 @@ const CartScreen = () => {
         <View style={styles.cartItemDetails}>
           <Text style={styles.cartItemName} numberOfLines={2}>{item.name}</Text>
           <View style={styles.priceContainer}>
-            <Text style={styles.currentPrice}>₹{item.salePrice.toFixed(2)}</Text>
+            <Text style={styles.currentPrice}>₹{Math.round(item.salePrice)}</Text>
             {item.discount > 0 && (
-              <Text style={styles.originalPrice}>₹{item.mrp.toFixed(2)}</Text>
+              <Text style={styles.originalPrice}>₹{Math.round(item.mrp)}</Text>
             )}
           </View>
         </View>

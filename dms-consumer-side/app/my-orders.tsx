@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from './config';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import io from 'socket.io-client';
+import { onSocketEvent, offSocketEvent } from './services/socketService';
 
 const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || 'wss://dmsm-app-production-a35d.up.railway.app'; // Use backend's WebSocket URL
 
@@ -46,6 +47,20 @@ const MyOrdersScreen = () => {
             }
         };
         fetchOrders();
+    }, []);
+
+    // Real-time order status updates
+    useEffect(() => {
+        function handleOrderStatusUpdate(data: any) {
+            if (!data?.orderId || !data?.status) return;
+            setOrders(prevOrders => prevOrders.map(order =>
+                order.id === data.orderId ? { ...order, status: data.status } : order
+            ));
+        }
+        onSocketEvent('order_status_update', handleOrderStatusUpdate);
+        return () => {
+            offSocketEvent('order_status_update', handleOrderStatusUpdate);
+        };
     }, []);
 
     useEffect(() => {

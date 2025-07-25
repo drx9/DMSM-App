@@ -28,6 +28,8 @@
     "expo-auth-session": "~6.2.1",
     "expo-blur": "~14.1.5",
     "expo-constants": "~17.1.7",
+    "expo-dev-client": "~5.2.4",
+    "expo-firebase-core": "^6.0.0",
     "expo-firebase-recaptcha": "^2.3.1",
     "expo-font": "~13.3.2",
     "expo-haptics": "~14.1.4",
@@ -68,8 +70,7 @@
     "react-redux": "^9.2.0",
     "redux-persist": "^6.0.0",
     "socket.io-client": "^4.8.1",
-    "xlsx": "^0.18.5",
-    "expo-dev-client": "~5.2.4"
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",
