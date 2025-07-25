@@ -12,6 +12,7 @@ const paymentRoutes = require('./paymentRoutes');
 const deliveryRoutes = require('./deliveryRoutes');
 const wishlistRoutes = require('./wishlistRoutes');
 const uploadRoutes = require('./uploadRoutes');
+const couponRoutes = require('./couponRoutes');
 const serviceablePincodeController = require('../controllers/serviceablePincodeController');
 
 // Health check endpoint
@@ -31,6 +32,7 @@ router.use('/payment-methods', paymentRoutes);
 router.use('/delivery', deliveryRoutes);
 router.use('/wishlist', wishlistRoutes);
 router.use('/upload-avatar', uploadRoutes);
+router.use('/coupons', couponRoutes);
 router.use('/offers', require('./offerRoutes'));
 router.get('/serviceable-pincodes/public', serviceablePincodeController.getAllPublic);
 
