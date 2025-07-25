@@ -7,6 +7,12 @@ const { initSocket } = require('./socket');
 
 const app = express();
 
+// Logging middleware for all requests
+app.use((req, res, next) => {
+  console.log(`[${req.method}] ${req.originalUrl}`);
+  next();
+});
+
 // Middleware
 app.use(cors());
 app.use(express.json());
