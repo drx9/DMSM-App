@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { User } = require('../models');
 const authService = require('../services/authService');
+const admin = require("../services/firebaseService");
 
 const login = async (req, res) => {
   try {
@@ -85,49 +86,6 @@ const login = async (req, res) => {
       success: false,
       message: 'An internal server error occurred.',
     });
-  }
-};
-
-const verifyOTP = async (req, res) => {
-  try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
-    const { userId, otp, type } = req.body;
-    const token = await authService.verifyOTP(userId, otp, type);
-
-    res.json({
-      success: true,
-      message: 'OTP verified successfully',
-      token,
-    });
-  } catch (error) {
-    console.error('OTP verification error:', error);
-    res.status(400).json({ message: error.message });
-  }
-};
-
-const resendOTP = async (req, res) => {
-  try {
-    const { userId } = req.body;
-    const user = await User.findByPk(userId);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
-
-    const type = user.phoneNumber ? 'PHONE' : 'EMAIL';
-    await authService.sendOTP(user, type);
-
-    res.json({
-      success: true,
-      message: 'OTP resent successfully',
-      userId: user.id,
-    });
-  } catch (error) {
-    console.error('Resend OTP error:', error);
-    res.status(500).json({ message: 'Internal server error' });
   }
 };
 
@@ -354,10 +312,41 @@ const deliveryLogin = async (req, res) => {
   }
 };
 
+async function verifyFirebaseToken(req, res) {
+  const { idToken } = req.body;
+  try {
+    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const phoneNumber = decodedToken.phone_number;
+    if (!phoneNumber) {
+      return res.status(400).json({ error: "No phone number in token" });
+    }
+    // Find or create user
+    let user = await User.findOne({ where: { phoneNumber } });
+    if (!user) {
+      user = await User.create({
+        name: "User" + phoneNumber.slice(-4),
+        phoneNumber,
+        password: Math.random().toString(36).slice(-8), // random password, not used
+        isVerified: true,
+      });
+    } else if (!user.isVerified) {
+      user.isVerified = true;
+      await user.save();
+    }
+    // Generate JWT
+    const token = jwt.sign(
+      { id: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    res.json({ success: true, token, user: { id: user.id, phoneNumber: user.phoneNumber, name: user.name } });
+  } catch (err) {
+    res.status(401).json({ error: "Invalid token" });
+  }
+}
+
 module.exports = {
   login,
-  verifyOTP,
-  resendOTP,
   register,
   adminPasswordLogin,
   getUserById,
@@ -367,4 +356,5 @@ module.exports = {
   uploadAvatar,
   deleteUser,
   deliveryLogin,
+  verifyFirebaseToken,
 }; 

@@ -5,6 +5,7 @@ const multer = require('multer');
 const path = require('path');
 const { authenticateToken } = require('../middleware/auth');
 const { User } = require('../models');
+const { verifyFirebaseToken } = require("../controllers/authController");
 
 const router = express.Router();
 
@@ -51,24 +52,6 @@ router.post(
     body('password').optional().isString()
   ],
   authController.login
-);
-
-router.post(
-  '/verify',
-  [
-    body('userId').isUUID().withMessage('Invalid user ID'),
-    otpValidation,
-    body('type').isIn(['PHONE', 'EMAIL']).withMessage('Invalid OTP type')
-  ],
-  authController.verifyOTP
-);
-
-router.post(
-  '/resend-otp',
-  [
-    body('userId').isUUID().withMessage('Invalid user ID')
-  ],
-  authController.resendOTP
 );
 
 router.post(
@@ -127,6 +110,8 @@ router.post(
   ],
   authController.deliveryLogin
 );
+
+router.post("/firebase-login", verifyFirebaseToken);
 
 // Get current user profile (for /auth/user/me)
 router.get('/user/me', authenticateToken, async (req, res) => {
