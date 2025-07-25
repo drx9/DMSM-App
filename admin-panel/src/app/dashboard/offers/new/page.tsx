@@ -23,6 +23,7 @@ export default function AddOfferPage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploading, setUploading] = useState(false);
     const [uploadError, setUploadError] = useState('');
+    const [handlerTriggered, setHandlerTriggered] = useState(false);
 
     useEffect(() => {
         api.get('/api/products?limit=1000').then(res => {
@@ -49,16 +50,25 @@ export default function AddOfferPage() {
         ));
     };
 
+    // Get Cloudinary config from env or fallback
+    const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 'dpdlmd5tx';
+    const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'dmsm_unsigned_preset';
+
     const handleBannerImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        setHandlerTriggered(true);
         setUploadError('');
+        console.log('File input changed', e.target.files);
         const file = e.target.files?.[0];
-        if (!file) return;
+        if (!file) {
+            setUploadError('No file selected.');
+            return;
+        }
         setUploading(true);
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('upload_preset', 'dmsmart'); // Change to your Cloudinary unsigned preset
+        formData.append('upload_preset', UPLOAD_PRESET);
         try {
-            const res = await fetch('https://api.cloudinary.com/v1_1/dmsmart/image/upload', {
+            const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`, {
                 method: 'POST',
                 body: formData,
             });
@@ -120,6 +130,7 @@ export default function AddOfferPage() {
                 <div>
                     <label>Banner Image</label>
                     <input type="file" accept="image/*" ref={fileInputRef} onChange={handleBannerImageChange} />
+                    {!handlerTriggered && <div style={{ color: 'orange' }}>File input handler not triggered. Try selecting a file.</div>}
                     {uploading && <span>Uploading...</span>}
                     {uploadError && <div style={{ color: 'red' }}>{uploadError}</div>}
                     {bannerImage && <img src={bannerImage} alt="Banner Preview" className="mt-2 w-full max-h-32 object-contain" />}
