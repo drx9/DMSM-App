@@ -9,6 +9,7 @@ const offerController = {
     // Create a new offer
     createOffer: async (req, res) => {
         try {
+            console.log('Offer body (create):', req.body);
             const { name, description, startDate, endDate, isActive, products, banner_image } = req.body;
             const offer = await Offer.create({ name, description, startDate, endDate, isActive, banner_image });
             if (products && Array.isArray(products)) {
@@ -97,6 +98,7 @@ const offerController = {
     // Update offer
     updateOffer: async (req, res) => {
         try {
+            console.log('Offer body (update):', req.body);
             const { id } = req.params;
             const { name, description, startDate, endDate, isActive, products, banner_image } = req.body;
             const offer = await Offer.findByPk(id);

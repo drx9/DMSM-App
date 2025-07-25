@@ -23,6 +23,7 @@ export default function EditOfferPage() {
     const [uploading, setUploading] = useState(false);
     const [uploadError, setUploadError] = useState('');
     const [handlerTriggered, setHandlerTriggered] = useState(false);
+    const [formError, setFormError] = useState('');
     const router = useRouter();
 
     useEffect(() => {
@@ -99,6 +100,11 @@ export default function EditOfferPage() {
 
     const handleSubmit = async (e: any) => {
         e.preventDefault();
+        setFormError('');
+        if (!bannerImage) {
+            setFormError('Please upload a banner image before updating the offer.');
+            return;
+        }
         await api.put(`/api/offers/${id}`, {
             name,
             description,
@@ -146,6 +152,7 @@ export default function EditOfferPage() {
                     {uploadError && <div style={{ color: 'red' }}>{uploadError}</div>}
                     {bannerImage && <img src={bannerImage} alt="Banner Preview" className="mt-2 w-full max-h-32 object-contain" />}
                 </div>
+                {formError && <div style={{ color: 'red' }}>{formError}</div>}
                 <div>
                     <label>Products</label>
                     <div className="border p-2 max-h-48 overflow-y-auto">
