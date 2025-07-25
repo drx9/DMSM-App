@@ -51,26 +51,11 @@ const login = async (req, res) => {
 
     // --- PHONE + OTP LOGIN ---
     else if (phoneNumber) {
-      const user = await User.findOne({ where: { phoneNumber } });
-
-      if (user) {
-        // User exists, send OTP
-        await authService.sendOTP(user, 'PHONE');
-        return res.json({
-          success: true,
-          message: 'OTP sent successfully.',
-          userExists: true,
-          userId: user.id,
-        });
-      } else {
-        // User does not exist, prompt for signup
-        return res.json({
-          success: true,
-          message: 'User does not exist. Please proceed to signup.',
-          userExists: false,
-          phoneNumber,
-        });
-      }
+      // Phone login is now handled by Firebase Phone Auth
+      return res.status(400).json({
+        success: false,
+        message: 'Phone login is now handled by Firebase. Please use the phone authentication flow in the app.',
+      });
     }
 
     // --- INVALID INPUT ---
