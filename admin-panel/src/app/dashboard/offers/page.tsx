@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import api from '@/lib/api';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface Offer {
     id: string;
@@ -17,6 +18,7 @@ interface Offer {
 export default function OffersPage() {
     const [offers, setOffers] = useState<Offer[]>([]);
     const [loading, setLoading] = useState(true);
+    const router = useRouter();
 
     useEffect(() => {
         api.get('/api/offers').then(res => {
@@ -24,6 +26,16 @@ export default function OffersPage() {
             setLoading(false);
         });
     }, []);
+
+    const handleDelete = async (id: string) => {
+        if (!window.confirm('Are you sure you want to delete this offer?')) return;
+        try {
+            await api.delete(`/api/offers/${id}`);
+            setOffers(offers => offers.filter(o => o.id !== id));
+        } catch (err) {
+            alert('Failed to delete offer.');
+        }
+    };
 
     return (
         <div className="p-6">
@@ -64,7 +76,8 @@ export default function OffersPage() {
                                 <td>{offer.isActive ? 'Active' : 'Inactive'}</td>
                                 <td>{offer.products?.map(p => p.name).join(', ')}</td>
                                 <td>
-                                    <Link href={`/dashboard/offers/${offer.id}`} className="text-blue-600">Edit</Link>
+                                    <Link href={`/dashboard/offers/${offer.id}`} className="text-blue-600 mr-2">Edit</Link>
+                                    <button onClick={() => handleDelete(offer.id)} className="text-red-600 ml-2">Delete</button>
                                 </td>
                             </tr>
                         ))}
