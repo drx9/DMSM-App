@@ -51,7 +51,7 @@ export default function AddOfferPage() {
     };
 
     // Get Cloudinary config from env or fallback
-    const CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME || 'dpdlmd5tx';
+    const CLOUD_NAME = 'dpdlmdl5x';
     const UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'dmsm_unsigned_preset';
 
     const handleBannerImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
