@@ -2,32 +2,6 @@
 const { Expo } = require('expo-server-sdk');
 const expo = new Expo();
 
-// Firebase Admin SDK for HTTP v1 API
-const admin = require('firebase-admin');
-
-// Initialize Firebase Admin SDK
-if (!admin.apps.length) {
-  // Use environment variables for service account
-  const serviceAccount = {
-    type: process.env.FIREBASE_TYPE || 'service_account',
-    project_id: process.env.FIREBASE_PROJECT_ID || 'dmsm-5fb08',
-    private_key_id: process.env.FIREBASE_PRIVATE_KEY_ID,
-    private_key: process.env.FIREBASE_PRIVATE_KEY ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n') : undefined,
-    client_email: process.env.FIREBASE_CLIENT_EMAIL,
-    client_id: process.env.FIREBASE_CLIENT_ID,
-    auth_uri: process.env.FIREBASE_AUTH_URI || 'https://accounts.google.com/o/oauth2/auth',
-    token_uri: process.env.FIREBASE_TOKEN_URI || 'https://oauth2.googleapis.com/token',
-    auth_provider_x509_cert_url: process.env.FIREBASE_AUTH_PROVIDER_X509_CERT_URL || 'https://www.googleapis.com/oauth2/v1/certs',
-    client_x509_cert_url: process.env.FIREBASE_CLIENT_X509_CERT_URL,
-    universe_domain: process.env.FIREBASE_UNIVERSE_DOMAIN || 'googleapis.com'
-  };
-  
-  admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount),
-    projectId: 'dmsm-5fb08'
-  });
-}
-
 async function sendPushNotification(expoPushToken, title, message, data = {}) {
   console.log('Attempting to send push notification:', { expoPushToken, title, message, data });
   
@@ -37,8 +11,7 @@ async function sendPushNotification(expoPushToken, title, message, data = {}) {
   }
 
   try {
-    // Try Expo push service first
-    const expoResult = await expo.sendPushNotificationsAsync([
+    const result = await expo.sendPushNotificationsAsync([
       {
         to: expoPushToken,
         sound: 'default',
@@ -48,45 +21,8 @@ async function sendPushNotification(expoPushToken, title, message, data = {}) {
       },
     ]);
     
-    console.log('Expo push notification result:', expoResult);
-    
-    // If Expo fails with FCM error, try Firebase HTTP v1 API directly
-    if (expoResult[0] && expoResult[0].status === 'error' && 
-        expoResult[0].message.includes('FCM server key')) {
-      
-      console.log('Expo FCM failed, trying Firebase HTTP v1 API directly...');
-      
-      // Convert Expo token to FCM token format (this is a simplified approach)
-      // In production, you'd need to store both Expo and FCM tokens
-      const fcmToken = expoPushToken.replace('ExponentPushToken[', '').replace(']', '');
-      
-      const firebaseMessage = {
-        message: {
-          token: fcmToken,
-          notification: {
-            title: title,
-            body: message
-          },
-          data: {
-            ...data,
-            notificationType: data.notificationType || 'general',
-            timestamp: new Date().toISOString()
-          },
-          android: {
-            notification: {
-              sound: 'default',
-              priority: 'high'
-            }
-          }
-        }
-      };
-
-      const firebaseResult = await admin.messaging().send(firebaseMessage);
-      console.log('Firebase HTTP v1 API result:', firebaseResult);
-      return [{ status: 'ok', firebaseResult }];
-    }
-    
-    return expoResult;
+    console.log('Push notification sent successfully:', result);
+    return result;
   } catch (err) {
     console.error('Error sending push notification:', err);
     throw err;
