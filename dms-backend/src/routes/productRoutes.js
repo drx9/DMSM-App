@@ -8,6 +8,9 @@ const upload = multer({ dest: 'uploads/' });
 // Public routes
 router.get('/', productController.getProducts);
 
+// Get product details with variants, similar, and bought together (MUST come before parameterized routes)
+router.get('/:id/details', productController.getProductDetails);
+
 // Add validation for UUID format before the :id route
 router.get('/:id', (req, res, next) => {
     const { id } = req.params;
@@ -27,8 +30,5 @@ router.post('/', authenticateToken, isAdmin, productController.createProduct);
 router.put('/:id', authenticateToken, isAdmin, productController.updateProduct);
 router.delete('/:id', authenticateToken, isAdmin, productController.deleteProduct);
 router.post('/bulk-upload', upload.single('file'), productController.bulkUploadProducts);
-
-// Get product details with variants, similar, and bought together
-router.get('/:id/details', productController.getProductDetails);
 
 module.exports = router; 
