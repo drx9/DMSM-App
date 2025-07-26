@@ -5,7 +5,6 @@ const multer = require('multer');
 const path = require('path');
 const { authenticateToken } = require('../middleware/auth');
 const { User } = require('../models');
-const { verifyFirebaseToken } = require("../controllers/authController");
 
 const router = express.Router();
 
@@ -111,7 +110,7 @@ router.post(
   authController.deliveryLogin
 );
 
-router.post("/firebase-login", verifyFirebaseToken);
+router.post("/firebase-login", authController.verifyFirebaseToken);
 
 // Get current user profile (for /auth/user/me)
 router.get('/user/me', authenticateToken, async (req, res) => {
