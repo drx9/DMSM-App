@@ -99,20 +99,40 @@ router.put('/:id/status', orderController.updateOrderStatus);
 router.put('/:id/assign-delivery', async (req, res) => {
     try {
         const { deliveryBoyId } = req.body;
-        const order = await Order.findByPk(req.params.id);
+        const order = await Order.findByPk(req.params.id, {
+            include: [{ model: User, as: 'customer', attributes: ['id', 'name'] }]
+        });
         if (!order) return res.status(404).json({ message: 'Order not found' });
+        
         order.deliveryBoyId = deliveryBoyId;
         order.status = 'processing';
         await order.save();
+        
         // Real-time: emit to delivery boy and send push notification
         const { emitToUser } = require('../socket');
-        const { ExpoPushToken } = require('../models');
-        const { sendPushNotification } = require('../services/pushService');
+        const { sendNotificationWithPreferences } = require('../services/pushService');
+        
+        // Notify delivery boy
         emitToUser(deliveryBoyId, 'assigned_order', { orderId: order.id });
-        const tokens = await ExpoPushToken.findAll({ where: { userId: deliveryBoyId } });
-        for (const t of tokens) {
-          await sendPushNotification(t.token, 'New Delivery Assigned', 'You have been assigned a new delivery order.', {});
-        }
+        
+        // Notify customer about delivery boy assignment
+        emitToUser(order.userId, 'order_status_update', { 
+            orderId: order.id, 
+            status: 'processing',
+            deliveryBoyAssigned: true 
+        });
+        
+        // Send push notification to delivery boy
+        await sendNotificationWithPreferences(deliveryBoyId, 'New Delivery Assigned', 'You have been assigned a new delivery order.', {
+            orderId: order.id
+        }, 'delivery');
+        
+        // Send push notification to customer
+        await sendNotificationWithPreferences(order.userId, 'Order Confirmed', 'Your order has been confirmed and a delivery partner has been assigned!', {
+            orderId: order.id,
+            status: 'processing'
+        }, 'order_updates');
+        
         res.json(order);
     } catch (err) {
         console.error('Error in PUT /:id/assign-delivery:', err);

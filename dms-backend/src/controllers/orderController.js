@@ -1,7 +1,7 @@
 const { Order, OrderItem, User, Product, CartItem, Address, Coupon } = require('../models');
 const couponController = require('./couponController');
 const { emitToUser, emitToOrder, emitToRole } = require('../socket');
-const { sendPushNotification } = require('../services/pushService');
+const { sendPushNotification, sendNotificationWithPreferences } = require('../services/pushService');
 const { ExpoPushToken } = require('../models');
 const { Sequelize } = require('sequelize');
 
@@ -143,11 +143,41 @@ const orderController = {
             emitToUser(order.userId, 'order_status_update', { orderId: order.id, status });
             emitToRole('admin', 'order_status_update', { orderId: order.id, status });
 
-            // Push notification fallback
-            const tokens = await ExpoPushToken.findAll({ where: { userId: order.userId } });
-            for (const t of tokens) {
-              await sendPushNotification(t.token, 'Order Update', `Your order status is now: ${status}`, { orderId: order.id, status });
+            // Push notification with specific messages for each status
+            let notificationTitle = 'Order Update';
+            let notificationBody = `Your order status is now: ${status}`;
+
+            switch (status) {
+                case 'pending':
+                    notificationTitle = 'Order Placed';
+                    notificationBody = 'Your order has been placed and is awaiting confirmation!';
+                    break;
+                case 'processing':
+                    notificationTitle = 'Order Confirmed';
+                    notificationBody = 'Your order has been confirmed and is being processed!';
+                    break;
+                case 'shipped':
+                    notificationTitle = 'Order Shipped';
+                    notificationBody = 'Your order has been shipped and is on its way!';
+                    break;
+                case 'out_for_delivery':
+                    notificationTitle = 'Out for Delivery';
+                    notificationBody = 'Your order is out for delivery and will arrive soon!';
+                    break;
+                case 'delivered':
+                    notificationTitle = 'Order Delivered';
+                    notificationBody = 'Your order has been delivered successfully!';
+                    break;
+                case 'cancelled':
+                    notificationTitle = 'Order Cancelled';
+                    notificationBody = 'Your order has been cancelled.';
+                    break;
             }
+
+            await sendNotificationWithPreferences(order.userId, notificationTitle, notificationBody, { 
+                orderId: order.id, 
+                status
+            }, 'order_updates');
 
             res.json(order);
         } catch (error) {
@@ -232,11 +262,11 @@ const orderController = {
             emitToUser(userId, 'order_placed', { orderId: order.id });
             emitToRole('admin', 'order_placed', { orderId: order.id });
 
-            // Push notification fallback
-            const tokens = await ExpoPushToken.findAll({ where: { userId } });
-            for (const t of tokens) {
-              await sendPushNotification(t.token, 'Order Placed', 'Your order has been placed successfully!', { orderId: order.id });
-            }
+            // Push notification for order placement
+            await sendNotificationWithPreferences(userId, 'Order Placed Successfully', 'Your order has been placed and is awaiting confirmation!', { 
+                orderId: order.id,
+                status: 'pending'
+            }, 'order_updates');
 
             res.json(order);
         } catch (error) {
@@ -301,14 +331,28 @@ const orderController = {
 
             // Real-time: emit to delivery boy and send push notification
             const { emitToUser } = require('../socket');
-            const { ExpoPushToken } = require('../models');
-            const { sendPushNotification } = require('../services/pushService');
+            
             for (const order of updatedOrders) {
-              emitToUser(deliveryBoyId, 'assigned_order', { orderId: order.id });
-            }
-            const tokens = await ExpoPushToken.findAll({ where: { userId: deliveryBoyId } });
-            for (const t of tokens) {
-              await sendPushNotification(t.token, 'New Delivery Assigned', 'You have been assigned a new delivery order.', {});
+                // Notify delivery boy
+                emitToUser(deliveryBoyId, 'assigned_order', { orderId: order.id });
+                
+                // Notify customer about delivery boy assignment
+                emitToUser(order.userId, 'order_status_update', { 
+                    orderId: order.id, 
+                    status: 'processing',
+                    deliveryBoyAssigned: true 
+                });
+                
+                // Send push notification to delivery boy
+                await sendNotificationWithPreferences(deliveryBoyId, 'New Delivery Assigned', 'You have been assigned a new delivery order.', {
+                    orderId: order.id
+                }, 'delivery');
+                
+                // Send push notification to customer
+                await sendNotificationWithPreferences(order.userId, 'Order Confirmed', 'Your order has been confirmed and a delivery partner has been assigned!', {
+                    orderId: order.id,
+                    status: 'processing'
+                }, 'order_updates');
             }
 
             res.json({ updated: updated[0], orders: updatedOrders });

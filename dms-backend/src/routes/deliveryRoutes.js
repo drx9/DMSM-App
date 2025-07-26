@@ -84,12 +84,58 @@ router.put('/orders/:orderId/status', async (req, res) => {
         const deliveryBoyId = req.user.id;
         const { orderId } = req.params;
         const { status } = req.body;
-        const order = await Order.findOne({ where: { id: orderId, deliveryBoyId } });
+        const order = await Order.findOne({ 
+            where: { id: orderId, deliveryBoyId },
+            include: [{ model: User, as: 'customer', attributes: ['id', 'name'] }]
+        });
         if (!order) {
             return res.status(404).json({ message: 'Order not found or not assigned to you' });
         }
+        
+        const oldStatus = order.status;
         order.status = status;
         await order.save();
+
+        // Send push notification to customer
+        const { sendNotificationWithPreferences } = require('../services/pushService');
+        const { emitToUser, emitToOrder } = require('../socket');
+
+        // Real-time updates
+        emitToUser(order.userId, 'order_status_update', { orderId: order.id, status });
+        emitToOrder(order.id, 'order_status_update', { orderId: order.id, status });
+
+        // Push notification with specific messages for each status
+        let notificationTitle = 'Order Update';
+        let notificationBody = `Your order status is now: ${status}`;
+
+        switch (status) {
+            case 'processing':
+                notificationTitle = 'Order Confirmed';
+                notificationBody = 'Your order has been confirmed and is being processed!';
+                break;
+            case 'shipped':
+                notificationTitle = 'Order Shipped';
+                notificationBody = 'Your order has been shipped and is on its way!';
+                break;
+            case 'out_for_delivery':
+                notificationTitle = 'Out for Delivery';
+                notificationBody = 'Your order is out for delivery and will arrive soon!';
+                break;
+            case 'delivered':
+                notificationTitle = 'Order Delivered';
+                notificationBody = 'Your order has been delivered successfully!';
+                break;
+            case 'cancelled':
+                notificationTitle = 'Order Cancelled';
+                notificationBody = 'Your order has been cancelled.';
+                break;
+        }
+
+        await sendNotificationWithPreferences(order.userId, notificationTitle, notificationBody, { 
+            orderId: order.id, 
+            status
+        }, 'order_updates');
+
         res.json({ message: 'Order status updated', status: order.status });
     } catch (error) {
         console.error('Error updating order status:', error);
