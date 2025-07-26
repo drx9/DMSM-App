@@ -236,5 +236,7 @@ module.exports = {
   getProfile,
   updateProfile,
   changePassword,
-  deleteAccount
+  deleteAccount,
+  registerExpoPushToken: exports.registerExpoPushToken,
+  removeExpoPushToken: exports.removeExpoPushToken
 }; 

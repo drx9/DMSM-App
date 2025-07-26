@@ -6,27 +6,24 @@ const { User } = require('../models');
 
 const router = express.Router();
 
-// Apply auth middleware to all routes
-router.use(authenticateToken);
-
 // Get user profile
-router.get('/profile', userController.getProfile);
+router.get('/profile', authenticateToken, userController.getProfile);
 
 // Update user profile
-router.put('/profile', [
+router.put('/profile', authenticateToken, [
   body('name').optional().isLength({ min: 2 }).withMessage('Name must be at least 2 characters long'),
   body('email').optional().isEmail().withMessage('Invalid email format'),
   body('phoneNumber').optional().isMobilePhone().withMessage('Invalid phone number format'),
 ], userController.updateProfile);
 
 // Change password
-router.put('/change-password', [
+router.put('/change-password', authenticateToken, [
   body('currentPassword').notEmpty().withMessage('Current password is required'),
   body('newPassword').isLength({ min: 6 }).withMessage('New password must be at least 6 characters long'),
 ], userController.changePassword);
 
 // Delete account
-router.delete('/delete-account', [
+router.delete('/delete-account', authenticateToken, [
   body('password').notEmpty().withMessage('Password is required'),
 ], userController.deleteAccount);
 
@@ -45,6 +42,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
   }
 });
 
+// Push token endpoints (public - no auth required for app initialization)
 router.post('/register-expo-push-token', userController.registerExpoPushToken);
 router.post('/remove-expo-push-token', userController.removeExpoPushToken);
 
