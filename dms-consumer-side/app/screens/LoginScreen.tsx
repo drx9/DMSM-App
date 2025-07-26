@@ -19,9 +19,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { AntDesign, FontAwesome } from '@expo/vector-icons';
-import { signInWithPhoneNumber, signInWithCredential, PhoneAuthProvider } from 'firebase/auth';
-import { firebaseAuth } from '../firebaseConfig';
-// Firebase Recaptcha removed due to compatibility issues
+import otpService from '../services/otpService';
 import { useNotifications } from '../context/NotificationContext';
 
 // TODO: Add token storage mechanism (e.g., AsyncStorage)
@@ -62,7 +60,7 @@ const LoginScreen = () => {
   // Firebase phone auth states
   // const recaptchaVerifier = useRef(null);
   const [otpCode, setOtpCode] = useState('');
-  const [verificationId, setVerificationId] = useState<string | null>(null);
+  // const [verificationId, setVerificationId] = useState<string | null>(null);
   const [otpSent, setOtpSent] = useState(false);
 
   const [request, response, promptAsync] = Google.useAuthRequest({
@@ -113,38 +111,47 @@ const LoginScreen = () => {
     setIsLoading(true);
     try {
       const fullPhoneNumber = `+91${phoneNumber}`;
-      const confirmation = await signInWithPhoneNumber(firebaseAuth, fullPhoneNumber);
-      setVerificationId(confirmation.verificationId);
-      setOtpSent(true);
-      Alert.alert('Success', 'OTP sent to your phone number!');
+      const result = await otpService.sendOTP(fullPhoneNumber);
+      
+      if (result.success) {
+        setOtpSent(true);
+        Alert.alert('Success', 'OTP sent to your WhatsApp!');
+      } else {
+        Alert.alert('Error', result.message || 'Failed to send OTP');
+      }
     } catch (error: any) {
-      console.error('Firebase phone auth error:', error);
+      console.error('WhatsApp OTP error:', error);
       Alert.alert('Error', error.message || 'Failed to send OTP');
     }
     setIsLoading(false);
   };
 
   const verifyOTP = async () => {
-    if (!verificationId || !otpCode) {
-      Alert.alert('Error', 'Please enter the OTP sent to your phone');
+    if (!otpCode) {
+      Alert.alert('Error', 'Please enter the OTP sent to your WhatsApp');
       return;
     }
 
     setIsLoading(true);
     try {
-      const credential = PhoneAuthProvider.credential(verificationId, otpCode);
-      const result = await signInWithCredential(firebaseAuth, credential);
+      const fullPhoneNumber = `+91${phoneNumber}`;
+      const result = await otpService.verifyOTP(fullPhoneNumber, otpCode);
       
-      // Store user info
-      await AsyncStorage.setItem('userId', result.user.uid);
-      
-      // Initialize notifications after successful login
-      await initializeNotifications(result.user.uid);
-      
-      Alert.alert('Success', 'Phone authentication successful!');
-      router.replace('/(tabs)');
+      if (result.success && result.token && result.user) {
+        // Store user info and token
+        await AsyncStorage.setItem('userId', result.user.id);
+        await AsyncStorage.setItem('userToken', result.token);
+        
+        // Initialize notifications after successful login
+        await initializeNotifications(result.user.id);
+        
+        Alert.alert('Success', 'WhatsApp authentication successful!');
+        router.replace('/(tabs)');
+      } else {
+        Alert.alert('Error', result.message || 'Invalid OTP');
+      }
     } catch (error: any) {
-      console.error('OTP verification error:', error);
+      console.error('WhatsApp OTP verification error:', error);
       Alert.alert('Error', error.message || 'Invalid OTP');
     }
     setIsLoading(false);
@@ -336,7 +343,7 @@ const LoginScreen = () => {
               onPress={() => {
                 setOtpSent(false);
                 setOtpCode('');
-                setVerificationId(null);
+                // setVerificationId(null);
               }}
             >
               <Text style={styles.resendButtonText}>Change Phone Number</Text>
