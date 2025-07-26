@@ -15,6 +15,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useNotifications } from './context/NotificationContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_URL } from './config';
 
 interface NotificationPreference {
   id: string;
@@ -116,13 +117,19 @@ const NotificationSettingsScreen = () => {
   const handleTestNotification = async () => {
     setLoading(true);
     try {
+      console.log('🔍 Starting notification test...');
+      console.log('User ID:', userId);
+      
       // First try local test notification
+      console.log('📱 Testing local notification...');
       await sendTestNotification();
+      console.log('✅ Local notification sent successfully');
       
       // Then try backend test notification if user ID is available
       if (userId) {
+        console.log('🌐 Testing backend notification...');
         try {
-          const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'https://dmsm-app-production-a35d.up.railway.app'}/api/users/test-notification`, {
+          const response = await fetch(`${API_URL}/users/test-notification`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -134,10 +141,29 @@ const NotificationSettingsScreen = () => {
             })
           });
           
+          console.log('Backend response status:', response.status);
+          console.log('Backend response headers:', response.headers);
+          
+          const responseText = await response.text();
+          console.log('Backend response text:', responseText);
+          
+          let responseData;
+          try {
+            responseData = JSON.parse(responseText);
+          } catch (parseError) {
+            console.error('Failed to parse JSON:', parseError);
+            Alert.alert('Partial Success', `Local notification sent, but backend test failed: Invalid response format`);
+            return;
+          }
+          
+          console.log('Backend response data:', responseData);
+          
           if (response.ok) {
             Alert.alert('Success', 'Both local and backend test notifications sent!');
+            console.log('✅ Backend notification sent successfully');
           } else {
-            Alert.alert('Partial Success', 'Local notification sent, but backend test failed');
+            Alert.alert('Partial Success', `Local notification sent, but backend test failed: ${responseData.message || 'Unknown error'}`);
+            console.log('❌ Backend notification failed:', responseData);
           }
         } catch (backendError) {
           console.error('Backend test notification failed:', backendError);
@@ -145,6 +171,7 @@ const NotificationSettingsScreen = () => {
         }
       } else {
         Alert.alert('Success', 'Local test notification sent!');
+        console.log('⚠️ No user ID found for backend test');
       }
     } catch (error) {
       console.error('Test notification error:', error);
@@ -230,6 +257,28 @@ const NotificationSettingsScreen = () => {
     </View>
   );
 
+  const renderDebugSection = () => (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>Debug Info</Text>
+      <View style={styles.debugCard}>
+        <View style={styles.debugItem}>
+          <Text style={styles.debugLabel}>Permission:</Text>
+          <Text style={[styles.debugValue, { color: hasPermission ? '#10B981' : '#EF4444' }]}>
+            {hasPermission ? 'Granted' : 'Denied'}
+          </Text>
+        </View>
+        <View style={styles.debugItem}>
+          <Text style={styles.debugLabel}>User ID:</Text>
+          <Text style={styles.debugValue}>{userId || 'Not found'}</Text>
+        </View>
+        <View style={styles.debugItem}>
+          <Text style={styles.debugLabel}>Badge Count:</Text>
+          <Text style={styles.debugValue}>{badgeCount}</Text>
+        </View>
+      </View>
+    </View>
+  );
+
   const renderActionsSection = () => (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Actions</Text>
@@ -243,6 +292,8 @@ const NotificationSettingsScreen = () => {
         <Text style={styles.actionButtonText}>Send Test Notification</Text>
         <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
       </TouchableOpacity>
+
+
 
       <TouchableOpacity 
         style={[styles.actionButton, badgeCount === 0 && styles.actionButtonDisabled]}
@@ -273,6 +324,7 @@ const NotificationSettingsScreen = () => {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {renderPermissionSection()}
+        {renderDebugSection()}
         {renderPreferencesSection()}
         {renderActionsSection()}
       </ScrollView>
@@ -406,6 +458,28 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#1F2937',
     marginLeft: 12,
+  },
+  debugCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  debugItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  debugLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  debugValue: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#1F2937',
   },
 });
 

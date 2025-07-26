@@ -263,10 +263,16 @@ const orderController = {
             emitToRole('admin', 'order_placed', { orderId: order.id });
 
             // Push notification for order placement
-            await sendNotificationWithPreferences(userId, 'Order Placed Successfully', 'Your order has been placed and is awaiting confirmation!', { 
-                orderId: order.id,
-                status: 'pending'
-            }, 'order_updates');
+            console.log(`📱 Sending order placement notification to user ${userId} for order ${order.id}`);
+            try {
+                await sendNotificationWithPreferences(userId, 'Order Placed Successfully', 'Your order has been placed and is awaiting confirmation!', { 
+                    orderId: order.id,
+                    status: 'pending'
+                }, 'order_updates');
+                console.log(`✅ Order placement notification sent successfully to user ${userId}`);
+            } catch (notificationError) {
+                console.error(`❌ Failed to send order placement notification to user ${userId}:`, notificationError);
+            }
 
             res.json(order);
         } catch (error) {

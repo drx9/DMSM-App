@@ -270,6 +270,22 @@ const CheckoutScreen = () => {
         setOrderPlacing(false);
         setOrderPlaced(true);
         try {
+            // Ensure user has push token registered before placing order
+            const expoToken = await AsyncStorage.getItem('expoPushToken');
+            if (expoToken && userId) {
+                try {
+                    await axios.post(`${API_URL}/users/register-expo-push-token`, {
+                        userId,
+                        expoPushToken: expoToken,
+                        platform: 'ios', // or get from Platform.OS
+                        deviceId: 'unknown'
+                    });
+                    console.log('✅ Push token registered before order placement');
+                } catch (tokenError) {
+                    console.log('⚠️ Push token registration failed:', tokenError);
+                }
+            }
+
             const orderRes = await axios.post(`${API_URL}/orders/place-order`, {
                 userId,
                 address: addresses.find(addr => addr.id === selectedAddressId),
@@ -286,7 +302,20 @@ const CheckoutScreen = () => {
             
             // Send order confirmation notification
             if (orderRes.data.success && orderRes.data.orderId) {
+                // Send local notification
                 await sendOrderNotification(orderRes.data.orderId, 'Order Placed', userId || '');
+                
+                // Also trigger backend notification as backup
+                try {
+                    await axios.post(`${API_URL}/users/test-notification`, {
+                        userId,
+                        title: 'Order Placed Successfully',
+                        message: `Your order #${orderRes.data.orderId} has been placed and is awaiting confirmation!`
+                    });
+                    console.log('✅ Backend order notification sent');
+                } catch (backendError) {
+                    console.error('❌ Backend order notification failed:', backendError);
+                }
             }
             
             await refreshCartFromBackend();
