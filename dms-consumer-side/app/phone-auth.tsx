@@ -1,80 +1,119 @@
-import React, { useRef, useState } from "react";
-import { View, TextInput, Button, Text, Alert } from "react-native";
-import { getAuth, signInWithPhoneNumber, PhoneAuthProvider, signInWithCredential } from "firebase/auth";
-import { firebaseApp } from "./firebaseConfig";
-import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
+import React, { useState, useRef } from 'react';
+// import { getAuth, signInWithPhoneNumber, PhoneAuthProvider, signInWithCredential } from "firebase/auth";
+// import { firebaseApp } from "./firebaseConfig";
+// import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { API_URL } from './config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 
-const API_URL = process.env.EXPO_PUBLIC_API_URL || 'https://dmsm-app-production-a35d.up.railway.app/api';
-const auth = getAuth(firebaseApp);
+// const auth = getAuth(firebaseApp);
 
 export default function PhoneAuthScreen() {
-  const recaptchaVerifier = useRef(null);
+  // const recaptchaVerifier = useRef(null);
   const [phone, setPhone] = useState("");
   const [code, setCode] = useState("");
-  const [verificationId, setVerificationId] = useState<string | null>(null);
+  // const [verificationId, setVerificationId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
   const sendCode = async () => {
-    try {
-      if (!recaptchaVerifier.current) throw new Error("Recaptcha not ready");
-      setIsLoading(true);
-      const confirmation = await signInWithPhoneNumber(auth, phone, recaptchaVerifier.current as any);
-      setVerificationId(confirmation.verificationId);
-      setMessage("OTP sent!");
-    } catch (err) {
-      setMessage(`Error: ${(err as Error).message}`);
-    } finally {
-      setIsLoading(false);
-    }
+    // Temporarily disabled Firebase functionality
+    setMessage("Phone authentication temporarily disabled for build");
+    Alert.alert('Info', 'Phone authentication is temporarily disabled for build testing');
   };
 
   const verifyCode = async () => {
-    try {
-      if (!verificationId) throw new Error("No verificationId");
-      setIsLoading(true);
-      const credential = PhoneAuthProvider.credential(verificationId, code);
-      const userCredential = await signInWithCredential(auth, credential);
-      const idToken = await userCredential.user.getIdToken();
-      console.log('Firebase ID Token:', idToken);
-      // Send idToken to backend
-      const response = await fetch(`${API_URL}/auth/firebase-login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ idToken }),
-      });
-      const data = await response.json();
-      if (data.success && data.token) {
-        await AsyncStorage.setItem('userToken', data.token);
-        await AsyncStorage.setItem('userId', data.user.id);
-        setMessage("Phone verified and logged in!");
-        router.replace('/(tabs)');
-      } else {
-        setMessage(data.error || "Login failed");
-        Alert.alert('Error', data.error || "Login failed");
-      }
-    } catch (err) {
-      setMessage(`Error: ${(err as Error).message}`);
-      Alert.alert('Error', (err as Error).message);
-    } finally {
-      setIsLoading(false);
-    }
+    // Temporarily disabled Firebase functionality
+    setMessage("Phone authentication temporarily disabled for build");
+    Alert.alert('Info', 'Phone authentication is temporarily disabled for build testing');
   };
 
   return (
-    <View>
-      <FirebaseRecaptchaVerifierModal
+    <View style={styles.container}>
+      {/* <FirebaseRecaptchaVerifierModal
         ref={recaptchaVerifier}
         firebaseConfig={firebaseApp.options}
+      /> */}
+      <Text style={styles.title}>Phone Authentication</Text>
+      <Text style={styles.subtitle}>Temporarily disabled for build testing</Text>
+      <TextInput 
+        style={styles.input}
+        placeholder="Phone (+91...)" 
+        value={phone} 
+        onChangeText={setPhone} 
       />
-      <TextInput placeholder="Phone (+91...)" value={phone} onChangeText={setPhone} />
-      <Button title={isLoading ? "Sending..." : "Send OTP"} onPress={sendCode} disabled={isLoading} />
-      <TextInput placeholder="OTP" value={code} onChangeText={setCode} />
-      <Button title={isLoading ? "Verifying..." : "Verify OTP"} onPress={verifyCode} disabled={isLoading} />
-      <Text>{message}</Text>
+      <TouchableOpacity 
+        style={styles.button}
+        onPress={sendCode} 
+        disabled={isLoading}
+      >
+        <Text style={styles.buttonText}>
+          {isLoading ? "Sending..." : "Send OTP"}
+        </Text>
+      </TouchableOpacity>
+      <TextInput 
+        style={styles.input}
+        placeholder="OTP" 
+        value={code} 
+        onChangeText={setCode} 
+      />
+      <TouchableOpacity 
+        style={styles.button}
+        onPress={verifyCode} 
+        disabled={isLoading}
+      >
+        <Text style={styles.buttonText}>
+          {isLoading ? "Verifying..." : "Verify OTP"}
+        </Text>
+      </TouchableOpacity>
+      <Text style={styles.message}>{message}</Text>
     </View>
   );
-} 
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 20,
+    justifyContent: 'center',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  subtitle: {
+    fontSize: 16,
+    textAlign: 'center',
+    color: '#666',
+    marginBottom: 30,
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#ddd',
+    padding: 15,
+    marginBottom: 15,
+    borderRadius: 8,
+    fontSize: 16,
+  },
+  button: {
+    backgroundColor: '#10B981',
+    padding: 15,
+    borderRadius: 8,
+    marginBottom: 15,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  message: {
+    textAlign: 'center',
+    marginTop: 20,
+    color: '#666',
+  },
+}); 

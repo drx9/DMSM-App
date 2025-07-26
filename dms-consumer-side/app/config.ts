@@ -1,5 +1,11 @@
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://dmsm-app-production-a35d.up.railway.app/api";
 
+// Use the API key from app.json or environment variables
+export const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || 
+                                   process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY || 
+                                   'AIzaSyDxIJneZ8qgkgKLsffP46EENI-EGOdnCEU' || 
+                                   'YOUR_GOOGLE_MAPS_API_KEY';
+
 export const APP_CONFIG = {
     APP_NAME: 'DMS Mart',
     VERSION: '1.0.0',

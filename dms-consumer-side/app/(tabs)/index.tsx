@@ -359,9 +359,24 @@ const HomeScreen = () => {
     };
     fetchUserDetails();
     fetchCartTotal();
-    axios.get(`${API_URL}/offers/active`).then(res => {
-      setActiveOffers(res.data || []);
-    }).catch(() => setActiveOffers([]));
+    
+    // Fetch active offers with proper error handling
+    const fetchActiveOffers = async () => {
+      try {
+        console.log('Fetching active offers from:', `${API_URL}/offers/active`);
+        const res = await axios.get(`${API_URL}/offers/active`);
+        console.log('Active offers response:', res.data);
+        
+        // Handle both array and object responses
+        const offersData = Array.isArray(res.data) ? res.data : (res.data.offers || []);
+        setActiveOffers(offersData);
+      } catch (error) {
+        console.error('Error fetching active offers:', error);
+        setActiveOffers([]);
+      }
+    };
+    
+    fetchActiveOffers();
     fetchAllCategoryProducts(); // Call fetchAllCategoryProducts here
   }, []);
 
@@ -497,7 +512,23 @@ const HomeScreen = () => {
 
   // Handler for View All Offers
   const handleViewAllOffers = () => {
+    console.log('Navigating to offers page');
     router.push('/offers' as any);
+  };
+
+  // Refresh offers function
+  const refreshOffers = async () => {
+    try {
+      console.log('Refreshing active offers...');
+      const res = await axios.get(`${API_URL}/offers/active`);
+      console.log('Refreshed offers response:', res.data);
+      
+      const offersData = Array.isArray(res.data) ? res.data : (res.data.offers || []);
+      setActiveOffers(offersData);
+    } catch (error) {
+      console.error('Error refreshing offers:', error);
+      setActiveOffers([]);
+    }
   };
 
 
@@ -587,17 +618,32 @@ const HomeScreen = () => {
           </View>
           <Text style={styles.appIconLabel}>DMSM</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.appIcon}>
+        <TouchableOpacity 
+          style={styles.appIcon}
+          onPress={() => router.push('/dmsm-pay' as any)}
+        >
           <View style={[styles.appIconBg, { backgroundColor: '#FFF3C4' }]}>
-            <Text style={styles.appIconText}>P</Text>
+            <Ionicons name="wallet" size={24} color="#FF6B35" />
           </View>
-          <Text style={styles.appIconLabel}>Pay</Text>
+          <Text style={styles.appIconLabel}>DMSM Pay</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.appIcon}>
+        <TouchableOpacity 
+          style={styles.appIcon}
+          onPress={() => router.push('/(tabs)/groceries' as any)}
+        >
           <View style={[styles.appIconBg, { backgroundColor: '#C8E6C9' }]}>
-            <Text style={styles.appIconText}>G</Text>
+            <Ionicons name="basket" size={24} color="#4CAF50" />
           </View>
           <Text style={styles.appIconLabel}>Groceries</Text>
+        </TouchableOpacity>
+        <TouchableOpacity 
+          style={styles.appIcon}
+          onPress={() => router.push('/categories' as any)}
+        >
+          <View style={[styles.appIconBg, { backgroundColor: '#F3E5F5' }]}>
+            <Ionicons name="grid" size={24} color="#9C27B0" />
+          </View>
+          <Text style={styles.appIconLabel}>Categories</Text>
         </TouchableOpacity>
       </View>
 
@@ -993,13 +1039,13 @@ const HomeScreen = () => {
 
       </ScrollView>
 
-      <View style={styles.stickyDeliveryBar}>
-        <Text style={styles.stickyDeliveryText}>
-          {cartTotal >= FREE_DELIVERY_THRESHOLD
-            ? 'You have free delivery!'
-            : `Add ₹${FREE_DELIVERY_THRESHOLD - cartTotal} for FREE delivery`}
-        </Text>
-      </View>
+      {cartTotal < FREE_DELIVERY_THRESHOLD && (
+        <View style={styles.stickyDeliveryBar}>
+          <Text style={styles.stickyDeliveryText}>
+            Add ₹{FREE_DELIVERY_THRESHOLD - cartTotal} for FREE delivery
+          </Text>
+        </View>
+      )}
     </SafeAreaView>
   );
 };

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { connectSocket, joinRoom, disconnectSocket, onSocketEvent, offSocketEvent } from './services/socketService';
-import { registerForPushNotificationsAsync } from './services/pushService';
+// import { registerForPushNotificationsAsync } from './services/pushService';
 import { Alert } from 'react-native';
-import * as Notifications from 'expo-notifications';
+// import * as Notifications from 'expo-notifications';
 
 function MyApp({ Component, pageProps }: { Component: any; pageProps: any }) {
   const [userId, setUserId] = useState<string | null>(null);
@@ -15,7 +15,7 @@ function MyApp({ Component, pageProps }: { Component: any; pageProps: any }) {
       if (id) {
         connectSocket();
         joinRoom(`user_${id}`);
-        registerForPushNotificationsAsync(id);
+        // registerForPushNotificationsAsync(id);
       } else {
         disconnectSocket();
       }
@@ -39,21 +39,21 @@ function MyApp({ Component, pageProps }: { Component: any; pageProps: any }) {
     };
   }, []);
 
-  // Expo push notification listeners
-  useEffect(() => {
-    const subscriptionReceived = Notifications.addNotificationReceivedListener(notification => {
-      Alert.alert('Notification', notification.request.content.title || 'You have a new notification');
-      // Optionally update state/UI here
-    });
-    const subscriptionResponse = Notifications.addNotificationResponseReceivedListener(response => {
-      // Handle notification tap (navigate, refresh, etc.)
-      // Example: Alert.alert('Notification tapped', JSON.stringify(response));
-    });
-    return () => {
-      subscriptionReceived.remove();
-      subscriptionResponse.remove();
-    };
-  }, []);
+  // Expo push notification listeners - temporarily disabled
+  // useEffect(() => {
+  //   const subscriptionReceived = Notifications.addNotificationReceivedListener(notification => {
+  //     Alert.alert('Notification', notification.request.content.title || 'You have a new notification');
+  //     // Optionally update state/UI here
+  //   });
+  //   const subscriptionResponse = Notifications.addNotificationResponseReceivedListener(response => {
+  //     // Handle notification tap (navigate, refresh, etc.)
+  //     // Example: Alert.alert('Notification tapped', JSON.stringify(response));
+  //   });
+  //   return () => {
+  //     subscriptionReceived.remove();
+  //     subscriptionResponse.remove();
+  //   };
+  // }, []);
 
   return <Component {...pageProps} />;
 }

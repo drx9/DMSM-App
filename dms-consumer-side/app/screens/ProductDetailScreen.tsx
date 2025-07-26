@@ -339,14 +339,16 @@ const ProductDetailScreen = () => {
         </View>
 
         {/* Free Delivery Progress */}
-        <View style={styles.deliverySection}>
-          <Text style={styles.deliveryText}>
-            Add ₹{FREE_DELIVERY_THRESHOLD - cartTotal} for FREE delivery
-          </Text>
-          <TouchableOpacity>
-            <Ionicons name="chevron-up" size={20} color="#333" />
-          </TouchableOpacity>
-        </View>
+        {cartTotal < FREE_DELIVERY_THRESHOLD && (
+          <View style={styles.deliverySection}>
+            <Text style={styles.deliveryText}>
+              Add ₹{FREE_DELIVERY_THRESHOLD - cartTotal} for FREE delivery
+            </Text>
+            <TouchableOpacity>
+              <Ionicons name="chevron-up" size={20} color="#333" />
+            </TouchableOpacity>
+          </View>
+        )}
 
         {/* Expiry and Social Proof */}
         <View style={styles.infoCard}>
@@ -536,19 +538,27 @@ const ProductDetailScreen = () => {
 
       {/* Bottom Delivery Bar with Free Delivery and Buttons in one line */}
       <View style={styles.bottomDeliveryBar}>
-        <View style={styles.deliveryProgressContainer}>
-          <Text style={styles.bottomDeliveryText}>
-            Add ₹{FREE_DELIVERY_THRESHOLD - cartTotal} for FREE delivery
-          </Text>
-          <View style={styles.progressBar}>
-            <View
-              style={[
-                styles.progressFill,
-                { width: `${Math.min((cartTotal / FREE_DELIVERY_THRESHOLD) * 100, 100)}%` }
-              ]}
-            />
+        {cartTotal < FREE_DELIVERY_THRESHOLD ? (
+          <View style={styles.deliveryProgressContainer}>
+            <Text style={styles.bottomDeliveryText}>
+              Add ₹{FREE_DELIVERY_THRESHOLD - cartTotal} for FREE delivery
+            </Text>
+            <View style={styles.progressBar}>
+              <View
+                style={[
+                  styles.progressFill,
+                  { width: `${Math.min((cartTotal / FREE_DELIVERY_THRESHOLD) * 100, 100)}%` }
+                ]}
+              />
+            </View>
           </View>
-        </View>
+        ) : (
+          <View style={styles.deliveryProgressContainer}>
+            <Text style={styles.bottomDeliveryText}>
+              🎉 You have FREE delivery!
+            </Text>
+          </View>
+        )}
 
         <View style={styles.buttonContainer}>
           <TouchableOpacity

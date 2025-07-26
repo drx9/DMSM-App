@@ -230,6 +230,13 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
+          name="offers"
+          options={{
+            title: 'Offers',
+            tabBarIcon: ({ color }) => <Ionicons name="pricetag" size={28} color={color} as const />,
+          }}
+        />
+        <Tabs.Screen
           name="profile"
           options={{
             title: 'Profile',

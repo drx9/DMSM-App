@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, TextInput, Alert, Platform, K
 import MapView, { Marker, Polygon, Region } from 'react-native-maps';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
-import { API_URL } from '../config';
+import { API_URL, GOOGLE_MAPS_API_KEY } from '../config';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -11,7 +11,6 @@ import * as Location from 'expo-location';
 
 const { width, height } = Dimensions.get('window');
 
-const GOOGLE_MAPS_APIKEY = process.env.GOOGLE_MAPS_API_KEY || 'YOUR_GOOGLE_MAPS_API_KEY';
 const NALBARI_BOUNDS = {
     northeast: { lat: 26.464, lng: 91.468 },
     southwest: { lat: 26.420, lng: 91.410 },
@@ -97,7 +96,7 @@ const LocationSelectionScreen = ({ onLocationSelected, savedAddress, userId: pro
     const [marker, setMarker] = useState<{ latitude: number; longitude: number } | null>(null);
     const [manualAddress, setManualAddress] = useState('');
     const [error, setError] = useState('');
-    const [query, setQuery] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
     const [predictions, setPredictions] = useState<any[]>([]);
     const [loadingPredictions, setLoadingPredictions] = useState(false);
     const [showDetailsModal, setShowDetailsModal] = useState(false);
@@ -110,6 +109,9 @@ const LocationSelectionScreen = ({ onLocationSelected, savedAddress, userId: pro
     const [currentAddress, setCurrentAddress] = useState('');
     const [loadingLocation, setLoadingLocation] = useState(true);
     const [currentAddressComponents, setCurrentAddressComponents] = useState<any[]>([]);
+    const [showSearchSuggestions, setShowSearchSuggestions] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+    const [savedAddressDisplay, setSavedAddressDisplay] = useState<any>(null);
 
     useEffect(() => {
         if (!userId) {
@@ -150,54 +152,119 @@ const LocationSelectionScreen = ({ onLocationSelected, savedAddress, userId: pro
       })();
     }, []);
 
+    // Debounced search function
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            if (searchQuery.trim()) {
+                fetchPredictions(searchQuery.trim());
+            } else {
+                setPredictions([]);
+                setShowSearchSuggestions(false);
+            }
+        }, 300);
+
+        return () => clearTimeout(timeoutId);
+    }, [searchQuery]);
+
+    // Fetch saved address from AsyncStorage when modal opens
+    useEffect(() => {
+        if (showDetailsModal) {
+            AsyncStorage.getItem('userAddress').then(addr => {
+                if (addr) {
+                    try {
+                        setSavedAddressDisplay(JSON.parse(addr));
+                    } catch {
+                        setSavedAddressDisplay(null);
+                    }
+                } else {
+                    setSavedAddressDisplay(null);
+                }
+            });
+            
+            // Pre-fill address fields with location data
+            if (currentAddressComponents.length > 0) {
+                const parsed = extractAddressParts(currentAddressComponents);
+                setAddressDetails(prev => ({
+                    ...prev,
+                    locality: parsed.city || '',
+                    // Keep existing house and landmark if user already entered them
+                }));
+            }
+        }
+    }, [showDetailsModal, currentAddressComponents]);
+
     const fetchPredictions = async (input: string) => {
-        if (!input) {
+        if (!input || input.length < 2) {
             setPredictions([]);
+            setShowSearchSuggestions(false);
             return;
         }
-        if (GOOGLE_MAPS_APIKEY === 'YOUR_GOOGLE_MAPS_API_KEY') {
-            console.warn('Google Maps API key not configured');
+        if (GOOGLE_MAPS_API_KEY === 'YOUR_GOOGLE_MAPS_API_KEY') {
             setPredictions([]);
+            setShowSearchSuggestions(false);
+            setError('Google Maps API key not configured. Please contact support.');
             return;
         }
         setLoadingPredictions(true);
         try {
-            const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&key=${GOOGLE_MAPS_APIKEY}&components=country:in`;
+            const url = `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=${encodeURIComponent(input)}&key=${GOOGLE_MAPS_API_KEY}&components=country:in&location=${NALBARI_CENTER.latitude},${NALBARI_CENTER.longitude}&radius=50000`;
             const res = await fetch(url);
             const json = await res.json();
-            setPredictions(json.predictions || []);
+            if (json.status === 'REQUEST_DENIED') {
+                setError('Search service temporarily unavailable. Please try again.');
+                setPredictions([]);
+                setShowSearchSuggestions(false);
+            } else if (json.status === 'OK') {
+                setPredictions(json.predictions || []);
+                setShowSearchSuggestions(true);
+                setError(''); // Clear any previous errors
+            } else {
+                setPredictions([]);
+                setShowSearchSuggestions(false);
+            }
         } catch (err) {
-            console.error('Error fetching predictions:', err);
             setPredictions([]);
+            setShowSearchSuggestions(false);
+            setError('Network error. Please check your connection and try again.');
         }
         setLoadingPredictions(false);
     };
 
     const handlePredictionPress = async (item: any) => {
-        setQuery(item.description);
+        setSearchQuery(item.description);
         setPredictions([]);
+        setShowSearchSuggestions(false);
         setManualAddress(item.description);
         try {
-            if (GOOGLE_MAPS_APIKEY === 'YOUR_GOOGLE_MAPS_API_KEY') {
-                console.warn('Google Maps API key not configured');
+            if (GOOGLE_MAPS_API_KEY === 'YOUR_GOOGLE_MAPS_API_KEY') {
                 setError('Google Maps API key not configured. Please contact support.');
                 return;
             }
-            const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${item.place_id}&key=${GOOGLE_MAPS_APIKEY}`;
+            const detailsUrl = `https://maps.googleapis.com/maps/api/place/details/json?place_id=${item.place_id}&key=${GOOGLE_MAPS_API_KEY}`;
             const res = await fetch(detailsUrl);
             const details = await res.json();
             const location = details.result.geometry.location;
+            const newRegion = {
+                latitude: location.lat,
+                longitude: location.lng,
+                latitudeDelta: 0.005,
+                longitudeDelta: 0.005,
+            };
+            setRegion(newRegion);
             setMarker({ latitude: location.lat, longitude: location.lng });
             if (mapRef.current) {
-                mapRef.current.animateToRegion({
-                    latitude: location.lat,
-                    longitude: location.lng,
-                    latitudeDelta: 0.005,
-                    longitudeDelta: 0.005,
-                });
+                mapRef.current.animateToRegion(newRegion, 500);
             }
+            // Update address
+            const addrObj = await reverseGeocode(location.lat, location.lng);
+            setCurrentAddress(addrObj.formatted_address);
+            setCurrentAddressComponents(addrObj.address_components);
+            
+            // Automatically trigger confirm location
+            setTimeout(() => {
+                handleConfirmLocation();
+            }, 1000); // Small delay to let map animation complete
         } catch (err: any) {
-            console.error('Error fetching place details:', err);
             setError('Failed to fetch place details.');
         }
     };
@@ -205,11 +272,10 @@ const LocationSelectionScreen = ({ onLocationSelected, savedAddress, userId: pro
     // Update reverseGeocode to return both formatted_address and address_components
     const reverseGeocode = async (lat: number, lng: number) => {
       try {
-        if (GOOGLE_MAPS_APIKEY === 'YOUR_GOOGLE_MAPS_API_KEY') {
-          console.warn('Google Maps API key not configured');
+        if (GOOGLE_MAPS_API_KEY === 'YOUR_GOOGLE_MAPS_API_KEY') {
           return { formatted_address: '', address_components: [] };
         }
-        const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_MAPS_APIKEY}`;
+        const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=${lat},${lng}&key=${GOOGLE_MAPS_API_KEY}`;
         const res = await fetch(url);
         const json = await res.json();
         if (json.results && json.results.length > 0) {
@@ -219,7 +285,7 @@ const LocationSelectionScreen = ({ onLocationSelected, savedAddress, userId: pro
           };
         }
       } catch (err) {
-        console.error('Error in reverse geocoding:', err);
+        // Silent fail for reverse geocoding
       }
       return { formatted_address: '', address_components: [] };
     };
@@ -231,34 +297,74 @@ const LocationSelectionScreen = ({ onLocationSelected, savedAddress, userId: pro
       setCurrentAddressComponents(addrObj.address_components);
     };
 
+    const handleMapDragStart = () => {
+      setIsDragging(true);
+    };
+
+    const handleMapDragEnd = async (reg: Region) => {
+      setIsDragging(false);
+      // Don't call reverseGeocode here as it's already handled in handleRegionChangeComplete
+    };
+
     const handleUseCurrentLocation = async () => {
-      setLoadingLocation(true);
-      const location = await getLocationSafe();
-      if (location) {
-        const { latitude, longitude } = location.coords;
-        const newRegion = {
-          latitude,
-          longitude,
-          latitudeDelta: 0.01,
-          longitudeDelta: 0.01,
-        };
-        setRegion(newRegion);
-        const addrObj = await reverseGeocode(latitude, longitude);
-        setCurrentAddress(addrObj.formatted_address);
-        setCurrentAddressComponents(addrObj.address_components);
-        if (mapRef.current) mapRef.current.animateToRegion(newRegion, 500);
-      }
-      setLoadingLocation(false);
+        setLoadingLocation(true);
+        // Always fetch the latest device location
+        try {
+            let { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert(
+                    'Permission Denied',
+                    'Location permission is required to use this feature. Please enable it in your device settings.'
+                );
+                setLoadingLocation(false);
+                return;
+            }
+            let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Highest });
+            if (location) {
+                const { latitude, longitude } = location.coords;
+                const newRegion = {
+                    latitude,
+                    longitude,
+                    latitudeDelta: 0.01,
+                    longitudeDelta: 0.01,
+                };
+                setRegion(newRegion);
+                setMarker({ latitude, longitude });
+                const addrObj = await reverseGeocode(latitude, longitude);
+                setCurrentAddress(addrObj.formatted_address);
+                setCurrentAddressComponents(addrObj.address_components);
+                if (mapRef.current) mapRef.current.animateToRegion(newRegion, 500);
+                
+                // Automatically trigger confirm location
+                setTimeout(() => {
+                    handleConfirmLocation();
+                }, 1000); // Small delay to let map animation complete
+            }
+        } catch (error) {
+            Alert.alert('Location Error', 'Could not get your location. Please try again or check your device settings.');
+        }
+        setLoadingLocation(false);
     };
 
     const handleConfirmLocation = () => {
-      if (!region) return;
-      if (!isWithinNalbari(region.latitude, region.longitude)) {
-        setError('Out of service area. We currently only deliver within Nalbari.');
-        return;
-      }
-      setError('');
-      setShowDetailsModal(true);
+        if (!region) return;
+        
+        // Check if within service area
+        if (!isWithinNalbari(region.latitude, region.longitude)) {
+            // If outside service area, still allow but show warning
+            Alert.alert(
+                'Outside Service Area',
+                'This location is outside our current delivery area. You can still save this address for future use.',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Continue', onPress: () => setShowDetailsModal(true) }
+                ]
+            );
+            return;
+        }
+        
+        setError('');
+        setShowDetailsModal(true);
     };
 
     const handleUseSaved = () => {
@@ -300,20 +406,17 @@ const LocationSelectionScreen = ({ onLocationSelected, savedAddress, userId: pro
             setError('Please select a valid location on the map.');
             return;
         }
-        if (!isWithinNalbari(lat, lng)) {
-            setError('Out of service area. We currently only deliver within Nalbari.');
-            return;
-        }
+        
         const parsed = extractAddressParts(currentAddressComponents);
         const fullAddress = {
             line1: `${addressDetails.house}, ${addressDetails.landmark}, ${addressDetails.locality}`.replace(/^[,\s]+|[,\s]+$/g, ''),
-            city: addressDetails.locality, // use user input
+            city: addressDetails.locality || parsed.city, // use user input or parsed
             state: parsed.state,
             country: parsed.country,
             postalCode: parsed.postalCode,
             house: addressDetails.house,
             landmark: addressDetails.landmark,
-            locality: addressDetails.locality,
+            locality: addressDetails.locality || parsed.city,
             latitude: lat,
             longitude: lng,
             userId: finalUserId,
@@ -336,8 +439,80 @@ const LocationSelectionScreen = ({ onLocationSelected, savedAddress, userId: pro
         }
     };
 
+    const renderSearchSuggestion = ({ item }: { item: any }) => (
+        <TouchableOpacity
+            style={styles.suggestionItem}
+            onPress={() => handlePredictionPress(item)}
+        >
+            <Ionicons name="location" size={20} color="#6B7280" style={styles.suggestionIcon} />
+            <View style={styles.suggestionTextContainer}>
+                <Text style={styles.suggestionMainText} numberOfLines={1}>
+                    {item.structured_formatting?.main_text || item.description}
+                </Text>
+                <Text style={styles.suggestionSecondaryText} numberOfLines={1}>
+                    {item.structured_formatting?.secondary_text || ''}
+                </Text>
+            </View>
+        </TouchableOpacity>
+    );
+
     return (
         <View style={styles.container}>
+            {/* Header */}
+            <View style={styles.headerOverlay}>
+                <View style={styles.headerContainer}>
+                    <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
+                        <Ionicons name="arrow-back" size={24} color="#1F2937" />
+                    </TouchableOpacity>
+                    <Text style={styles.headerTitle}>Select Location</Text>
+                    <View style={{ width: 40 }} />
+                </View>
+            </View>
+
+            {/* Search Bar */}
+            <View style={styles.searchOverlay}>
+                <View style={styles.searchContainer}>
+                    <Ionicons name="search" size={20} color="#6B7280" style={styles.searchIcon} />
+                    <TextInput
+                        style={styles.searchInput}
+                        placeholder="Search for a location..."
+                        value={searchQuery}
+                        onChangeText={setSearchQuery}
+                        onFocus={() => {
+                            if (predictions.length > 0) setShowSearchSuggestions(true);
+                        }}
+                        onBlur={() => {
+                            // Delay hiding suggestions to allow for taps
+                            setTimeout(() => setShowSearchSuggestions(false), 200);
+                        }}
+                    />
+                    {searchQuery.length > 0 && (
+                        <TouchableOpacity onPress={() => setSearchQuery('')}>
+                            <Ionicons name="close-circle" size={20} color="#6B7280" />
+                        </TouchableOpacity>
+                    )}
+                </View>
+
+                {/* Search Suggestions */}
+                {showSearchSuggestions && (predictions.length > 0 || loadingPredictions) && (
+                    <View style={styles.suggestionsContainer}>
+                        {loadingPredictions ? (
+                            <View style={styles.loadingContainer}>
+                                <Text style={styles.loadingText}>Searching...</Text>
+                            </View>
+                        ) : (
+                            <FlatList
+                                data={predictions}
+                                renderItem={renderSearchSuggestion}
+                                keyExtractor={(item) => item.place_id}
+                                style={styles.suggestionsList}
+                                keyboardShouldPersistTaps="handled"
+                            />
+                        )}
+                    </View>
+                )}
+            </View>
+
             {/* Full Screen Map */}
             <MapView
                 ref={mapRef}
@@ -345,6 +520,7 @@ const LocationSelectionScreen = ({ onLocationSelected, savedAddress, userId: pro
                 initialRegion={region || { ...NALBARI_CENTER, latitudeDelta: 0.01, longitudeDelta: 0.01 }}
                 region={region || undefined}
                 onRegionChangeComplete={handleRegionChangeComplete}
+                onPanDrag={handleMapDragStart}
             >
                 {/* Service area polygon border */}
                 <Polygon
@@ -359,27 +535,39 @@ const LocationSelectionScreen = ({ onLocationSelected, savedAddress, userId: pro
                     strokeWidth={3}
                 />
             </MapView>
+
             {/* Fixed Pin Overlay */}
             <View pointerEvents="none" style={styles.pinContainer}>
                 <View style={styles.pinShadow} />
-                <View style={styles.pinBody} />
+                <View style={styles.pinBody}>
+                    <View style={styles.pinInner} />
+                </View>
                 <View style={styles.pinTip} />
             </View>
+
+            {/* Map Instructions */}
+            {!searchQuery && predictions.length === 0 && (
+                <View style={styles.mapInstructionOverlay}>
+                    <Text style={styles.mapInstructionText}>
+                        {isDragging ? 'Release to set location' : 'Drag map or search for location'}
+                    </Text>
+                </View>
+            )}
+
             {/* Use Current Location Button */}
             <TouchableOpacity style={styles.currentLocationButton} onPress={handleUseCurrentLocation}>
                 <Ionicons name="locate" size={20} color="#10B981" />
                 <Text style={styles.currentLocationText}>Use current location</Text>
             </TouchableOpacity>
-            {/* Address Display */}
-            <View style={styles.addressDisplay}>
-                <Text style={styles.addressText}>{loadingLocation ? 'Loading location...' : currentAddress || 'Move the map to select a location'}</Text>
-            </View>
+
             {/* Confirm Button */}
             <TouchableOpacity style={styles.confirmButton} onPress={handleConfirmLocation}>
                 <Text style={styles.confirmButtonText}>Confirm Location</Text>
             </TouchableOpacity>
+
             {/* Error Message */}
             {error ? <Text style={styles.error}>{error}</Text> : null}
+
             {/* Details Modal (unchanged) */}
             <Modal
                 visible={showDetailsModal}
@@ -395,6 +583,14 @@ const LocationSelectionScreen = ({ onLocationSelected, savedAddress, userId: pro
                                 <Text style={styles.closeButton}>✕</Text>
                             </TouchableOpacity>
                         </View>
+
+                        {/* Selected Location Display */}
+                        {currentAddress && (
+                            <View style={styles.selectedLocationContainer}>
+                                <Text style={styles.selectedLocationTitle}>Selected Location:</Text>
+                                <Text style={styles.selectedLocationText}>{currentAddress}</Text>
+                            </View>
+                        )}
 
                         <Text style={styles.orderingFor}>Who you are ordering for?</Text>
 
@@ -451,6 +647,15 @@ const LocationSelectionScreen = ({ onLocationSelected, savedAddress, userId: pro
                             onChangeText={text => setAddressDetails({ ...addressDetails, locality: text })}
                         />
 
+                        {savedAddressDisplay && (
+  <View style={{ marginBottom: 16, backgroundColor: '#F3F4F6', padding: 12, borderRadius: 8 }}>
+    <Text style={{ fontWeight: 'bold', color: '#374151' }}>Your Saved Address:</Text>
+    <Text style={{ color: '#374151' }}>{savedAddressDisplay.line1}</Text>
+    <Text style={{ color: '#6B7280' }}>{savedAddressDisplay.city}, {savedAddressDisplay.state} {savedAddressDisplay.postalCode}</Text>
+    <Text style={{ color: '#6B7280' }}>{savedAddressDisplay.country}</Text>
+  </View>
+)}
+
                         <TouchableOpacity style={styles.saveButton} onPress={handleSaveDetails}>
                             <Text style={styles.saveButtonText}>Save address</Text>
                         </TouchableOpacity>
@@ -483,9 +688,11 @@ const styles = StyleSheet.create({
         zIndex: 1000,
     },
     headerContainer: {
-
-
-
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
     },
     backButton: {
         padding: 8,
@@ -536,16 +743,18 @@ const styles = StyleSheet.create({
         shadowRadius: 8,
         elevation: 5,
     },
-    loadingText: {
+    loadingContainer: {
         padding: 16,
+        alignItems: 'center',
+    },
+    loadingText: {
         color: '#6B7280',
         fontSize: 14,
-        textAlign: 'center',
     },
     suggestionsList: {
         maxHeight: 250,
     },
-    suggestion: {
+    suggestionItem: {
         flexDirection: 'row',
         alignItems: 'center',
         padding: 16,
@@ -555,10 +764,18 @@ const styles = StyleSheet.create({
     suggestionIcon: {
         marginRight: 12,
     },
-    suggestionText: {
+    suggestionTextContainer: {
         flex: 1,
+    },
+    suggestionMainText: {
         fontSize: 16,
         color: '#374151',
+        fontWeight: '500',
+    },
+    suggestionSecondaryText: {
+        fontSize: 14,
+        color: '#6B7280',
+        marginTop: 2,
     },
     mapInstructionOverlay: {
         position: 'absolute',
@@ -860,30 +1077,50 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: '50%',
         left: '50%',
-        transform: [{ translateX: -20 }, { translateY: -20 }],
+        transform: [{ translateX: -15 }, { translateY: -30 }],
         zIndex: 10,
+        alignItems: 'center',
     },
     pinShadow: {
-        width: 40,
-        height: 10,
-        backgroundColor: 'rgba(0,0,0,0.2)',
-        borderRadius: 5,
-        marginTop: 10,
+        width: 30,
+        height: 8,
+        backgroundColor: 'rgba(0,0,0,0.15)',
+        borderRadius: 15,
+        marginTop: 25,
     },
     pinBody: {
-        width: 20,
-        height: 20,
+        width: 30,
+        height: 30,
         backgroundColor: '#10B981',
-        borderRadius: 10,
+        borderRadius: 15,
         borderWidth: 3,
-        borderColor: '#34D399',
+        borderColor: '#FFFFFF',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 4,
+        elevation: 5,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    pinInner: {
+        width: 12,
+        height: 12,
+        backgroundColor: '#FFFFFF',
+        borderRadius: 6,
     },
     pinTip: {
-        width: 10,
-        height: 10,
-        backgroundColor: '#10B981',
-        borderRadius: 5,
-        marginTop: -5,
+        width: 0,
+        height: 0,
+        backgroundColor: 'transparent',
+        borderStyle: 'solid',
+        borderLeftWidth: 8,
+        borderRightWidth: 8,
+        borderTopWidth: 12,
+        borderLeftColor: 'transparent',
+        borderRightColor: 'transparent',
+        borderTopColor: '#10B981',
+        marginTop: -2,
     },
     addressDisplay: {
         position: 'absolute',
@@ -926,6 +1163,23 @@ const styles = StyleSheet.create({
         color: '#FFFFFF',
         fontSize: 16,
         fontWeight: '600',
+    },
+    selectedLocationContainer: {
+        backgroundColor: '#F3F4F6',
+        padding: 12,
+        borderRadius: 8,
+        marginBottom: 16,
+    },
+    selectedLocationTitle: {
+        fontSize: 14,
+        fontWeight: '500',
+        color: '#374151',
+        marginBottom: 4,
+    },
+    selectedLocationText: {
+        fontSize: 16,
+        color: '#1F2937',
+        fontWeight: '500',
     },
 });
 

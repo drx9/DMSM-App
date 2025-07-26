@@ -27,6 +27,10 @@ const Offer = sequelize.define('Offer', {
         type: DataTypes.BOOLEAN,
         defaultValue: true,
     },
+    banner_image: {
+        type: DataTypes.TEXT,
+        allowNull: true,
+    },
 }, {
     tableName: 'offers',
     timestamps: true,
