@@ -116,8 +116,38 @@ const NotificationSettingsScreen = () => {
   const handleTestNotification = async () => {
     setLoading(true);
     try {
+      // First try local test notification
       await sendTestNotification();
+      
+      // Then try backend test notification if user ID is available
+      if (userId) {
+        try {
+          const response = await fetch(`${process.env.EXPO_PUBLIC_API_URL || 'https://dmsm-app-production-a35d.up.railway.app'}/api/users/test-notification`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              userId,
+              title: 'Backend Test',
+              message: 'This is a test notification from the backend!'
+            })
+          });
+          
+          if (response.ok) {
+            Alert.alert('Success', 'Both local and backend test notifications sent!');
+          } else {
+            Alert.alert('Partial Success', 'Local notification sent, but backend test failed');
+          }
+        } catch (backendError) {
+          console.error('Backend test notification failed:', backendError);
+          Alert.alert('Partial Success', 'Local notification sent, but backend test failed');
+        }
+      } else {
+        Alert.alert('Success', 'Local test notification sent!');
+      }
     } catch (error) {
+      console.error('Test notification error:', error);
       Alert.alert('Error', 'Failed to send test notification');
     } finally {
       setLoading(false);

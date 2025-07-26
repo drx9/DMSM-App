@@ -46,4 +46,22 @@ router.get('/:id', authenticateToken, async (req, res) => {
 router.post('/register-expo-push-token', userController.registerExpoPushToken);
 router.post('/remove-expo-push-token', userController.removeExpoPushToken);
 
+// Debug endpoint to test push notifications
+router.post('/test-notification', async (req, res) => {
+  try {
+    const { userId, title, message } = req.body;
+    if (!userId || !title || !message) {
+      return res.status(400).json({ message: 'userId, title, and message are required' });
+    }
+
+    const { sendNotificationWithPreferences } = require('../services/pushService');
+    await sendNotificationWithPreferences(userId, title, message, { test: true }, 'general');
+    
+    res.json({ success: true, message: 'Test notification sent' });
+  } catch (error) {
+    console.error('Error sending test notification:', error);
+    res.status(500).json({ message: 'Failed to send test notification' });
+  }
+});
+
 module.exports = router; 

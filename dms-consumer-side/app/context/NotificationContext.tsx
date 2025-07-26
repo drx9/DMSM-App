@@ -64,7 +64,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
   const setupNotificationListeners = () => {
     // Listen for notification received while app is running
-    notificationListener.current = pushNotificationService['setupNotificationListeners']?.();
+    // The setupNotificationListeners method is private, so we'll handle it differently
+    // The push service already sets up listeners in its initialize method
   };
 
   const initializeNotifications = async (userId: string): Promise<boolean> => {

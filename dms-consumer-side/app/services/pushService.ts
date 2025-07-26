@@ -212,15 +212,22 @@ class PushNotificationService {
 
   async sendTokenToBackend(userId: string, token: string) {
     try {
-      await axios.post(`${API_URL}/users/register-expo-push-token`, {
+      console.log('Sending token to backend:', { userId, token, platform: Platform.OS });
+      const response = await axios.post(`${API_URL}/users/register-expo-push-token`, {
         userId,
         expoPushToken: token,
         platform: Platform.OS,
         deviceId: Device.osInternalBuildId || 'unknown'
       });
-      console.log('Push token registered with backend');
+      console.log('Push token registered with backend:', response.data);
+      return true;
     } catch (error) {
       console.error('Failed to register push token with backend:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('Response data:', error.response?.data);
+        console.error('Response status:', error.response?.status);
+      }
+      return false;
     }
   }
 
