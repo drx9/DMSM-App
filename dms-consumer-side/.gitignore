@@ -37,3 +37,12 @@ yarn-error.*
 *.tsbuildinfo
 
 app-example
+
+# Firebase service account credentials
+fcm-service-account.json
+*.json
+!package.json
+!package-lock.json
+!tsconfig.json
+!app.json
+!eas.json
