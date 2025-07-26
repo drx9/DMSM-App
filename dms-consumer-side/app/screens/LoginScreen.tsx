@@ -21,7 +21,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { AntDesign, FontAwesome } from '@expo/vector-icons';
 import { signInWithPhoneNumber, signInWithCredential, PhoneAuthProvider } from 'firebase/auth';
 import { firebaseAuth } from '../firebaseConfig';
-import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
+// Firebase Recaptcha removed due to compatibility issues
 import { useNotifications } from '../context/NotificationContext';
 
 // TODO: Add token storage mechanism (e.g., AsyncStorage)
@@ -60,7 +60,7 @@ const LoginScreen = () => {
   const { initializeNotifications, requestPermission } = useNotifications();
 
   // Firebase phone auth states
-  const recaptchaVerifier = useRef(null);
+  // const recaptchaVerifier = useRef(null);
   const [otpCode, setOtpCode] = useState('');
   const [verificationId, setVerificationId] = useState<string | null>(null);
   const [otpSent, setOtpSent] = useState(false);
@@ -113,7 +113,7 @@ const LoginScreen = () => {
     setIsLoading(true);
     try {
       const fullPhoneNumber = `+91${phoneNumber}`;
-      const confirmation = await signInWithPhoneNumber(firebaseAuth, fullPhoneNumber, recaptchaVerifier.current!);
+      const confirmation = await signInWithPhoneNumber(firebaseAuth, fullPhoneNumber);
       setVerificationId(confirmation.verificationId);
       setOtpSent(true);
       Alert.alert('Success', 'OTP sent to your phone number!');
@@ -383,10 +383,7 @@ const LoginScreen = () => {
       </ScrollView>
 
       {/* Firebase reCAPTCHA modal */}
-      <FirebaseRecaptchaVerifierModal
-        ref={recaptchaVerifier}
-        firebaseConfig={firebaseAuth.app.options}
-      />
+      {/* FirebaseRecaptchaVerifierModal removed due to compatibility issues */}
     </KeyboardAvoidingView>
   );
 };

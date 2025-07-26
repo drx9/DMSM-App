@@ -1,13 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { signInWithPhoneNumber, signInWithCredential, PhoneAuthProvider } from 'firebase/auth';
 import { firebaseAuth } from './firebaseConfig';
-import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
+// Firebase Recaptcha removed due to compatibility issues
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 
 export default function PhoneAuthScreen() {
-  const recaptchaVerifier = useRef(null);
+  // const recaptchaVerifier = useRef(null);
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [verificationId, setVerificationId] = useState<string | null>(null);
@@ -23,7 +23,7 @@ export default function PhoneAuthScreen() {
     }
     setIsLoading(true);
     try {
-      const confirmation = await signInWithPhoneNumber(firebaseAuth, phone, recaptchaVerifier.current!);
+      const confirmation = await signInWithPhoneNumber(firebaseAuth, phone);
       setVerificationId(confirmation.verificationId);
       setMessage('OTP sent! Please check your phone.');
     } catch (err: any) {
@@ -56,10 +56,7 @@ export default function PhoneAuthScreen() {
 
   return (
     <View style={styles.container}>
-      <FirebaseRecaptchaVerifierModal
-        ref={recaptchaVerifier}
-        firebaseConfig={firebaseAuth.app.options}
-      />
+      {/* FirebaseRecaptchaVerifierModal removed due to compatibility issues */}
       <Text style={styles.title}>Phone Authentication</Text>
       <Text style={styles.subtitle}>Sign in with your phone number</Text>
       <TextInput
