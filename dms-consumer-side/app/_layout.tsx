@@ -3,6 +3,7 @@ import LanguageProvider from './context/LanguageContext';
 import { CartProvider } from './context/CartContext';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { WishlistProvider } from './context/WishlistContext';
+import { NotificationProvider } from './context/NotificationContext';
 import OrderStatusBar from '../components/OrderStatusBar';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -66,20 +67,23 @@ export default function RootLayout() {
       <Provider store={store}>
         <GestureHandlerRootView style={{ flex: 1 }}>
           <OrderStatusBar orderId={activeOrderId} destination={destination} />
-          <CartProvider>
-            <LanguageProvider>
-              <WishlistProvider>
-                <Stack screenOptions={{ headerShown: false }}>
-                  <Stack.Screen name="splash" />
+          <NotificationProvider>
+            <CartProvider>
+              <LanguageProvider>
+                <WishlistProvider>
+                  <Stack screenOptions={{ headerShown: false }}>
+                                      <Stack.Screen name="splash" />
                   <Stack.Screen name="language" />
                   <Stack.Screen name="signup" />
                   <Stack.Screen name="verify-otp" />
                   <Stack.Screen name="phone-auth" options={{ headerShown: false }} />
                   <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                </Stack>
-              </WishlistProvider>
-            </LanguageProvider>
-          </CartProvider>
+                  <Stack.Screen name="notification-settings" options={{ headerShown: false }} />
+                  </Stack>
+                </WishlistProvider>
+              </LanguageProvider>
+            </CartProvider>
+          </NotificationProvider>
         </GestureHandlerRootView>
       </Provider>
     </ErrorBoundary>

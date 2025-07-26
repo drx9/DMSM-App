@@ -1,5 +1,6 @@
 // Firebase config for Expo app
-import { initializeApp } from "firebase/app";
+import { initializeApp, getApps } from "firebase/app";
+import { getAuth } from "firebase/auth";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCw93kTCiYNqv1bQmF1UJ-aZoFvaI1TTj8",
@@ -10,4 +11,8 @@ const firebaseConfig = {
   appId: "1:499974453409:android:ae54875603fed9dd07d8e0"
 };
 
-export const firebaseApp = initializeApp(firebaseConfig); 
+// Prevent double initialization
+export const firebaseApp = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
+
+// Singleton Auth instance
+export const firebaseAuth = getAuth(firebaseApp); 

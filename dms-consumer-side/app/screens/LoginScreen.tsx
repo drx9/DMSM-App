@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -19,6 +19,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { AntDesign, FontAwesome } from '@expo/vector-icons';
+import { signInWithPhoneNumber, signInWithCredential, PhoneAuthProvider } from 'firebase/auth';
+import { firebaseAuth } from '../firebaseConfig';
+import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
+import { useNotifications } from '../context/NotificationContext';
 
 // TODO: Add token storage mechanism (e.g., AsyncStorage)
 // import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -53,12 +57,19 @@ const LoginScreen = () => {
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { t } = useLanguage();
+  const { initializeNotifications, requestPermission } = useNotifications();
+
+  // Firebase phone auth states
+  const recaptchaVerifier = useRef(null);
+  const [otpCode, setOtpCode] = useState('');
+  const [verificationId, setVerificationId] = useState<string | null>(null);
+  const [otpSent, setOtpSent] = useState(false);
 
   const [request, response, promptAsync] = Google.useAuthRequest({
-    clientId: 'YOUR_EXPO_CLIENT_ID',
-    iosClientId: 'YOUR_IOS_CLIENT_ID',
-    androidClientId: 'YOUR_ANDROID_CLIENT_ID',
-    webClientId: 'YOUR_WEB_CLIENT_ID',
+    clientId: '875079305931-f0k3mdqqrrbj9ablfn1gdqp7rn4567iq.apps.googleusercontent.com', // Android client ID
+    iosClientId: '875079305931-f0k3mdqqrrbj9ablfn1gdqp7rn4567iq.apps.googleusercontent.com', // Same for now, update when you create iOS client
+    androidClientId: '875079305931-f0k3mdqqrrbj9ablfn1gdqp7rn4567iq.apps.googleusercontent.com', // Your Android client ID
+    webClientId: '875079305931-f0k3mdqqrrbj9ablfn1gdqp7rn4567iq.apps.googleusercontent.com', // Same for now, update when you create web client
   });
 
   useEffect(() => {
@@ -72,6 +83,10 @@ const LoginScreen = () => {
               // Store user info and token
               await AsyncStorage.setItem('userId', res.data.user.id);
               // await AsyncStorage.setItem('userToken', res.data.token);
+              
+              // Initialize notifications after successful login
+              await initializeNotifications(res.data.user.id);
+              
               Alert.alert('Success', 'Logged in with Google!');
               router.replace('/(tabs)');
             } else if (res.data.redirectToRegister && res.data.email) {
@@ -89,45 +104,64 @@ const LoginScreen = () => {
     }
   }, [response]);
 
-  const handleLogin = async () => {
-    setIsLoading(true);
-    if (loginMode === 'phone') {
-      await handlePhoneLogin();
-    } else {
-      await handleEmailLogin();
-    }
-    setIsLoading(false);
-  };
-
-  const handlePhoneLogin = async () => {
+  const sendOTP = async () => {
     if (!phoneNumber || phoneNumber.length !== 10) {
       Alert.alert(t('error'), t('pleaseEnterAValid10DigitPhoneNumber'));
       return;
     }
 
+    setIsLoading(true);
     try {
-      const response = await axios.post<PhoneLoginResponse>(`${API_URL}/auth/login`, {
-        phoneNumber: phoneNumber,
-      });
-
-      if (response.data.success) {
-        if (response.data.userExists) {
-          router.push({
-            pathname: '/verify-otp',
-            params: { userId: response.data.userId },
-          });
-        } else {
-          router.push({
-            pathname: '/signup',
-            params: { phoneNumber: phoneNumber },
-          });
-        }
-      } else {
-        Alert.alert(t('error'), response.data.message || t('failedToInitiateLogin'));
-      }
-    } catch (error) {
-      handleApiError(error);
+      const fullPhoneNumber = `+91${phoneNumber}`;
+      const confirmation = await signInWithPhoneNumber(firebaseAuth, fullPhoneNumber, recaptchaVerifier.current!);
+      setVerificationId(confirmation.verificationId);
+      setOtpSent(true);
+      Alert.alert('Success', 'OTP sent to your phone number!');
+    } catch (error: any) {
+      console.error('Firebase phone auth error:', error);
+      Alert.alert('Error', error.message || 'Failed to send OTP');
     }
+    setIsLoading(false);
+  };
+
+  const verifyOTP = async () => {
+    if (!verificationId || !otpCode) {
+      Alert.alert('Error', 'Please enter the OTP sent to your phone');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const credential = PhoneAuthProvider.credential(verificationId, otpCode);
+      const result = await signInWithCredential(firebaseAuth, credential);
+      
+      // Store user info
+      await AsyncStorage.setItem('userId', result.user.uid);
+      
+      // Initialize notifications after successful login
+      await initializeNotifications(result.user.uid);
+      
+      Alert.alert('Success', 'Phone authentication successful!');
+      router.replace('/(tabs)');
+    } catch (error: any) {
+      console.error('OTP verification error:', error);
+      Alert.alert('Error', error.message || 'Invalid OTP');
+    }
+    setIsLoading(false);
+  };
+
+  const handleLogin = async () => {
+    setIsLoading(true);
+    if (loginMode === 'phone') {
+      if (!otpSent) {
+        await sendOTP();
+      } else {
+        await verifyOTP();
+      }
+    } else {
+      await handleEmailLogin();
+    }
+    setIsLoading(false);
   };
 
   const handleEmailLogin = async () => {
@@ -146,6 +180,10 @@ const LoginScreen = () => {
         // Store token and userId
         await AsyncStorage.setItem('userId', response.data.user.id);
         // await AsyncStorage.setItem('userToken', response.data.token); // if you want to store token
+        
+        // Initialize notifications after successful login
+        await initializeNotifications(response.data.user.id);
+        
         Alert.alert(t('success'), t('loginSuccessful'));
         
         // Add a small delay to ensure AsyncStorage is written before navigation
@@ -172,9 +210,20 @@ const LoginScreen = () => {
 
   const isButtonDisabled = () => {
     if (isLoading) return true;
-    if (loginMode === 'phone') return !phoneNumber;
+    if (loginMode === 'phone') {
+      if (!otpSent) return !phoneNumber;
+      return !otpCode;
+    }
     if (loginMode === 'email') return !email || !password;
     return true;
+  };
+
+  const getButtonText = () => {
+    if (isLoading) return t('loading');
+    if (loginMode === 'phone') {
+      return otpSent ? 'Verify OTP' : 'Send OTP';
+    }
+    return t('continue');
   };
 
   return (
@@ -214,20 +263,37 @@ const LoginScreen = () => {
           </View>
 
           {loginMode === 'phone' ? (
-            <View style={styles.inputContainer}>
-              <Text style={styles.label}>{t('phoneNumber')}</Text>
-              <View style={styles.phoneInputContainer}>
-                <Text style={styles.countryCode}>+91</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder={t('enterYourPhoneNumber')}
-                  keyboardType="phone-pad"
-                  value={phoneNumber}
-                  onChangeText={setPhoneNumber}
-                  maxLength={10}
-                />
+            <>
+              <View style={styles.inputContainer}>
+                <Text style={styles.label}>{t('phoneNumber')}</Text>
+                <View style={styles.phoneInputContainer}>
+                  <Text style={styles.countryCode}>+91</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder={t('enterYourPhoneNumber')}
+                    keyboardType="phone-pad"
+                    value={phoneNumber}
+                    onChangeText={setPhoneNumber}
+                    maxLength={10}
+                    editable={!otpSent}
+                  />
+                </View>
               </View>
-            </View>
+              
+              {otpSent && (
+                <View style={styles.inputContainer}>
+                  <Text style={styles.label}>OTP Code</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Enter OTP"
+                    keyboardType="number-pad"
+                    value={otpCode}
+                    onChangeText={setOtpCode}
+                    maxLength={6}
+                  />
+                </View>
+              )}
+            </>
           ) : (
             <>
               <View style={styles.inputContainer}>
@@ -260,9 +326,22 @@ const LoginScreen = () => {
             disabled={isButtonDisabled()}
           >
             <Text style={styles.loginButtonText}>
-              {isLoading ? t('loading') : t('continue')}
+              {getButtonText()}
             </Text>
           </TouchableOpacity>
+
+          {loginMode === 'phone' && otpSent && (
+            <TouchableOpacity 
+              style={styles.resendButton}
+              onPress={() => {
+                setOtpSent(false);
+                setOtpCode('');
+                setVerificationId(null);
+              }}
+            >
+              <Text style={styles.resendButtonText}>Change Phone Number</Text>
+            </TouchableOpacity>
+          )}
 
           <TouchableOpacity style={styles.forgotPasswordButton}>
             <Text style={styles.forgotPasswordText}>{t('forgotPassword')}</Text>
@@ -302,6 +381,12 @@ const LoginScreen = () => {
           </Text>
         </View>
       </ScrollView>
+
+      {/* Firebase reCAPTCHA modal */}
+      <FirebaseRecaptchaVerifierModal
+        ref={recaptchaVerifier}
+        firebaseConfig={firebaseAuth.app.options}
+      />
     </KeyboardAvoidingView>
   );
 };
@@ -422,6 +507,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     letterSpacing: 0.2,
+  },
+  resendButton: {
+    alignSelf: 'center',
+    marginTop: 10,
+  },
+  resendButtonText: {
+    color: '#10B981',
+    fontSize: 11,
+    fontWeight: '500',
   },
   forgotPasswordButton: {
     alignSelf: 'flex-end',

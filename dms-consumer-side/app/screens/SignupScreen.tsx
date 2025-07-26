@@ -62,10 +62,10 @@ const SignupScreen = () => {
   const { t } = useLanguage();
 
   const [request, response, promptAsync] = Google.useAuthRequest({
-    clientId: 'YOUR_EXPO_CLIENT_ID',
-    iosClientId: 'YOUR_IOS_CLIENT_ID',
-    androidClientId: 'YOUR_ANDROID_CLIENT_ID',
-    webClientId: 'YOUR_WEB_CLIENT_ID',
+    clientId: '875079305931-f0k3mdqqrrbj9ablfn1gdqp7rn4567iq.apps.googleusercontent.com', // Android client ID
+    iosClientId: '875079305931-f0k3mdqqrrbj9ablfn1gdqp7rn4567iq.apps.googleusercontent.com', // Same for now, update when you create iOS client
+    androidClientId: '875079305931-f0k3mdqqrrbj9ablfn1gdqp7rn4567iq.apps.googleusercontent.com', // Your Android client ID
+    webClientId: '875079305931-f0k3mdqqrrbj9ablfn1gdqp7rn4567iq.apps.googleusercontent.com', // Same for now, update when you create web client
   });
 
   useEffect(() => {
@@ -111,6 +111,12 @@ const SignupScreen = () => {
 
     if (password.length < 6) {
       Alert.alert(t('error'), t('passwordMustBeAtLeast6CharactersLong'));
+      return;
+    }
+
+    // For phone signup, redirect to login screen for phone authentication
+    if (phoneNumber) {
+      Alert.alert('Info', 'Please use the login screen for phone authentication');
       return;
     }
 

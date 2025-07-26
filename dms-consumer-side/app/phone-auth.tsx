@@ -1,71 +1,97 @@
 import React, { useState, useRef } from 'react';
-// import { getAuth, signInWithPhoneNumber, PhoneAuthProvider, signInWithCredential } from "firebase/auth";
-// import { firebaseApp } from "./firebaseConfig";
-// import { FirebaseRecaptchaVerifierModal } from "expo-firebase-recaptcha";
+import { signInWithPhoneNumber, signInWithCredential, PhoneAuthProvider } from 'firebase/auth';
+import { firebaseAuth } from './firebaseConfig';
+import { FirebaseRecaptchaVerifierModal } from 'expo-firebase-recaptcha';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { API_URL } from './config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
 
-// const auth = getAuth(firebaseApp);
-
 export default function PhoneAuthScreen() {
-  // const recaptchaVerifier = useRef(null);
-  const [phone, setPhone] = useState("");
-  const [code, setCode] = useState("");
-  // const [verificationId, setVerificationId] = useState<string | null>(null);
-  const [message, setMessage] = useState("");
+  const recaptchaVerifier = useRef(null);
+  const [phone, setPhone] = useState('');
+  const [code, setCode] = useState('');
+  const [verificationId, setVerificationId] = useState<string | null>(null);
+  const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
   const sendCode = async () => {
-    // Temporarily disabled Firebase functionality
-    setMessage("Phone authentication temporarily disabled for build");
-    Alert.alert('Info', 'Phone authentication is temporarily disabled for build testing');
+    setMessage('');
+    if (!phone || phone.length < 10) {
+      Alert.alert('Error', 'Please enter a valid phone number including country code, e.g. +91...');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const confirmation = await signInWithPhoneNumber(firebaseAuth, phone, recaptchaVerifier.current!);
+      setVerificationId(confirmation.verificationId);
+      setMessage('OTP sent! Please check your phone.');
+    } catch (err: any) {
+      setMessage(err.message || 'Failed to send OTP');
+    }
+    setIsLoading(false);
   };
 
   const verifyCode = async () => {
-    // Temporarily disabled Firebase functionality
-    setMessage("Phone authentication temporarily disabled for build");
-    Alert.alert('Info', 'Phone authentication is temporarily disabled for build testing');
+    setMessage('');
+    if (!verificationId || !code) {
+      Alert.alert('Error', 'Please enter the OTP sent to your phone.');
+      return;
+    }
+    setIsLoading(true);
+    try {
+      const credential = PhoneAuthProvider.credential(verificationId, code);
+      const result = await signInWithCredential(firebaseAuth, credential);
+      // Optionally store user info
+      await AsyncStorage.setItem('userId', result.user.uid);
+      setMessage('Phone authentication successful!');
+      Alert.alert('Success', 'Phone authentication successful!');
+      router.replace('/(tabs)');
+    } catch (err: any) {
+      setMessage(err.message || 'Failed to verify OTP');
+      Alert.alert('Error', err.message || 'Failed to verify OTP');
+    }
+    setIsLoading(false);
   };
 
   return (
     <View style={styles.container}>
-      {/* <FirebaseRecaptchaVerifierModal
+      <FirebaseRecaptchaVerifierModal
         ref={recaptchaVerifier}
-        firebaseConfig={firebaseApp.options}
-      /> */}
-      <Text style={styles.title}>Phone Authentication</Text>
-      <Text style={styles.subtitle}>Temporarily disabled for build testing</Text>
-      <TextInput 
-        style={styles.input}
-        placeholder="Phone (+91...)" 
-        value={phone} 
-        onChangeText={setPhone} 
+        firebaseConfig={firebaseAuth.app.options}
       />
-      <TouchableOpacity 
+      <Text style={styles.title}>Phone Authentication</Text>
+      <Text style={styles.subtitle}>Sign in with your phone number</Text>
+      <TextInput
+        style={styles.input}
+        placeholder="Phone (+91...)"
+        value={phone}
+        onChangeText={setPhone}
+        keyboardType="phone-pad"
+      />
+      <TouchableOpacity
         style={styles.button}
-        onPress={sendCode} 
+        onPress={sendCode}
         disabled={isLoading}
       >
         <Text style={styles.buttonText}>
-          {isLoading ? "Sending..." : "Send OTP"}
+          {isLoading ? 'Sending...' : 'Send OTP'}
         </Text>
       </TouchableOpacity>
-      <TextInput 
+      <TextInput
         style={styles.input}
-        placeholder="OTP" 
-        value={code} 
-        onChangeText={setCode} 
+        placeholder="OTP"
+        value={code}
+        onChangeText={setCode}
+        keyboardType="number-pad"
       />
-      <TouchableOpacity 
+      <TouchableOpacity
         style={styles.button}
-        onPress={verifyCode} 
+        onPress={verifyCode}
         disabled={isLoading}
       >
         <Text style={styles.buttonText}>
-          {isLoading ? "Verifying..." : "Verify OTP"}
+          {isLoading ? 'Verifying...' : 'Verify OTP'}
         </Text>
       </TouchableOpacity>
       <Text style={styles.message}>{message}</Text>

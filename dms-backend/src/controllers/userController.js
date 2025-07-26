@@ -187,12 +187,35 @@ const deleteAccount = async (req, res) => {
 // Register Expo push token
 exports.registerExpoPushToken = async (req, res) => {
   try {
-    const { userId, token } = req.body;
-    if (!userId || !token) return res.status(400).json({ message: 'userId and token required' });
-    let entry = await ExpoPushToken.findOne({ where: { userId, token } });
-    if (!entry) entry = await ExpoPushToken.create({ userId, token });
-    res.json({ success: true });
+    const { userId, expoPushToken, platform, deviceId } = req.body;
+    if (!userId || !expoPushToken) return res.status(400).json({ message: 'userId and expoPushToken required' });
+    
+    // Check if token already exists for this user
+    let entry = await ExpoPushToken.findOne({ where: { userId, token: expoPushToken } });
+    
+    if (!entry) {
+      // Create new token entry
+      entry = await ExpoPushToken.create({ 
+        userId, 
+        token: expoPushToken,
+        platform: platform || 'unknown',
+        deviceId: deviceId || 'unknown'
+      });
+    } else {
+      // Update existing entry with new platform/device info
+      await entry.update({
+        platform: platform || entry.platform,
+        deviceId: deviceId || entry.deviceId
+      });
+    }
+    
+    res.json({ 
+      success: true, 
+      message: 'Push token registered successfully',
+      tokenId: entry.id
+    });
   } catch (err) {
+    console.error('Error registering push token:', err);
     res.status(500).json({ message: 'Failed to register push token' });
   }
 };

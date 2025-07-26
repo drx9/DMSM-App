@@ -629,12 +629,12 @@ const HomeScreen = () => {
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.appIcon}
-          onPress={() => router.push('/(tabs)/groceries' as any)}
+          onPress={() => router.push('/products?sort=newest' as any)}
         >
-          <View style={[styles.appIconBg, { backgroundColor: '#C8E6C9' }]}>
-            <Ionicons name="basket" size={24} color="#4CAF50" />
+          <View style={[styles.appIconBg, { backgroundColor: '#E8F5E8' }]}>
+            <Ionicons name="sparkles" size={24} color="#4CAF50" />
           </View>
-          <Text style={styles.appIconLabel}>Groceries</Text>
+          <Text style={styles.appIconLabel}>New</Text>
         </TouchableOpacity>
         <TouchableOpacity 
           style={styles.appIcon}

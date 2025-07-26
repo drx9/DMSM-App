@@ -20,6 +20,16 @@ const ExpoPushToken = sequelize.define('ExpoPushToken', {
     allowNull: false,
     unique: true,
   },
+  platform: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: 'unknown',
+  },
+  deviceId: {
+    type: DataTypes.STRING,
+    allowNull: true,
+    defaultValue: 'unknown',
+  },
 }, {
   tableName: 'expo_push_tokens',
   timestamps: true,

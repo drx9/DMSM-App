@@ -383,159 +383,159 @@ const AddressManagerModal: React.FC<Props> = ({
 
     return (
         <>
-            <Modal visible={visible} animationType="slide" transparent>
-                <View style={styles.overlay}>
-                    <View style={styles.content}>
-                        {/* Header */}
-                        <View style={styles.header}>
+        <Modal visible={visible} animationType="slide" transparent>
+            <View style={styles.overlay}>
+                <View style={styles.content}>
+                    {/* Header */}
+                    <View style={styles.header}>
                             <Text style={styles.title}>10.84.250.139</Text>
-                            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                                <Text style={styles.closeIcon}>✕</Text>
-                            </TouchableOpacity>
-                        </View>
+                        <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                            <Text style={styles.closeIcon}>✕</Text>
+                        </TouchableOpacity>
+                    </View>
 
-                        {/* Search Bar */}
-                        <View style={styles.searchContainer}>
-                            <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
-                            <TextInput
-                                style={styles.searchInput}
-                                placeholder="Search for area, street name..."
-                                placeholderTextColor="#9CA3AF"
-                                value={searchQuery}
-                                onChangeText={setSearchQuery}
-                            />
-                        </View>
+                    {/* Search Bar */}
+                    <View style={styles.searchContainer}>
+                        <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
+                        <TextInput
+                            style={styles.searchInput}
+                            placeholder="Search for area, street name..."
+                            placeholderTextColor="#9CA3AF"
+                            value={searchQuery}
+                            onChangeText={setSearchQuery}
+                        />
+                    </View>
 
-                        {/* Quick Actions */}
-                        <View style={styles.quickActions}>
-                            {/* Use Current Location */}
-                            <TouchableOpacity 
-                                style={styles.actionItem} 
-                                onPress={getCurrentLocation}
-                                disabled={fetchingLocation}
-                            >
-                                <View style={styles.actionIcon}>
-                                    <View style={styles.locationIcon}>
-                                        <View style={styles.locationDot} />
-                                    </View>
+                    {/* Quick Actions */}
+                    <View style={styles.quickActions}>
+                        {/* Use Current Location */}
+                        <TouchableOpacity 
+                            style={styles.actionItem} 
+                            onPress={getCurrentLocation}
+                            disabled={fetchingLocation}
+                        >
+                            <View style={styles.actionIcon}>
+                                <View style={styles.locationIcon}>
+                                    <View style={styles.locationDot} />
                                 </View>
-                                <View style={styles.actionContent}>
-                                    <Text style={styles.actionTitle}>
-                                        {fetchingLocation ? 'Getting location...' : 'Use current location'}
-                                    </Text>
-                                    <Text style={styles.actionSubtitle}>
-                                        {currentLocation || 'Tap to get your current location'}
-                                    </Text>
-                                </View>
-                                {fetchingLocation ? (
-                                    <ActivityIndicator size="small" color="#10B981" />
-                                ) : (
-                                    <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-                                )}
-                            </TouchableOpacity>
-
-                            {/* Add New Address */}
-                            <TouchableOpacity style={styles.actionItem} onPress={onRequestLocation}>
-                                <View style={styles.actionIcon}>
-                                    <Text style={styles.plusIcon}>+</Text>
-                                </View>
-                                <View style={styles.actionContent}>
-                                    <Text style={styles.actionTitle}>Add new address</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-                            </TouchableOpacity>
-
-                            {/* Request Address */}
-                            <TouchableOpacity style={styles.actionItem}>
-                                <View style={styles.whatsappIconContainer}>
-                                    <Text style={styles.whatsappText}>💬</Text>
-                                </View>
-                                <View style={styles.actionContent}>
-                                    <Text style={styles.actionTitle}>Request address from someone else</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-                            </TouchableOpacity>
-
-                            {/* Import from Zomato */}
-                            <TouchableOpacity style={styles.actionItem}>
-                                <View style={styles.zomatoIcon}>
-                                    <Text style={styles.zomatoText}>zomato</Text>
-                                </View>
-                                <View style={styles.actionContent}>
-                                    <Text style={styles.actionTitle}>Import your addresses from Zomato</Text>
-                                </View>
-                                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
-                            </TouchableOpacity>
-                        </View>
-
-                        {/* Saved Addresses Section */}
-                        <View style={styles.savedSection}>
-                            <Text style={styles.sectionTitle}>Your saved addresses</Text>
-
-                            {loading ? (
-                                <ActivityIndicator size="small" color="#10B981" style={styles.loader} />
+                            </View>
+                            <View style={styles.actionContent}>
+                                <Text style={styles.actionTitle}>
+                                    {fetchingLocation ? 'Getting location...' : 'Use current location'}
+                                </Text>
+                                <Text style={styles.actionSubtitle}>
+                                    {currentLocation || 'Tap to get your current location'}
+                                </Text>
+                            </View>
+                            {fetchingLocation ? (
+                                <ActivityIndicator size="small" color="#10B981" />
                             ) : (
-                                <FlatList
-                                    data={realAddresses}
-                                    keyExtractor={item => item.id}
-                                    renderItem={({ item }) => (
-                                        <View style={styles.addressCard}>
-                                            <View style={styles.addressHeader}>
-                                                <View style={styles.addressTypeContainer}>
-                                                    <Text style={styles.homeIcon}>🏠</Text>
-                                                    <Text style={styles.addressType}>Home</Text>
-                                                    {item.isDefault && (
-                                                        <Text style={styles.defaultBadge}>Default</Text>
-                                                    )}
-                                                </View>
-                                            </View>
+                                <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                            )}
+                        </TouchableOpacity>
 
-                                            <Text style={styles.addressText}>
-                                                {item.line1}, {item.city}, {item.state}
-                                            </Text>
-                                            {item.postalCode && (
-                                                <Text style={styles.postalText}>PIN: {item.postalCode}</Text>
-                                            )}
+                        {/* Add New Address */}
+                        <TouchableOpacity style={styles.actionItem} onPress={onRequestLocation}>
+                            <View style={styles.actionIcon}>
+                                <Text style={styles.plusIcon}>+</Text>
+                            </View>
+                            <View style={styles.actionContent}>
+                                <Text style={styles.actionTitle}>Add new address</Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                        </TouchableOpacity>
 
-                                            <View style={styles.addressActions}>
-                                                <TouchableOpacity 
-                                                    style={styles.actionButton}
-                                                    onPress={() => onSetPrimary(item.id)}
-                                                >
-                                                    <Text style={styles.actionDots}>•••</Text>
-                                                </TouchableOpacity>
-                                                <TouchableOpacity style={styles.actionButton}>
-                                                    <Ionicons name="share-outline" size={18} color="#10B981" />
-                                                </TouchableOpacity>
+                        {/* Request Address */}
+                        <TouchableOpacity style={styles.actionItem}>
+                                <View style={styles.whatsappIconContainer}>
+                                <Text style={styles.whatsappText}>💬</Text>
+                            </View>
+                            <View style={styles.actionContent}>
+                                <Text style={styles.actionTitle}>Request address from someone else</Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                        </TouchableOpacity>
+
+                        {/* Import from Zomato */}
+                        <TouchableOpacity style={styles.actionItem}>
+                            <View style={styles.zomatoIcon}>
+                                <Text style={styles.zomatoText}>zomato</Text>
+                            </View>
+                            <View style={styles.actionContent}>
+                                <Text style={styles.actionTitle}>Import your addresses from Zomato</Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+                        </TouchableOpacity>
+                    </View>
+
+                    {/* Saved Addresses Section */}
+                    <View style={styles.savedSection}>
+                        <Text style={styles.sectionTitle}>Your saved addresses</Text>
+
+                        {loading ? (
+                            <ActivityIndicator size="small" color="#10B981" style={styles.loader} />
+                        ) : (
+                            <FlatList
+                                data={realAddresses}
+                                keyExtractor={item => item.id}
+                                renderItem={({ item }) => (
+                                    <View style={styles.addressCard}>
+                                        <View style={styles.addressHeader}>
+                                            <View style={styles.addressTypeContainer}>
+                                                <Text style={styles.homeIcon}>🏠</Text>
+                                                <Text style={styles.addressType}>Home</Text>
+                                                {item.isDefault && (
+                                                    <Text style={styles.defaultBadge}>Default</Text>
+                                                )}
                                             </View>
                                         </View>
-                                    )}
-                                    ListEmptyComponent={
-                                        <Text style={styles.emptyText}>No saved addresses found.</Text>
-                                    }
-                                    showsVerticalScrollIndicator={false}
-                                />
-                            )}
-                        </View>
 
-                        {/* Share Banner */}
-                        <View style={styles.shareBanner}>
-                            <View style={styles.shareContent}>
+                                        <Text style={styles.addressText}>
+                                            {item.line1}, {item.city}, {item.state}
+                                        </Text>
+                                        {item.postalCode && (
+                                            <Text style={styles.postalText}>PIN: {item.postalCode}</Text>
+                                        )}
+
+                                        <View style={styles.addressActions}>
+                                            <TouchableOpacity 
+                                                style={styles.actionButton}
+                                                onPress={() => onSetPrimary(item.id)}
+                                            >
+                                                <Text style={styles.actionDots}>•••</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity style={styles.actionButton}>
+                                                <Ionicons name="share-outline" size={18} color="#10B981" />
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                )}
+                                ListEmptyComponent={
+                                    <Text style={styles.emptyText}>No saved addresses found.</Text>
+                                }
+                                showsVerticalScrollIndicator={false}
+                            />
+                        )}
+                    </View>
+
+                    {/* Share Banner */}
+                    <View style={styles.shareBanner}>
+                        <View style={styles.shareContent}>
                                 <View style={styles.shareIcon}>
                                     <Ionicons name="share-outline" size={20} color="#10B981" />
                                 </View>
-                                <Text style={styles.shareText}>Now share your addresses with friends and family</Text>
-                            </View>
+                            <Text style={styles.shareText}>Now share your addresses with friends and family</Text>
+                        </View>
                             <TouchableOpacity 
                                 style={styles.dismissButton}
                                 onPress={() => setShowShareOptions(true)}
                             >
                                 <Ionicons name="share" size={16} color="#10B981" />
-                            </TouchableOpacity>
-                        </View>
+                        </TouchableOpacity>
                     </View>
                 </View>
-            </Modal>
+            </View>
+        </Modal>
             <ShareOptionsModal />
         </>
     );

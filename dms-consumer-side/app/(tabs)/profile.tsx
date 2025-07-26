@@ -19,11 +19,13 @@ import { useRouter } from 'expo-router';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../config';
+import { useNotifications } from '../context/NotificationContext';
 import AddressManagerModal, { Address } from '../../components/AddressManagerModal';
 import LocationSelectionScreen from '../location/LocationSelectionScreen';
 
 const ProfileScreen = () => {
   const router = useRouter();
+  const { hasPermission, requestPermission, sendTestNotification } = useNotifications();
   const [orders, setOrders] = useState<any[]>([]);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
@@ -166,9 +168,23 @@ const ProfileScreen = () => {
       router.push('/payment-options' as any);
     } else if (feature.screen === 'add-gift-card') {
       router.push('/add-gift-card' as any);
+    } else if (feature.screen === 'notification-settings') {
+      // Navigate to notification settings screen
+      router.push('/notification-settings');
     } else {
       // Placeholder for other features
       console.log(`Navigating to ${feature.name}`);
+    }
+  };
+
+  const handleNotificationSettings = () => {
+    // Show notification settings options
+    if (!hasPermission) {
+      // Request permission if not granted
+      requestPermission();
+    } else {
+      // Show test notification option
+      sendTestNotification();
     }
   };
 
@@ -193,6 +209,7 @@ const ProfileScreen = () => {
     { id: 5, name: 'Wishlist', icon: 'heart-outline', screen: 'wishlist' },
     { id: 6, name: 'Payment Options', icon: 'card-outline', screen: 'payment-options' },
     { id: 7, name: 'Add Gift Card', icon: 'gift-outline', screen: 'add-gift-card' },
+    { id: 8, name: 'Notification Settings', icon: 'notifications-outline', screen: 'notification-settings' },
   ];
 
   if (showLocationSelector) {

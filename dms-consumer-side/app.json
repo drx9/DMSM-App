@@ -30,7 +30,8 @@
         "googleMaps": {
           "apiKey": "AIzaSyDxIJneZ8qgkgKLsffP46EENI-EGOdnCEU"
         }
-      }
+      },
+      "googleServicesFile": "./config/google-services.json"
     },
     "web": {
       "bundler": "metro",
@@ -54,6 +55,13 @@
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "Allow DMS Mart to use your location to show nearby stores and delivery areas."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/dms-logo.png",
+          "color": "#ffffff"
         }
       ]
     ],

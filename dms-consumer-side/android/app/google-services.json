@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "499974453409",
+    "project_id": "dmsm-5fb08",
+    "storage_bucket": "dmsm-5fb08.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:499974453409:android:ae54875603fed9dd07d8e0",
+        "android_client_info": {
+          "package_name": "com.dmsm.dmsconsumerside"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCw93kTCiYNqv1bQmF1UJ-aZoFvaI1TTj8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

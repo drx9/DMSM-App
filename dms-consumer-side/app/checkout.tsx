@@ -20,6 +20,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import LocationSelectionScreen from './location/LocationSelectionScreen';
 import { useCart } from './context/CartContext';
+import { useNotifications } from './context/NotificationContext';
 import { applyCoupon } from './services/couponService';
 
 const { width } = Dimensions.get('window');
@@ -76,6 +77,7 @@ const CheckoutScreen = () => {
     const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
     const router = useRouter();
     const { refreshCartFromBackend } = useCart();
+    const { sendOrderNotification } = useNotifications();
     const [showStatusBar, setShowStatusBar] = useState(false);
     const [countdown, setCountdown] = useState(10);
     const [orderPlacing, setOrderPlacing] = useState(false);
@@ -268,7 +270,7 @@ const CheckoutScreen = () => {
         setOrderPlacing(false);
         setOrderPlaced(true);
         try {
-            await axios.post(`${API_URL}/orders/place-order`, {
+            const orderRes = await axios.post(`${API_URL}/orders/place-order`, {
                 userId,
                 address: addresses.find(addr => addr.id === selectedAddressId),
                 cartItems: cartItems.map(item => ({
@@ -281,6 +283,12 @@ const CheckoutScreen = () => {
                 couponCode: appliedCoupon?.code || undefined,
                 deliverySlot: selectedDeliverySlot,
             });
+            
+            // Send order confirmation notification
+            if (orderRes.data.success && orderRes.data.orderId) {
+                await sendOrderNotification(orderRes.data.orderId, 'Order Placed', userId || '');
+            }
+            
             await refreshCartFromBackend();
             Alert.alert('Success', 'Order placed successfully!');
             router.replace('/(tabs)');
