@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const { User } = require('../models');
 const authService = require('../services/authService');
-const admin = require("../services/firebaseService");
+const { verifyFirebaseToken: verifyFirebaseTokenService, createOrUpdateUserFromFirebase } = require("../services/firebaseService");
 
 const login = async (req, res) => {
   try {
@@ -300,7 +300,7 @@ const deliveryLogin = async (req, res) => {
 async function verifyFirebaseToken(req, res) {
   const { idToken } = req.body;
   try {
-    const decodedToken = await admin.auth().verifyIdToken(idToken);
+    const decodedToken = await verifyFirebaseTokenService(idToken);
     const phoneNumber = decodedToken.phone_number;
     if (!phoneNumber) {
       return res.status(400).json({ error: "No phone number in token" });
