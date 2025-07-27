@@ -76,7 +76,7 @@ export default function RootLayout() {
                   <Stack.Screen name="language" />
                   <Stack.Screen name="signup" />
                   <Stack.Screen name="verify-otp" />
-                  <Stack.Screen name="phone-auth" options={{ headerShown: false }} />
+          
                   <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
                   <Stack.Screen name="notification-settings" options={{ headerShown: false }} />
                   </Stack>

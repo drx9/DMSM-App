@@ -48,7 +48,6 @@
     "expo-symbols": "~0.4.5",
     "expo-system-ui": "~5.0.10",
     "expo-web-browser": "~14.2.0",
-    "firebase": "^12.0.0",
     "multer": "^2.0.1",
     "next-auth": "^4.24.11",
     "react": "19.0.0",
