@@ -46,3 +46,4 @@ fcm-service-account.json
 !tsconfig.json
 !app.json
 !eas.json
+!google-services.json
