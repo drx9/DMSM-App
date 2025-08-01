@@ -1,40 +1,58 @@
-const fetch = require('node-fetch');
+const admin = require('firebase-admin');
 
-// Expo Push Notification Service
-const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
+// Initialize Firebase Admin SDK
+let app;
+try {
+  let serviceAccount;
+  
+  // Check if we're in Railway (production) environment
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+    // Use environment variable (Railway)
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+    console.log('Firebase Admin SDK initialized with Railway environment variable');
+  } else {
+    // Use local file (development)
+    serviceAccount = require('../service-account-key.json');
+    console.log('Firebase Admin SDK initialized with local service account key');
+  }
+  
+  app = admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+  });
+  console.log('Firebase Admin SDK initialized successfully');
+} catch (error) {
+  console.log('Firebase Admin SDK not initialized:', error.message);
+  console.log('Please add FIREBASE_SERVICE_ACCOUNT_KEY environment variable in Railway or service-account-key.json file locally');
+}
 
-const sendExpoNotification = async (expoPushToken, title, body, data = {}) => {
+const sendFCMNotification = async (fcmToken, title, body, data = {}) => {
+  if (!app) {
+    console.error('Firebase Admin SDK not initialized');
+    return false;
+  }
+
   try {
     const message = {
-      to: expoPushToken,
-      title: title,
-      body: body,
+      token: fcmToken,
+      notification: {
+        title,
+        body,
+      },
       data: data,
-      sound: 'default',
-      priority: 'high',
+      android: {
+        priority: 'high',
+        notification: {
+          sound: 'default',
+          channelId: 'default',
+        },
+      },
     };
 
-    const response = await fetch(EXPO_PUSH_URL, {
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Accept-encoding': 'gzip, deflate',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(message),
-    });
-
-    const result = await response.json();
-    
-    if (response.ok) {
-      console.log('Expo notification sent successfully:', result);
-      return true;
-    } else {
-      console.error('Error sending Expo notification:', result);
-      return false;
-    }
+    const response = await admin.messaging().send(message);
+    console.log('FCM notification sent successfully:', response);
+    return true;
   } catch (error) {
-    console.error('Error sending Expo notification:', error);
+    console.error('Error sending FCM notification:', error);
     return false;
   }
 };
@@ -50,15 +68,12 @@ const sendFCMNotificationToUser = async (userId, title, body, data = {}) => {
       return false;
     }
 
-    return await sendExpoNotification(user.fcmToken, title, body, data);
+    return await sendFCMNotification(user.fcmToken, title, body, data);
   } catch (error) {
     console.error('Error sending FCM notification to user:', error);
     return false;
   }
 };
-
-// Keep the old function name for compatibility
-const sendFCMNotification = sendExpoNotification;
 
 module.exports = { 
   sendFCMNotification, 
