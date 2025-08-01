@@ -1,26 +1,40 @@
-import messaging from '@react-native-firebase/messaging';
+import * as Notifications from 'expo-notifications';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import Constants from 'expo-constants';
 
 class FCMService {
   async requestPermission() {
-    const authStatus = await messaging().requestPermission();
-    const enabled =
-      authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
-      authStatus === messaging.AuthorizationStatus.PROVISIONAL;
-
-    if (enabled) {
-      console.log('FCM Permission granted');
-    } else {
-      console.log('FCM Permission denied');
+    const { status: existingStatus } = await Notifications.getPermissionsAsync();
+    let finalStatus = existingStatus;
+    
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync();
+      finalStatus = status;
     }
+    
+    if (finalStatus !== 'granted') {
+      console.log('FCM Permission denied');
+      return false;
+    }
+    
+    console.log('FCM Permission granted');
+    return true;
   }
 
   async getToken() {
     try {
-      const token = await messaging().getToken();
-      console.log('FCM Token:', token);
-      await AsyncStorage.setItem('fcmToken', token);
-      return token;
+      if (!Constants.expoConfig?.extra?.eas?.projectId) {
+        console.log('No EAS project ID found, using local notifications only');
+        return null;
+      }
+
+      const token = await Notifications.getExpoPushTokenAsync({
+        projectId: Constants.expoConfig.extra.eas.projectId,
+      });
+      
+      console.log('FCM Token:', token.data);
+      await AsyncStorage.setItem('fcmToken', token.data);
+      return token.data;
     } catch (error) {
       console.error('Error getting FCM token:', error);
       return null;
@@ -37,7 +51,7 @@ class FCMService {
         body: JSON.stringify({
           userId,
           fcmToken: token,
-          platform: 'android'
+          platform: 'expo'
         }),
       });
       
@@ -55,14 +69,14 @@ class FCMService {
   }
 
   setupMessageHandlers() {
-    // Handle background messages
-    messaging().setBackgroundMessageHandler(async remoteMessage => {
-      console.log('Background message received:', remoteMessage);
+    // Handle notification received while app is running
+    Notifications.addNotificationReceivedListener(notification => {
+      console.log('Foreground notification received:', notification);
     });
 
-    // Handle foreground messages
-    messaging().onMessage(async remoteMessage => {
-      console.log('Foreground message received:', remoteMessage);
+    // Handle notification response (when user taps notification)
+    Notifications.addNotificationResponseReceivedListener(response => {
+      console.log('Notification response received:', response);
     });
   }
 }
