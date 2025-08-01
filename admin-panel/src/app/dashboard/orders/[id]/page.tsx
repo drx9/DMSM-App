@@ -10,7 +10,9 @@ interface Order {
     id: string;
     status: string;
     totalAmount: number;
+    userId: string; // Add this
     user: {
+        id: string; // Add this
         name: string;
         email: string;
         phoneNumber?: string;
@@ -109,12 +111,16 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
             
             // Automatically send notification to customer
             try {
-                await api.post('/api/users/test-notification', {
-                    orderId: order.id,
-                    title: 'Order Update',
-                    message: `Your order #${order.id.substring(0, 8)} status is now: ${newStatus}`
-                });
-                console.log('Notification sent automatically');
+                // Get the user ID from the order
+                const userId = order.userId || order.user?.id;
+                if (userId) {
+                    await api.post('/api/users/test-notification', {
+                        userId: userId,
+                        title: 'Order Update',
+                        message: `Your order #${order.id.substring(0, 8)} status is now: ${newStatus}`
+                    });
+                    console.log('Notification sent automatically');
+                }
             } catch (notificationError) {
                 console.error('Failed to send notification:', notificationError);
                 // Don't show error to admin - notification failure shouldn't break order update
