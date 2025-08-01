@@ -1,18 +1,28 @@
 const admin = require('firebase-admin');
 
 // Initialize Firebase Admin SDK
-// Note: You'll need to add your service account key file
 let app;
 try {
-  // Try to initialize if service account key exists
-  const serviceAccount = require('../service-account-key.json');
+  let serviceAccount;
+  
+  // Check if we're in Railway (production) environment
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+    // Use environment variable (Railway)
+    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+    console.log('Firebase Admin SDK initialized with Railway environment variable');
+  } else {
+    // Use local file (development)
+    serviceAccount = require('../service-account-key.json');
+    console.log('Firebase Admin SDK initialized with local service account key');
+  }
+  
   app = admin.initializeApp({
     credential: admin.credential.cert(serviceAccount)
   });
   console.log('Firebase Admin SDK initialized successfully');
 } catch (error) {
-  console.log('Firebase Admin SDK not initialized - service account key not found');
-  console.log('Please add your service-account-key.json file to src/ directory');
+  console.log('Firebase Admin SDK not initialized:', error.message);
+  console.log('Please add FIREBASE_SERVICE_ACCOUNT_KEY environment variable in Railway or service-account-key.json file locally');
 }
 
 const sendFCMNotification = async (fcmToken, title, body, data = {}) => {

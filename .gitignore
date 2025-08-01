@@ -83,3 +83,10 @@ web-build/
 
 # Local Netlify folder
 .netlify 
+
+# Firebase
+**/service-account-key.json
+**/google-services.json
+**/GoogleService-Info.plist
+**/*firebase-adminsdk*.json
+**/*firebase-adminsdk*.json 
