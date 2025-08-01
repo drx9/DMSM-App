@@ -114,7 +114,7 @@ const LoginScreen = () => {
       const result = await otpService.sendOTP(fullPhoneNumber);
       
       if (result.success) {
-        setOtpSent(true);
+      setOtpSent(true);
         Alert.alert('Success', 'OTP sent to your WhatsApp!');
       } else {
         Alert.alert('Error', result.message || 'Failed to send OTP');
@@ -146,7 +146,7 @@ const LoginScreen = () => {
         await initializeNotifications(result.user.id);
         
         Alert.alert('Success', 'WhatsApp authentication successful!');
-        router.replace('/(tabs)');
+      router.replace('/(tabs)');
       } else {
         Alert.alert('Error', result.message || 'Invalid OTP');
       }

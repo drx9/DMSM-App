@@ -14,6 +14,8 @@ import { store } from '../src/store';
 import { View, Text, TouchableOpacity } from 'react-native';
 import ErrorBoundary from '../components/ErrorBoundary';
 
+
+
 export default function RootLayout() {
   const [activeOrderId, setActiveOrderId] = useState<string | null>(null);
   const [destination, setDestination] = useState<{ latitude: number; longitude: number } | null>(null);
@@ -74,6 +76,7 @@ export default function RootLayout() {
                   <Stack screenOptions={{ headerShown: false }}>
                                       <Stack.Screen name="splash" />
                   <Stack.Screen name="language" />
+                  <Stack.Screen name="login" />
                   <Stack.Screen name="signup" />
                   <Stack.Screen name="verify-otp" />
           

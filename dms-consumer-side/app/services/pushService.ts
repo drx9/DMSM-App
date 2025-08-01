@@ -27,7 +27,6 @@ export interface NotificationData {
 
 class PushNotificationService {
   private expoPushToken: string | null = null;
-  private fcmToken: string | null = null;
 
   async initialize() {
     try {
@@ -45,16 +44,20 @@ class PushNotificationService {
         return false;
       }
 
-      // Get Expo push token
-      if (Device.isDevice) {
-        const token = await Notifications.getExpoPushTokenAsync({
-          projectId: Constants.expoConfig?.extra?.eas?.projectId,
-        });
-        this.expoPushToken = token.data;
-        console.log('Expo Push Token:', this.expoPushToken);
+      // Get Expo push token (only if we have a valid project ID)
+      if (Device.isDevice && Constants.expoConfig?.extra?.eas?.projectId) {
+        try {
+          const token = await Notifications.getExpoPushTokenAsync({
+            projectId: Constants.expoConfig.extra.eas.projectId,
+          });
+          this.expoPushToken = token.data;
+          console.log('Expo Push Token:', this.expoPushToken);
+        } catch (tokenError) {
+          console.log('Could not get Expo push token, using local notifications only:', tokenError);
+          // Continue without push token - local notifications will still work
+        }
       } else {
-        console.log('Must use physical device for Push Notifications');
-        return false;
+        console.log('Using local notifications only (no device or project ID)');
       }
 
       // Configure notification channels for Android

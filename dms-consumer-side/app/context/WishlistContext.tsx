@@ -44,4 +44,7 @@ export const WishlistProvider = ({ children }: { children: React.ReactNode }) =>
     );
 };
 
+// Default export for Expo Router
+export default WishlistProvider;
+
 export const useWishlist = () => useContext(WishlistContext); 

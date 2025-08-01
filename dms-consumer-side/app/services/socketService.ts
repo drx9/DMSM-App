@@ -34,3 +34,13 @@ export function disconnectSocket() {
   socket?.disconnect();
   socket = null;
 } 
+
+// Default export for Expo Router
+export default {
+  connectSocket,
+  joinRoom,
+  leaveRoom,
+  onSocketEvent,
+  offSocketEvent,
+  disconnectSocket
+}; 

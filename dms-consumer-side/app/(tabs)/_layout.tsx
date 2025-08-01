@@ -170,7 +170,7 @@ export default function TabLayout() {
   }
 
   return (
-    <>
+    <View style={{ flex: 1 }}>
       <OrderStatusBar orderId={activeOrderId} destination={destination} />
       <Tabs
         screenOptions={{
@@ -244,6 +244,6 @@ export default function TabLayout() {
           }}
         />
       </Tabs>
-    </>
+    </View>
   );
 }

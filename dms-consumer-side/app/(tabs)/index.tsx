@@ -27,7 +27,7 @@ import axios from 'axios';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LocationSelectionScreen from '../location/LocationSelectionScreen';
 import AddressManagerModal, { Address } from '../../components/AddressManagerModal';
-import { useFocusEffect } from '@react-navigation/native';
+
 import ProductCard from '../../components/ProductCard';
 import { useCart } from '../context/CartContext';
 import Toast from 'react-native-root-toast';
@@ -133,6 +133,12 @@ const HomeScreen = () => {
 
   const { date, time } = getCurrentDateTime();
 
+  // Helper function to safely calculate prices
+  const calculatePrice = (price: number | undefined, discount: number | undefined) => {
+    const safePrice = price || 0;
+    const safeDiscount = discount || 0;
+    return (safePrice - (safePrice * safeDiscount / 100)).toFixed(2);
+  };
 
   // Minimal fetch test
   const fetchData = async () => {
@@ -502,12 +508,10 @@ const HomeScreen = () => {
   };
 
 
-  useFocusEffect(
-    React.useCallback(() => {
-      // When the tab is focused, close the address modal if open
-      setShowAddressModal(false);
-    }, [])
-  );
+  useEffect(() => {
+    // When the tab is focused, close the address modal if open
+    setShowAddressModal(false);
+  }, []);
 
 
   // Handler for View All Offers

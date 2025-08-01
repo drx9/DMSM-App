@@ -103,7 +103,7 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
 
         try {
             setUpdatingStatus(true);
-            await api.put(`/api/orders/${id}`, { status: newStatus });
+            await api.put(`/api/orders/${id}/status`, { status: newStatus });
             toast.success('Order status updated!');
             setOrder({ ...order, status: newStatus }); // Optimistically update UI
         } catch (error) {

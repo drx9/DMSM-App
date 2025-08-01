@@ -42,3 +42,15 @@ export const FILTER_OPTIONS = [
 export type FilterOption = typeof FILTER_OPTIONS[number]['value'];
 
 export const IMAGE_PLACEHOLDER = 'https://via.placeholder.com/300'; 
+
+// Default export for Expo Router
+export default {
+  API_URL,
+  GOOGLE_MAPS_API_KEY,
+  APP_CONFIG,
+  CURRENCY,
+  PAGINATION,
+  SORT_OPTIONS,
+  FILTER_OPTIONS,
+  IMAGE_PLACEHOLDER
+}; 

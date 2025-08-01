@@ -12,6 +12,17 @@ export const addToWishlist = async (userId: string, productId: string) => {
 };
 
 export const removeFromWishlist = async (userId: string, productId: string) => {
-    const res = await axios.post(`${API_URL}/wishlist/remove`, { userId, productId });
-    return res.data;
+  try {
+    const response = await axios.delete(`${API_URL}/wishlist/${userId}/${productId}`);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+// Default export for Expo Router
+export default {
+  getWishlist,
+  addToWishlist,
+  removeFromWishlist
 }; 

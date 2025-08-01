@@ -340,7 +340,7 @@ const orderController = {
             
             for (const order of updatedOrders) {
                 // Notify delivery boy
-                emitToUser(deliveryBoyId, 'assigned_order', { orderId: order.id });
+              emitToUser(deliveryBoyId, 'assigned_order', { orderId: order.id });
                 
                 // Notify customer about delivery boy assignment
                 emitToUser(order.userId, 'order_status_update', { 

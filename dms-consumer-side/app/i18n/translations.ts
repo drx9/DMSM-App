@@ -242,4 +242,7 @@ export const translations = {
 };
 
 export type LanguageKeys = keyof typeof translations.en;
-export type TranslationType = typeof translations.en; 
+export type TranslationType = typeof translations.en;
+
+// Default export for Expo Router
+export default translations; 
