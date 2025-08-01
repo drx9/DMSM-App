@@ -232,11 +232,40 @@ exports.removeExpoPushToken = async (req, res) => {
   }
 };
 
+// Register FCM token
+exports.registerFCMToken = async (req, res) => {
+  try {
+    const { userId, fcmToken, platform } = req.body;
+    if (!userId || !fcmToken) {
+      return res.status(400).json({ message: 'userId and fcmToken required' });
+    }
+    
+    // Update user's FCM token
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    
+    await user.update({ fcmToken });
+    
+    console.log(`FCM token registered for user ${userId}`);
+    
+    res.json({ 
+      success: true, 
+      message: 'FCM token registered successfully'
+    });
+  } catch (err) {
+    console.error('Error registering FCM token:', err);
+    res.status(500).json({ message: 'Failed to register FCM token' });
+  }
+};
+
 module.exports = {
   getProfile,
   updateProfile,
   changePassword,
   deleteAccount,
   registerExpoPushToken: exports.registerExpoPushToken,
-  removeExpoPushToken: exports.removeExpoPushToken
+  removeExpoPushToken: exports.removeExpoPushToken,
+  registerFCMToken: exports.registerFCMToken
 }; 

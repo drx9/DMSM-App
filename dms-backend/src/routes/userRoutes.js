@@ -45,6 +45,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 // Push token endpoints (public - no auth required for app initialization)
 router.post('/register-expo-push-token', userController.registerExpoPushToken);
 router.post('/remove-expo-push-token', userController.removeExpoPushToken);
+router.post('/register-fcm-token', userController.registerFCMToken);
 
 // Debug endpoint to test push notifications
 router.post('/test-notification', async (req, res) => {
@@ -61,6 +62,28 @@ router.post('/test-notification', async (req, res) => {
   } catch (error) {
     console.error('Error sending test notification:', error);
     res.status(500).json({ message: 'Failed to send test notification' });
+  }
+});
+
+// Debug endpoint to test FCM notifications
+router.post('/test-fcm-notification', async (req, res) => {
+  try {
+    const { userId, title, message } = req.body;
+    if (!userId || !title || !message) {
+      return res.status(400).json({ message: 'userId, title, and message are required' });
+    }
+
+    const { sendFCMNotificationToUser } = require('../services/fcmService');
+    const result = await sendFCMNotificationToUser(userId, title, message, { test: true });
+    
+    if (result) {
+      res.json({ success: true, message: 'FCM notification sent successfully' });
+    } else {
+      res.json({ success: false, message: 'FCM notification failed - check if user has FCM token' });
+    }
+  } catch (error) {
+    console.error('Error sending FCM notification:', error);
+    res.status(500).json({ message: 'Failed to send FCM notification' });
   }
 });
 

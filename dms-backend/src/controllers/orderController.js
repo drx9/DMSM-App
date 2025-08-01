@@ -2,6 +2,7 @@ const { Order, OrderItem, User, Product, CartItem, Address, Coupon } = require('
 const couponController = require('./couponController');
 const { emitToUser, emitToOrder, emitToRole } = require('../socket');
 const { sendPushNotification, sendNotificationWithPreferences } = require('../services/pushService');
+const { sendFCMNotificationToUser } = require('../services/fcmService');
 const { ExpoPushToken } = require('../models');
 const { Sequelize } = require('sequelize');
 
@@ -176,6 +177,14 @@ const orderController = {
             }
 
             console.log(`[updateOrderStatus] Sending push notification to user ${order.userId}: ${notificationTitle} - ${notificationBody}`);
+            
+            // Send FCM notification
+            await sendFCMNotificationToUser(order.userId, notificationTitle, notificationBody, { 
+                orderId: order.id, 
+                status
+            });
+            
+            // Also send Expo notification as fallback
             await sendNotificationWithPreferences(order.userId, notificationTitle, notificationBody, { 
                 orderId: order.id, 
                 status

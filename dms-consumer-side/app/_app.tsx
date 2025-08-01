@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { connectSocket, joinRoom, disconnectSocket, onSocketEvent, offSocketEvent } from './services/socketService';
 import { registerForPushNotificationsAsync } from './services/pushService';
+import { fcmService } from './services/fcmService';
 import { Alert } from 'react-native';
 import * as Notifications from 'expo-notifications';
 
@@ -31,6 +32,21 @@ function MyApp({ Component, pageProps }: { Component: any; pageProps: any }) {
         console.log('Socket connected:', socket.connected);
         joinRoom(`user_${id}`);
         registerForPushNotificationsAsync(id);
+        
+        // Setup FCM
+        const setupFCM = async () => {
+          console.log('Setting up FCM...');
+          await fcmService.requestPermission();
+          const token = await fcmService.getToken();
+          
+          if (token) {
+            await fcmService.sendTokenToBackend(id, token);
+          }
+          
+          fcmService.setupMessageHandlers();
+        };
+        
+        setupFCM();
         
         // Set up event listeners immediately
         console.log('Setting up socket event listeners immediately for user:', id);
@@ -78,25 +94,21 @@ function MyApp({ Component, pageProps }: { Component: any; pageProps: any }) {
           });
         });
         
-        // Since socket events aren't working, let's set up a polling mechanism for order updates
+        // Simple polling for order updates - this will work immediately
         let lastOrderStatuses = new Map();
         
         const pollForOrderUpdates = async () => {
           try {
-            console.log('[Polling] Checking for order updates...');
             const response = await fetch(`https://dmsm-app-production-a35d.up.railway.app/api/orders/user/${id}`);
             if (response.ok) {
               const orders = await response.json();
-              console.log('[Polling] Found orders:', orders.length);
               
               // Check for status changes
               orders.forEach((order: any) => {
                 const lastStatus = lastOrderStatuses.get(order.id);
-                console.log(`[Polling] Order ${order.id.substring(0, 8)}: current=${order.status}, last=${lastStatus}`);
                 
                 if (lastStatus && lastStatus !== order.status) {
                   // Status changed, show notification
-                  console.log(`[Polling] Order ${order.id} status changed from ${lastStatus} to ${order.status}`);
                   Notifications.scheduleNotificationAsync({
                     content: {
                       title: 'Order Update',
@@ -108,24 +120,20 @@ function MyApp({ Component, pageProps }: { Component: any; pageProps: any }) {
                 }
                 lastOrderStatuses.set(order.id, order.status);
               });
-            } else {
-              console.log('[Polling] Failed to fetch orders:', response.status);
             }
           } catch (error) {
-            console.log('[Polling] Error:', error);
+            // Silent error handling
           }
         };
         
-        // Poll every 10 seconds to check for order updates
-        console.log('[Setup] Starting polling for order updates...');
-        const pollInterval = setInterval(pollForOrderUpdates, 10000);
+        // Poll every 15 seconds
+        const pollInterval = setInterval(pollForOrderUpdates, 15000);
         
-        // Also run once immediately
+        // Run once immediately
         pollForOrderUpdates();
         
-        // Cleanup polling on unmount
+        // Cleanup
         return () => {
-          console.log('[Setup] Cleaning up polling...');
           clearInterval(pollInterval);
         };
         

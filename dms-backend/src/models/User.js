@@ -72,6 +72,11 @@ User.init({
     allowNull: true,
     field: 'profile_image',
   },
+  fcmToken: {
+    type: DataTypes.TEXT,
+    allowNull: true,
+    field: 'fcm_token',
+  },
   gender: {
     type: DataTypes.ENUM('Male', 'Female', 'Other'),
     allowNull: true,
