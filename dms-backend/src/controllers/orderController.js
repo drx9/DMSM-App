@@ -139,6 +139,7 @@ const orderController = {
             await order.save();
 
             // Real-time: emit to user, order, and admin
+            console.log(`[updateOrderStatus] Emitting order_status_update for order ${order.id} to user ${order.userId}`);
             emitToOrder(order.id, 'order_status_update', { orderId: order.id, status });
             emitToUser(order.userId, 'order_status_update', { orderId: order.id, status });
             emitToRole('admin', 'order_status_update', { orderId: order.id, status });
@@ -174,6 +175,7 @@ const orderController = {
                     break;
             }
 
+            console.log(`[updateOrderStatus] Sending push notification to user ${order.userId}: ${notificationTitle} - ${notificationBody}`);
             await sendNotificationWithPreferences(order.userId, notificationTitle, notificationBody, { 
                 orderId: order.id, 
                 status

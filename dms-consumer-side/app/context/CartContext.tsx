@@ -53,19 +53,15 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         const getUserIdAndResetCart = async () => {
             const uid = await AsyncStorage.getItem('userId');
             setUserId(uid);
-            setCart([]);
-            await AsyncStorage.removeItem('cartItems');
-            if (uid) await refreshCartFromBackend();
+            if (uid) {
+                await refreshCartFromBackend();
+            } else {
+                setCart([]);
+                await AsyncStorage.removeItem('cartItems');
+            }
         };
         getUserIdAndResetCart();
-    }, []);
-
-    useEffect(() => {
-        if (userId === null) return;
-        setCart([]);
-        AsyncStorage.removeItem('cartItems');
-        if (userId) refreshCartFromBackend();
-    }, [userId]);
+    }, []); // Only run once on mount
 
     // Save cart to AsyncStorage on change
     useEffect(() => {

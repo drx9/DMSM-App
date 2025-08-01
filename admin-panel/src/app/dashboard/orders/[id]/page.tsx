@@ -106,11 +106,41 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
             await api.put(`/api/orders/${id}/status`, { status: newStatus });
             toast.success('Order status updated!');
             setOrder({ ...order, status: newStatus }); // Optimistically update UI
+            
+            // Automatically send notification to customer
+            try {
+                await api.post('/api/users/test-notification', {
+                    orderId: order.id,
+                    title: 'Order Update',
+                    message: `Your order #${order.id.substring(0, 8)} status is now: ${newStatus}`
+                });
+                console.log('Notification sent automatically');
+            } catch (notificationError) {
+                console.error('Failed to send notification:', notificationError);
+                // Don't show error to admin - notification failure shouldn't break order update
+            }
         } catch (error) {
             console.error('Error updating order status:', error);
             toast.error('Failed to update order status.');
         } finally {
             setUpdatingStatus(false);
+        }
+    };
+
+    const sendNotification = async () => {
+        if (!order) return;
+
+        try {
+            // Send notification to customer using order ID to find user
+            await api.post('/api/users/test-notification', {
+                orderId: order.id,
+                title: 'Order Update',
+                message: `Your order #${order.id.substring(0, 8)} status is now: ${order.status}`
+            });
+            toast.success('Notification sent to customer!');
+        } catch (error) {
+            console.error('Error sending notification:', error);
+            toast.error('Failed to send notification.');
         }
     };
 
@@ -149,6 +179,8 @@ export default function OrderDetailsPage({ params }: OrderDetailsPageProps) {
                                 </option>
                             ))}
                         </select>
+                        
+
                     </div>
                 </div>
 

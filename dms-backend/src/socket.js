@@ -31,10 +31,16 @@ function initSocket(server) {
 }
 
 function emitToRoom(room, event, data) {
-  if (io) io.to(room).emit(event, data);
+  if (io) {
+    console.log(`[Socket] Emitting ${event} to room ${room}:`, data);
+    io.to(room).emit(event, data);
+  } else {
+    console.error('[Socket] IO not initialized');
+  }
 }
 
 function emitToUser(userId, event, data) {
+  console.log(`[Socket] Emitting ${event} to user_${userId}:`, data);
   emitToRoom(`user_${userId}`, event, data);
 }
 

@@ -10,12 +10,31 @@ export function connectSocket(token?: string) {
       transports: ['websocket'],
       auth: token ? { token } : undefined,
     });
+    
+    // Add connection event listeners
+    socket.on('connect', () => {
+      console.log('Socket connected successfully');
+    });
+    
+    socket.on('disconnect', (reason) => {
+      console.log('Socket disconnected:', reason);
+    });
+    
+    socket.on('connect_error', (error) => {
+      console.error('Socket connection error:', error);
+    });
   }
   return socket;
 }
 
 export function joinRoom(room: string) {
-  socket?.emit('join', room);
+  console.log(`[Socket] Joining room: ${room}`);
+  if (socket) {
+    socket.emit('join', room);
+    console.log(`[Socket] Join event emitted for room: ${room}`);
+  } else {
+    console.error('[Socket] Cannot join room: socket not initialized');
+  }
 }
 
 export function leaveRoom(room: string) {

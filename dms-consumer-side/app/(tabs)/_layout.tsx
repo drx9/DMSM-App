@@ -12,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { API_URL } from '../config';
 import { useRouter } from 'expo-router';
 import { useCart } from '../context/CartContext';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect } from 'expo-router';
 import OrderStatusBar from '../../components/OrderStatusBar';
 
 export default function TabLayout() {
@@ -105,10 +105,13 @@ export default function TabLayout() {
     }
   }, [addressSet, userId]);
 
+  // Only refresh cart when tab is focused, not on every render
   useFocusEffect(
     React.useCallback(() => {
-      refreshCartFromBackend();
-    }, [refreshCartFromBackend])
+      if (userId) {
+        refreshCartFromBackend();
+      }
+    }, [userId]) // Only depend on userId, not refreshCartFromBackend
   );
 
   useEffect(() => {

@@ -197,24 +197,36 @@ class PushNotificationService {
     try {
       const isInitialized = await this.initialize();
       if (!isInitialized) {
-        return false;
+        console.log('Push notification initialization failed, but continuing with local notifications');
+        return true; // Return true to allow local notifications to work
       }
 
-      // Store tokens locally
-      await AsyncStorage.setItem('expoPushToken', this.expoPushToken || '');
-      
-      // Send tokens to backend
-      await this.sendTokenToBackend(userId, this.expoPushToken || '');
+      // Only send token to backend if we have a valid token
+      if (this.expoPushToken) {
+        // Store tokens locally
+        await AsyncStorage.setItem('expoPushToken', this.expoPushToken);
+        
+        // Send tokens to backend
+        await this.sendTokenToBackend(userId, this.expoPushToken);
+      } else {
+        console.log('No Expo push token available, using local notifications only');
+      }
       
       return true;
     } catch (error) {
       console.error('Error registering for push notifications:', error);
-      return false;
+      return true; // Return true to allow local notifications to work
     }
   }
 
   async sendTokenToBackend(userId: string, token: string) {
     try {
+      // Validate inputs
+      if (!userId || !token || token.trim() === '') {
+        console.log('Skipping token registration: missing userId or token');
+        return false;
+      }
+
       console.log('Sending token to backend:', { userId, token, platform: Platform.OS });
       const response = await axios.post(`${API_URL}/users/register-expo-push-token`, {
         userId,
