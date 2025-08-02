@@ -48,10 +48,8 @@ jobs:
     - name: Build APK
       run: |
         cd android
-        ls -la gradlew
         chmod +x gradlew
-        ls -la gradlew
-        ./gradlew assembleRelease
+        bash gradlew assembleRelease
       
     - name: Upload APK
       uses: actions/upload-artifact@v4
