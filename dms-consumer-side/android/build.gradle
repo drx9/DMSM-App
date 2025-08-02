@@ -42,5 +42,23 @@ allprojects {
   }
 }
 
+// Fix for expo-firebase-core issues
+subprojects {
+    afterEvaluate { subproject ->
+        if (subproject.hasProperty('android')) {
+            subproject.android {
+                compileSdkVersion rootProject.ext.compileSdkVersion
+                buildToolsVersion rootProject.ext.buildToolsVersion
+            }
+        }
+        // Fix for androidSourcesJar classifier issue
+        subproject.tasks.withType(org.gradle.api.tasks.bundling.Jar) { task ->
+            if (task.name == 'androidSourcesJar') {
+                task.archiveClassifier.set('sources')
+            }
+        }
+    }
+}
+
 apply plugin: "expo-root-project"
 apply plugin: "com.facebook.react.rootproject"
