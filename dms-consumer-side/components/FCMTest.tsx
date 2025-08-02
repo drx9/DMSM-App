@@ -82,7 +82,7 @@ export default function FCMTest() {
       // Use FCM service to send test notification
       const success = await fcmService.testFCMNotification();
       if (success) {
-        Alert.alert('Success', 'Test notification sent! Check your device.');
+        Alert.alert('Success', 'Test notification sent! You should see a banner notification appear.');
       } else {
         Alert.alert('Error', 'Failed to send test notification');
       }
@@ -141,7 +141,7 @@ export default function FCMTest() {
       });
       
       const result = await response.json();
-      Alert.alert('Direct FCM Test', result.success ? 'Direct test sent!' : 'Failed');
+      Alert.alert('Direct FCM Test', result.success ? 'Direct test sent! You should see a banner notification.' : 'Failed');
     } catch (error) {
       Alert.alert('Error', 'Direct FCM test failed');
     }

@@ -96,8 +96,8 @@ router.put('/orders/:orderId/status', async (req, res) => {
         order.status = status;
         await order.save();
 
-        // Send push notification to customer
-        const { sendNotificationWithPreferences } = require('../services/pushService');
+        // Send FCM notification to customer
+        const { sendFCMNotificationToUser } = require('../services/fcmService');
         const { emitToUser, emitToOrder } = require('../socket');
 
         // Real-time updates
@@ -131,10 +131,10 @@ router.put('/orders/:orderId/status', async (req, res) => {
                 break;
         }
 
-        await sendNotificationWithPreferences(order.userId, notificationTitle, notificationBody, { 
+        await sendFCMNotificationToUser(order.userId, notificationTitle, notificationBody, { 
             orderId: order.id, 
             status
-        }, 'order_updates');
+        });
 
         res.json({ message: 'Order status updated', status: order.status });
     } catch (error) {

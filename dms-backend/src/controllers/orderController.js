@@ -176,19 +176,13 @@ const orderController = {
                     break;
             }
 
-            console.log(`[updateOrderStatus] Sending push notification to user ${order.userId}: ${notificationTitle} - ${notificationBody}`);
+            console.log(`[updateOrderStatus] Sending FCM notification to user ${order.userId}: ${notificationTitle} - ${notificationBody}`);
             
-            // Send FCM notification
+            // Send FCM notification only (removed Expo notification to prevent duplicates)
             await sendFCMNotificationToUser(order.userId, notificationTitle, notificationBody, { 
                 orderId: order.id, 
                 status
             });
-            
-            // Also send Expo notification as fallback
-            await sendNotificationWithPreferences(order.userId, notificationTitle, notificationBody, { 
-                orderId: order.id, 
-                status
-            }, 'order_updates');
 
             res.json(order);
         } catch (error) {
@@ -273,16 +267,16 @@ const orderController = {
             emitToUser(userId, 'order_placed', { orderId: order.id });
             emitToRole('admin', 'order_placed', { orderId: order.id });
 
-            // Push notification for order placement
-            console.log(`📱 Sending order placement notification to user ${userId} for order ${order.id}`);
+            // FCM notification for order placement
+            console.log(`📱 Sending order placement FCM notification to user ${userId} for order ${order.id}`);
             try {
-                await sendNotificationWithPreferences(userId, 'Order Placed Successfully', 'Your order has been placed and is awaiting confirmation!', { 
+                await sendFCMNotificationToUser(userId, 'Order Placed Successfully', 'Your order has been placed and is awaiting confirmation!', { 
                     orderId: order.id,
                     status: 'pending'
-                }, 'order_updates');
-                console.log(`✅ Order placement notification sent successfully to user ${userId}`);
+                });
+                console.log(`✅ Order placement FCM notification sent successfully to user ${userId}`);
             } catch (notificationError) {
-                console.error(`❌ Failed to send order placement notification to user ${userId}:`, notificationError);
+                console.error(`❌ Failed to send order placement FCM notification to user ${userId}:`, notificationError);
             }
 
             res.json(order);
@@ -360,16 +354,16 @@ const orderController = {
                     deliveryBoyAssigned: true 
                 });
                 
-                // Send push notification to delivery boy
-                await sendNotificationWithPreferences(deliveryBoyId, 'New Delivery Assigned', 'You have been assigned a new delivery order.', {
+                // Send FCM notification to delivery boy
+                await sendFCMNotificationToUser(deliveryBoyId, 'New Delivery Assigned', 'You have been assigned a new delivery order.', {
                     orderId: order.id
-                }, 'delivery');
+                });
                 
-                // Send push notification to customer
-                await sendNotificationWithPreferences(order.userId, 'Order Confirmed', 'Your order has been confirmed and a delivery partner has been assigned!', {
+                // Send FCM notification to customer
+                await sendFCMNotificationToUser(order.userId, 'Order Confirmed', 'Your order has been confirmed and a delivery partner has been assigned!', {
                     orderId: order.id,
                     status: 'processing'
-                }, 'order_updates');
+                });
             }
 
             res.json({ updated: updated[0], orders: updatedOrders });

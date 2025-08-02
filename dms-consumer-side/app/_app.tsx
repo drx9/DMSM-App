@@ -6,9 +6,21 @@ import { NotificationProvider } from './context/NotificationContext';
 import { CartProvider } from './context/CartContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fcmService } from './services/fcmService';
+import * as Notifications from 'expo-notifications';
 
 export default function App() {
   useEffect(() => {
+    // Set up notification handler for banner notifications
+    Notifications.setNotificationHandler({
+      handleNotification: async () => ({
+        shouldShowAlert: true,
+        shouldShowBanner: true,
+        shouldShowList: true,
+        shouldPlaySound: true,
+        shouldSetBadge: false,
+      }),
+    });
+
     // Auto-refresh FCM token when app starts
     const refreshFCMToken = async () => {
       try {

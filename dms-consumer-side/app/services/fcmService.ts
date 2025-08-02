@@ -2,6 +2,7 @@ import messaging from '@react-native-firebase/messaging';
 import { Alert } from 'react-native';
 import axios from 'axios';
 import { API_URL } from '../config';
+import * as Notifications from 'expo-notifications';
 
 class FCMService {
   private fcmToken: string | null = null;
@@ -137,11 +138,15 @@ class FCMService {
     const unsubscribe = messaging().onMessage(async remoteMessage => {
       console.log('[FCM] Foreground message received:', remoteMessage);
       
-      // Show local notification
-      Alert.alert(
-        remoteMessage.notification?.title || 'New Message',
-        remoteMessage.notification?.body || 'You have a new notification'
-      );
+      // Show banner notification instead of alert
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: remoteMessage.notification?.title || 'New Message',
+          body: remoteMessage.notification?.body || 'You have a new notification',
+          data: remoteMessage.data || {},
+        },
+        trigger: null, // Show immediately
+      });
     });
 
     // Background message handler
@@ -178,11 +183,9 @@ class FCMService {
       });
       if (response.data.success) {
         console.log('[FCM] Test notification sent successfully');
-        Alert.alert('Success', 'Test notification sent! Check your device.');
         return true;
       } else {
         console.error('[FCM] Test notification failed:', response.data.message);
-        Alert.alert('Error', 'Failed to send test notification');
         return false;
       }
     } catch (error) {

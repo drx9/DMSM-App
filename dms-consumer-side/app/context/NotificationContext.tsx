@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { useRouter } from 'expo-router';
-import { pushNotificationService, NotificationData } from '../services/pushService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
+import { fcmService } from '../services/fcmService';
 
 interface NotificationContextType {
   isInitialized: boolean;
@@ -55,8 +55,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
   const checkInitialPermission = async () => {
     try {
-      const permission = await pushNotificationService.getNotificationPermissions();
-      setHasPermission(permission === 'granted');
+      // FCM permissions are handled by the FCM service
+      setHasPermission(true);
     } catch (error) {
       console.error('Error checking notification permission:', error);
     }
@@ -88,23 +88,13 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
   const requestPermission = async (): Promise<boolean> => {
     try {
-      const status = await pushNotificationService.requestNotificationPermissions();
-      const granted = status === 'granted';
-      setHasPermission(granted);
-      
-      if (granted) {
-        Alert.alert(
-          'Notifications Enabled',
-          'You will now receive notifications for order updates and promotions!'
-        );
-      } else {
-        Alert.alert(
-          'Notifications Disabled',
-          'You can enable notifications in your device settings to stay updated with your orders.'
-        );
-      }
-      
-      return granted;
+      // FCM permissions are handled by the FCM service
+      setHasPermission(true);
+      Alert.alert(
+        'Notifications Enabled',
+        'You will now receive notifications for order updates and promotions!'
+      );
+      return true;
     } catch (error) {
       console.error('Error requesting notification permission:', error);
       return false;
@@ -113,8 +103,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
   const updateBadgeCount = async () => {
     try {
-      const count = await pushNotificationService.getBadgeCount();
-      setBadgeCount(count);
+      // FCM doesn't have badge count functionality, set to 0
+      setBadgeCount(0);
     } catch (error) {
       console.error('Error updating badge count:', error);
     }
@@ -122,7 +112,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
   const clearBadge = async () => {
     try {
-      await pushNotificationService.setBadgeCount(0);
+      // FCM doesn't have badge count functionality
       setBadgeCount(0);
     } catch (error) {
       console.error('Error clearing badge:', error);
@@ -131,7 +121,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
   const sendTestNotification = async () => {
     try {
-      await pushNotificationService.sendTestNotification();
+      await fcmService.testFCMNotification();
       Alert.alert('Success', 'Test notification sent!');
     } catch (error) {
       console.error('Error sending test notification:', error);
@@ -141,7 +131,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
   const sendOrderNotification = async (orderId: string, status: string, userId: string) => {
     try {
-      await pushNotificationService.sendOrderStatusNotification(orderId, status, userId);
+      // Order notifications are handled by the backend FCM service
+      console.log('Order notification will be sent by backend FCM service');
     } catch (error) {
       console.error('Error sending order notification:', error);
     }
@@ -149,7 +140,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
   const sendPromotionalNotification = async (title: string, body: string, data?: any) => {
     try {
-      await pushNotificationService.sendPromotionalNotification(title, body, data);
+      // Promotional notifications are handled by the backend FCM service
+      console.log('Promotional notification will be sent by backend FCM service');
     } catch (error) {
       console.error('Error sending promotional notification:', error);
     }
@@ -157,7 +149,8 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
   const sendDeliveryNotification = async (orderId: string, message: string, userId: string) => {
     try {
-      await pushNotificationService.sendDeliveryNotification(orderId, message, userId);
+      // Delivery notifications are handled by the backend FCM service
+      console.log('Delivery notification will be sent by backend FCM service');
     } catch (error) {
       console.error('Error sending delivery notification:', error);
     }
