@@ -40,12 +40,10 @@ jobs:
       run: |
         echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > google-services.json
         
-    - name: Fix gradlew permissions and build
+    - name: Build APK with gradle
       run: |
         cd android
-        chmod +x gradlew
-        ls -la gradlew
-        gradlew assembleRelease
+        gradle assembleRelease
       
     - name: Upload APK
       uses: actions/upload-artifact@v4
