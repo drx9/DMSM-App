@@ -32,7 +32,7 @@ module.exports = {
         }
       },
       reactNativeArchitectures: ["arm64-v8a"],
-      googleServicesFile: process.env.GOOGLE_SERVICES_JSON ?? './google-services.json',
+      googleServicesFile: "./google-services.json",
     },
     web: {
       bundler: "metro",
