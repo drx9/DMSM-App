@@ -84,7 +84,7 @@ def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 android {
     namespace "com.dmsm.dmsconsumerside"
     compileSdkVersion rootProject.ext.compileSdkVersion
-    ndkVersion "27.1.12297006"
+    // ndkVersion "25.1.8937393" // Disabled to avoid NDK issues
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17

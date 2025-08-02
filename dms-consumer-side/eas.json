@@ -24,8 +24,7 @@
       "autoIncrement": true,
       "env": {
         "GOOGLE_SERVICES_JSON": "GOOGLE_SERVICES_JSON"
-      },
-      "prebuildCommand": "yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses"
+      }
     }
   },
   "submit": {
