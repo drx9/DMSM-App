@@ -10,6 +10,17 @@ subprojects {
         if (subproject.hasProperty('android')) {
             subproject.android {
                 compileSdkVersion rootProject.ext.compileSdkVersion
+                buildToolsVersion rootProject.ext.buildToolsVersion
+                defaultConfig {
+                    minSdkVersion rootProject.ext.minSdkVersion
+                    targetSdkVersion rootProject.ext.targetSdkVersion
+                }
+            }
+        }
+        // Fix for androidSourcesJar classifier issue
+        subproject.tasks.withType(org.gradle.api.tasks.bundling.Jar) { task ->
+            if (task.name == 'androidSourcesJar') {
+                task.archiveClassifier.set('sources')
             }
         }
     }
