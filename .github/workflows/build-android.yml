@@ -48,10 +48,21 @@ jobs:
       run: |
         echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > google-services.json
         
+    - name: Fix package.json main field
+      run: |
+        sed -i 's/"main": "expo-router\/entry"/"main": "App.js"/' package.json
+        
     - name: Create App.js entry point
       run: |
         cat > App.js << 'EOF'
-        import 'expo-router/entry';
+        import { registerRootComponent } from 'expo';
+        import RootLayout from './app/_layout';
+        
+        export default function App() {
+          return <RootLayout />;
+        }
+        
+        registerRootComponent(App);
         EOF
         
     - name: Fix expo-firebase-core build.gradle
