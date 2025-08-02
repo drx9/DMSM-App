@@ -48,6 +48,20 @@ jobs:
       run: |
         echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > google-services.json
         
+    - name: Fix entry point for Expo Router
+      run: |
+        # Create a proper entry point for Expo Router
+        echo 'import { registerRootComponent } from "expo";
+        import { ExpoRoot } from "expo-router";
+        
+        // Must be exported or Fast Refresh won't update the context
+        export function App() {
+          const ctx = require.context("./app");
+          return <ExpoRoot context={ctx} />;
+        }
+        
+        registerRootComponent(App);' > App.js
+        
     - name: Fix expo-firebase-core build.gradle
       run: |
         echo 'apply plugin: "com.android.library"
