@@ -70,16 +70,11 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
   const initializeNotifications = async (userId: string): Promise<boolean> => {
     try {
-      // Use FCM service for notifications
-      const { fcmService } = require('../services/fcmService');
-      const success = await fcmService.initialize(userId);
-      
-      if (success) {
-        setIsInitialized(true);
-        setHasPermission(true);
-        await updateBadgeCount();
-      }
-      return success;
+      // FCM is already initialized in _app.tsx, just mark as initialized
+      setIsInitialized(true);
+      setHasPermission(true);
+      await updateBadgeCount();
+      return true;
     } catch (error) {
       console.error('Error initializing notifications:', error);
       return false;

@@ -9,9 +9,18 @@ class FCMService {
   private userId: string | null = null;
   private retryCount = 0;
   private maxRetries = 3;
+  private isInitialized = false;
+  private messageHandlerCount = 0;
+  private lastMessageId: string | null = null;
 
   async initialize(userId: string): Promise<boolean> {
     try {
+      // Prevent multiple initializations
+      if (this.isInitialized) {
+        console.log('[FCM] FCM already initialized, skipping...');
+        return true;
+      }
+      
       console.log('[FCM] Initializing FCM for user:', userId);
       this.userId = userId;
 
@@ -42,6 +51,7 @@ class FCMService {
       // Setup message handlers
       this.setupMessageHandlers();
 
+      this.isInitialized = true;
       console.log('[FCM] FCM initialized successfully');
       return true;
     } catch (error) {
@@ -134,19 +144,17 @@ class FCMService {
   }
 
   setupMessageHandlers(): void {
-    // Foreground message handler
+    console.log('[FCM] Setting up message handlers...');
+    
+    // Foreground message handler - DISABLED to prevent duplicate notifications
+    // FCM will show system notifications automatically, no need for custom banner
     const unsubscribe = messaging().onMessage(async remoteMessage => {
-      console.log('[FCM] Foreground message received:', remoteMessage);
+      console.log('[FCM] Foreground message received (system notification will show automatically):', remoteMessage);
+      console.log('[FCM] Message ID:', remoteMessage.messageId);
+      console.log('[FCM] Message Title:', remoteMessage.notification?.title);
       
-      // Show banner notification instead of alert
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: remoteMessage.notification?.title || 'New Message',
-          body: remoteMessage.notification?.body || 'You have a new notification',
-          data: remoteMessage.data || {},
-        },
-        trigger: null, // Show immediately
-      });
+      // Don't create custom banner - let FCM show system notification
+      console.log('[FCM] System notification will be shown automatically by FCM');
     });
 
     // Background message handler
@@ -236,6 +244,13 @@ class FCMService {
     
     console.log('[FCM] Force re-registering FCM token...');
     return await this.registerTokenWithBackend(this.fcmToken);
+  }
+
+  // Reset duplicate prevention (useful for debugging)
+  resetDuplicatePrevention(): void {
+    this.lastMessageId = null;
+    this.messageHandlerCount = 0;
+    console.log('[FCM] Duplicate prevention reset');
   }
 }
 

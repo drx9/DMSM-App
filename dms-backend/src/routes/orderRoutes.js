@@ -110,7 +110,7 @@ router.put('/:id/assign-delivery', async (req, res) => {
         
         // Real-time: emit to delivery boy and send push notification
         const { emitToUser } = require('../socket');
-        const { sendNotificationWithPreferences } = require('../services/pushService');
+        // Removed old push service - using FCM instead
         
         // Notify delivery boy
         emitToUser(deliveryBoyId, 'assigned_order', { orderId: order.id });

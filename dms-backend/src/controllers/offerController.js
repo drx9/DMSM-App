@@ -3,7 +3,7 @@ const { Offer, Product, OfferProduct } = db;
 const { Op } = require('sequelize');
 const { emitToRole } = require('../socket');
 const { ExpoPushToken } = require('../models');
-const { sendPushNotification } = require('../services/pushService');
+// Removed old push service - using FCM instead
 
 const offerController = {
     // Create a new offer

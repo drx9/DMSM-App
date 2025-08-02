@@ -6,16 +6,16 @@ import axios from 'axios';
 import { API_URL } from '../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Configure notification behavior
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
-});
+// DISABLED: Notification handler moved to _app.tsx to prevent conflicts
+// Notifications.setNotificationHandler({
+//   handleNotification: async () => ({
+//     shouldShowAlert: true,
+//     shouldPlaySound: true,
+//     shouldSetBadge: true,
+//     shouldShowBanner: true,
+//     shouldShowList: true,
+//   }),
+// });
 
 export interface NotificationData {
   type: 'order_status' | 'promotional' | 'delivery' | 'general';
@@ -109,22 +109,9 @@ class PushNotificationService {
   }
 
   private setupNotificationListeners() {
-    // Handle notification received while app is running
-    const notificationListener = Notifications.addNotificationReceivedListener(notification => {
-      console.log('Notification received:', notification);
-      this.handleNotificationReceived(notification);
-    });
-
-    // Handle notification tapped
-    const responseListener = Notifications.addNotificationResponseReceivedListener(response => {
-      console.log('Notification response:', response);
-      this.handleNotificationResponse(response);
-    });
-
-    return () => {
-      Notifications.removeNotificationSubscription(notificationListener);
-      Notifications.removeNotificationSubscription(responseListener);
-    };
+    // DISABLED: Using FCM for notifications instead
+    console.log('[PushService] Notification listeners disabled - using FCM instead');
+    return () => {};
   }
 
   private handleNotificationReceived(notification: Notifications.Notification) {
@@ -247,21 +234,9 @@ class PushNotificationService {
   }
 
   async scheduleLocalNotification(notification: NotificationData) {
-    try {
-      const channelId = this.getChannelId(notification.type);
-      
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: notification.title,
-          body: notification.body,
-          data: notification.data || {},
-          sound: 'default',
-        },
-        trigger: null, // Send immediately
-      });
-    } catch (error) {
-      console.error('Error scheduling local notification:', error);
-    }
+    // DISABLED: Using FCM for notifications instead
+    console.log('[PushService] Local notification disabled - using FCM instead');
+    return;
   }
 
   private getChannelId(type: string): string {
@@ -349,15 +324,8 @@ class PushNotificationService {
 
   // Method to send test notification
   async sendTestNotification() {
-    await this.scheduleLocalNotification({
-      type: 'general',
-      title: 'Test Notification',
-      body: 'This is a test notification from DMS Mart!',
-      data: {
-        type: 'general',
-        test: true
-      }
-    });
+    // DISABLED: Using FCM for notifications instead
+    console.log('[PushService] Test notification disabled - using FCM instead');
   }
 }
 

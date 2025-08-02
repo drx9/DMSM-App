@@ -1,7 +1,7 @@
 const { Order, OrderItem, User, Product, CartItem, Address, Coupon } = require('../models');
 const couponController = require('./couponController');
 const { emitToUser, emitToOrder, emitToRole } = require('../socket');
-const { sendPushNotification, sendNotificationWithPreferences } = require('../services/pushService');
+// Removed old push service - using FCM instead
 const { sendFCMNotificationToUser } = require('../services/fcmService');
 const { ExpoPushToken } = require('../models');
 const { Sequelize } = require('sequelize');

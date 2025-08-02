@@ -5,7 +5,7 @@ const XLSX = require('xlsx');
 const fs = require('fs');
 const { emitToRole } = require('../socket');
 const { ExpoPushToken } = require('../models');
-const { sendPushNotification } = require('../services/pushService');
+// Removed old push service - using FCM instead
 
 const VALID_SORT_COLUMNS = [
   'createdAt', 'price', 'discount', 'stock', 'rating', 'reviewCount', 'isOutOfStock', 'isActive', 'name'

@@ -22,7 +22,7 @@ import { API_URL } from '../config';
 import { useNotifications } from '../context/NotificationContext';
 import AddressManagerModal, { Address } from '../../components/AddressManagerModal';
 import LocationSelectionScreen from '../location/LocationSelectionScreen';
-import NotificationTest from '../../components/NotificationTest';
+
 import FCMTest from '../../components/FCMTest';
 import FirebaseTest from '../components/FirebaseTest';
 
@@ -262,7 +262,7 @@ const ProfileScreen = () => {
 
         {/* Notification Test Section */}
         <Text style={styles.sectionTitle}>Debug Tools</Text>
-        <NotificationTest />
+
         <FCMTest />
         <FirebaseTest />
 

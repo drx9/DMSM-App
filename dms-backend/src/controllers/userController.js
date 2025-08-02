@@ -3,7 +3,7 @@ const { User } = require('../models');
 const bcrypt = require('bcryptjs');
 const { emitToUser } = require('../socket');
 const { ExpoPushToken } = require('../models');
-const { sendPushNotification } = require('../services/pushService');
+// Removed old push service - using FCM instead
 
 const getProfile = async (req, res) => {
   try {
@@ -80,7 +80,7 @@ const updateProfile = async (req, res) => {
     // Push: notify user
     const tokens = await ExpoPushToken.findAll({ where: { userId: user.id } });
     for (const t of tokens) {
-      await sendPushNotification(t.token, 'Profile Updated', 'Your profile was updated.', {});
+              // Removed old push notification - using FCM instead
     }
     res.json({
       success: true,
@@ -131,7 +131,7 @@ const changePassword = async (req, res) => {
     // Push: notify user
     const tokens = await ExpoPushToken.findAll({ where: { userId: user.id } });
     for (const t of tokens) {
-      await sendPushNotification(t.token, 'Password Changed', 'Your password was changed.', {});
+              // Removed old push notification - using FCM instead
     }
     res.json({
       success: true,
@@ -169,7 +169,7 @@ const deleteAccount = async (req, res) => {
     // Push: notify user
     const tokens = await ExpoPushToken.findAll({ where: { userId: user.id } });
     for (const t of tokens) {
-      await sendPushNotification(t.token, 'Account Deleted', 'Your account was deleted.', {});
+              // Removed old push notification - using FCM instead
     }
     // Delete user account
     await user.destroy();

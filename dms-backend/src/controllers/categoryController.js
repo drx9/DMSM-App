@@ -1,7 +1,7 @@
 const { Category } = require('../models');
 const { emitToRole } = require('../socket');
 const { ExpoPushToken } = require('../models');
-const { sendPushNotification } = require('../services/pushService');
+// Removed old push service - using FCM instead
 
 const categoryController = {
   getCategories: async (req, res) => {

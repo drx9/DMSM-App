@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { authenticateToken, isAdmin } = require('../middleware/auth');
-const { sendNotificationWithPreferences } = require('../services/pushService');
+// Removed old push service - using FCM instead
 const { ExpoPushToken, User } = require('../models');
 
 // Protect all admin routes

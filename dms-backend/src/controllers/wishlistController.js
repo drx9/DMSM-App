@@ -1,7 +1,7 @@
 const { Wishlist, Product } = require('../models');
 const { emitToUser, emitToRole } = require('../socket');
 const { ExpoPushToken } = require('../models');
-const { sendPushNotification } = require('../services/pushService');
+// Removed old push service - using FCM instead
 
 // Get all wishlist items for a user
 exports.getWishlist = async (req, res) => {
@@ -30,7 +30,7 @@ exports.addToWishlist = async (req, res) => {
         // Push: notify user
         const tokens = await ExpoPushToken.findAll({ where: { userId } });
         for (const t of tokens) {
-          await sendPushNotification(t.token, 'Wishlist Updated', 'Product added to your wishlist.', { productId });
+          // Removed old push notification - using FCM instead
         }
         res.status(201).json(entry);
     } catch (err) {
@@ -49,7 +49,7 @@ exports.removeFromWishlist = async (req, res) => {
           // Push: notify user
           const tokens = await ExpoPushToken.findAll({ where: { userId } });
           for (const t of tokens) {
-            await sendPushNotification(t.token, 'Wishlist Updated', 'Product removed from your wishlist.', { productId });
+            // Removed old push notification - using FCM instead
           }
           return res.json({ success: true });
         }

@@ -1,7 +1,7 @@
 const { Product } = require('../models');
 const { emitToUser } = require('../socket');
 const { ExpoPushToken } = require('../models');
-const { sendPushNotification } = require('../services/pushService');
+// Removed old push service - using FCM instead
 
 exports.getCartCount = async (req, res) => {
     try {
@@ -33,7 +33,7 @@ exports.updateCartItemQuantity = async (req, res) => {
         // Push: notify user
         const tokens = await ExpoPushToken.findAll({ where: { userId } });
         for (const t of tokens) {
-          await sendPushNotification(t.token, 'Cart Updated', `Quantity for product updated to ${quantity}.`, { productId, quantity });
+          // Removed old push notification - using FCM instead
         }
         res.json(item);
     } catch (err) {
