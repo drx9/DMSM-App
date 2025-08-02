@@ -116,6 +116,9 @@ router.post(
 
 router.post("/firebase-login", authController.verifyFirebaseToken);
 
+// Phone-based login route
+router.post("/phone-login", authController.phoneLogin);
+
 // Simple phone OTP routes
 router.post('/send-phone-otp', authController.sendPhoneOTP);
 router.post('/verify-phone-otp', authController.verifyPhoneOTP);
@@ -128,6 +131,19 @@ router.get('/user/me', authenticateToken, async (req, res) => {
     res.json(user);
   } catch (err) {
     res.status(500).json({ message: 'Failed to fetch user profile' });
+  }
+});
+
+// Verify token endpoint
+router.get('/verify-token', authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findByPk(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    res.json({ success: true, user });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 

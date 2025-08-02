@@ -12,12 +12,12 @@ class FCMService {
   private isInitialized = false;
   private messageHandlerCount = 0;
   private lastMessageId: string | null = null;
+  private unsubscribeForeground: (() => void) | null = null;
 
   async initialize(userId: string): Promise<boolean> {
     try {
       // Prevent multiple initializations
       if (this.isInitialized) {
-        console.log('[FCM] FCM already initialized, skipping...');
         return true;
       }
       
@@ -26,6 +26,7 @@ class FCMService {
 
       // Request permission
       const authStatus = await messaging().requestPermission();
+      console.log('[FCM] Permission status:', authStatus);
       const enabled = authStatus === messaging.AuthorizationStatus.AUTHORIZED || 
                      authStatus === messaging.AuthorizationStatus.PROVISIONAL;
 
@@ -33,6 +34,7 @@ class FCMService {
         console.log('[FCM] Permission not granted');
         return false;
       }
+      console.log('[FCM] Permission granted');
 
       // Get FCM token with retry logic
       const token = await this.getFCMTokenWithRetry();
@@ -144,17 +146,39 @@ class FCMService {
   }
 
   setupMessageHandlers(): void {
-    console.log('[FCM] Setting up message handlers...');
-    
-    // Foreground message handler - DISABLED to prevent duplicate notifications
-    // FCM will show system notifications automatically, no need for custom banner
-    const unsubscribe = messaging().onMessage(async remoteMessage => {
-      console.log('[FCM] Foreground message received (system notification will show automatically):', remoteMessage);
-      console.log('[FCM] Message ID:', remoteMessage.messageId);
-      console.log('[FCM] Message Title:', remoteMessage.notification?.title);
-      
-      // Don't create custom banner - let FCM show system notification
-      console.log('[FCM] System notification will be shown automatically by FCM');
+    // Unsubscribe from previous foreground handler if exists
+    if (this.unsubscribeForeground) {
+      this.unsubscribeForeground();
+    }
+
+    // Foreground message handler - ENABLED to show notifications when app is in foreground
+    this.unsubscribeForeground = messaging().onMessage(async remoteMessage => {
+      this.messageHandlerCount++;
+
+      // Prevent duplicate notifications by checking message ID
+      if (this.lastMessageId === remoteMessage.messageId) {
+        return;
+      }
+      this.lastMessageId = remoteMessage.messageId || null;
+
+      // Show notification banner using Expo Notifications
+      try {
+        const notificationId = await Notifications.scheduleNotificationAsync({
+          content: {
+            title: remoteMessage.notification?.title || 'Notification',
+            body: remoteMessage.notification?.body || 'You have a new notification',
+            data: remoteMessage.data || {},
+          },
+          trigger: null, // Show immediately
+        });
+      } catch (error) {
+        console.error('[FCM] Error scheduling notification:', error);
+        // Fallback: try to show alert
+        Alert.alert(
+          remoteMessage.notification?.title || 'Notification',
+          remoteMessage.notification?.body || 'You have a new notification'
+        );
+      }
     });
 
     // Background message handler
@@ -235,6 +259,8 @@ class FCMService {
     return this.userId;
   }
 
+
+
   // Force re-register token (useful for debugging)
   async forceReRegister(): Promise<boolean> {
     if (!this.fcmToken || !this.userId) {
@@ -246,11 +272,23 @@ class FCMService {
     return await this.registerTokenWithBackend(this.fcmToken);
   }
 
-  // Reset duplicate prevention (useful for debugging)
+
+
+
+
+  // Reset duplicate prevention
   resetDuplicatePrevention(): void {
     this.lastMessageId = null;
     this.messageHandlerCount = 0;
-    console.log('[FCM] Duplicate prevention reset');
+  }
+
+  // Cleanup method to unsubscribe from handlers
+  cleanup(): void {
+    if (this.unsubscribeForeground) {
+      this.unsubscribeForeground();
+      this.unsubscribeForeground = null;
+    }
+    this.isInitialized = false;
   }
 }
 

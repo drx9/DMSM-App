@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import { fcmService } from '../services/fcmService';
+import { useAuth } from './AuthContext';
 
 interface NotificationContextType {
   isInitialized: boolean;
@@ -36,6 +37,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
   const [hasPermission, setHasPermission] = useState(false);
   const [badgeCount, setBadgeCount] = useState(0);
   const router = useRouter();
+  const { user } = useAuth();
   const notificationListener = useRef<any>(null);
   const responseListener = useRef<any>(null);
 
@@ -70,16 +72,29 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
   const initializeNotifications = async (userId: string): Promise<boolean> => {
     try {
-      // FCM is already initialized in _app.tsx, just mark as initialized
-      setIsInitialized(true);
-      setHasPermission(true);
-      await updateBadgeCount();
-      return true;
+      // Initialize FCM service
+      const success = await fcmService.initialize(userId);
+      if (success) {
+        setIsInitialized(true);
+        setHasPermission(true);
+        await updateBadgeCount();
+        return true;
+      } else {
+        console.error('FCM initialization failed');
+        return false;
+      }
     } catch (error) {
       console.error('Error initializing notifications:', error);
       return false;
     }
   };
+
+  // Auto-initialize notifications when user is available
+  useEffect(() => {
+    if (user && !isInitialized) {
+      initializeNotifications(user.id);
+    }
+  }, [user, isInitialized]);
 
   const requestPermission = async (): Promise<boolean> => {
     try {

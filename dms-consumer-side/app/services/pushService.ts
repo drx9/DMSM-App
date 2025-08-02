@@ -6,16 +6,15 @@ import axios from 'axios';
 import { API_URL } from '../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// DISABLED: Notification handler moved to _app.tsx to prevent conflicts
-// Notifications.setNotificationHandler({
-//   handleNotification: async () => ({
-//     shouldShowAlert: true,
-//     shouldPlaySound: true,
-//     shouldSetBadge: true,
-//     shouldShowBanner: true,
-//     shouldShowList: true,
-//   }),
-// });
+// ENABLED: Notification handler for push service
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 export interface NotificationData {
   type: 'order_status' | 'promotional' | 'delivery' | 'general';

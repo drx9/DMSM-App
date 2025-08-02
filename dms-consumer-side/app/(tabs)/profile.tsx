@@ -13,6 +13,7 @@ import {
   FlatList,
   ActivityIndicator,
   Image,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -20,15 +21,17 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../config';
 import { useNotifications } from '../context/NotificationContext';
+import { useAuth } from '../context/AuthContext';
 import AddressManagerModal, { Address } from '../../components/AddressManagerModal';
 import LocationSelectionScreen from '../location/LocationSelectionScreen';
 
-import FCMTest from '../../components/FCMTest';
+
 import FirebaseTest from '../components/FirebaseTest';
 
 const ProfileScreen = () => {
   const router = useRouter();
   const { hasPermission, requestPermission, sendTestNotification } = useNotifications();
+  const { logout } = useAuth();
   const [orders, setOrders] = useState<any[]>([]);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
@@ -147,12 +150,8 @@ const ProfileScreen = () => {
   };
 
   const handleLogout = async () => {
-    // Clear all user-specific data
-    await AsyncStorage.removeItem('userId');
-    await AsyncStorage.removeItem('cartItems');
-    await AsyncStorage.removeItem('userAddress');
-    await AsyncStorage.removeItem('addressSet');
-    // Optionally, clear any other user-specific keys here
+    // Use AuthContext to handle logout
+    await logout();
     router.replace('/login');
   };
 
@@ -203,6 +202,8 @@ const ProfileScreen = () => {
     // Optionally, refresh addresses
     if (userId) fetchAddresses(userId);
   };
+
+
 
   const profileFeatures = [
     { id: 1, name: 'Account Details', icon: 'person-outline', screen: 'account-details' },
@@ -260,11 +261,12 @@ const ProfileScreen = () => {
           </View>
         )}
 
-        {/* Notification Test Section */}
+        {/* Debug Tools Section */}
         <Text style={styles.sectionTitle}>Debug Tools</Text>
 
-        <FCMTest />
         <FirebaseTest />
+        
+
 
         {/* Profile Features */}
         <Text style={styles.sectionTitle}>Account</Text>
@@ -496,6 +498,7 @@ const styles = StyleSheet.create({
   unverifiedText: {
     color: '#F57C00',
   },
+
 });
 
 export default ProfileScreen; 

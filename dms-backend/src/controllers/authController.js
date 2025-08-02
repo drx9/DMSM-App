@@ -45,6 +45,7 @@ const login = async (req, res) => {
           name: user.name,
           email: user.email,
           role: user.role,
+          isVerified: user.isVerified,
         },
       });
     }
@@ -516,6 +517,44 @@ const verifyPhoneOTP = async (req, res) => {
   }
 };
 
+// Phone-based login endpoint
+const phoneLogin = async (req, res) => {
+  const { phoneNumber } = req.body;
+  try {
+    if (!phoneNumber) {
+      return res.status(400).json({ success: false, error: "Phone number is required" });
+    }
+    
+    // Find user by phone number
+    let user = await User.findOne({ where: { phoneNumber } });
+    if (!user) {
+      // User doesn't exist, return success: false to indicate registration needed
+      return res.json({ success: false, message: "User not found" });
+    }
+    
+    // User exists, generate JWT token
+    const token = jwt.sign(
+      { id: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+    
+    res.json({ 
+      success: true, 
+      token, 
+      user: { 
+        id: user.id, 
+        phoneNumber: user.phoneNumber, 
+        name: user.name,
+        isVerified: user.isVerified 
+      } 
+    });
+  } catch (err) {
+    console.error('Phone login error:', err);
+    res.status(500).json({ success: false, error: "Server error" });
+  }
+};
+
 module.exports = {
   login,
   register,
@@ -532,4 +571,5 @@ module.exports = {
   verifyFirebasePhone,
   sendPhoneOTP,
   verifyPhoneOTP,
+  phoneLogin,
 }; 

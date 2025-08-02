@@ -4,6 +4,8 @@ import { CartProvider } from './context/CartContext';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { WishlistProvider } from './context/WishlistContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { AuthProvider } from './context/AuthContext';
+import AuthGuard from './components/AuthGuard';
 import OrderStatusBar from '../components/OrderStatusBar';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -68,25 +70,28 @@ export default function RootLayout() {
     <ErrorBoundary>
       <Provider store={store}>
         <GestureHandlerRootView style={{ flex: 1 }}>
-          <OrderStatusBar orderId={activeOrderId} destination={destination} />
-          <NotificationProvider>
-            <CartProvider>
+          <AuthProvider>
+            <AuthGuard>
+              <OrderStatusBar orderId={activeOrderId} destination={destination} />
               <LanguageProvider>
-                <WishlistProvider>
-                  <Stack screenOptions={{ headerShown: false }}>
-                                      <Stack.Screen name="splash" />
-                  <Stack.Screen name="language" />
-                  <Stack.Screen name="login" />
-                  <Stack.Screen name="signup" />
-                  <Stack.Screen name="verify-otp" />
-          
-                  <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                  <Stack.Screen name="notification-settings" options={{ headerShown: false }} />
-                  </Stack>
-                </WishlistProvider>
+                <NotificationProvider>
+                  <CartProvider>
+                    <WishlistProvider>
+                      <Stack screenOptions={{ headerShown: false }}>
+                        <Stack.Screen name="splash" />
+                        <Stack.Screen name="language" />
+                        <Stack.Screen name="login" />
+                        <Stack.Screen name="signup" />
+                        <Stack.Screen name="verify-otp" />
+                        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                        <Stack.Screen name="notification-settings" options={{ headerShown: false }} />
+                      </Stack>
+                    </WishlistProvider>
+                  </CartProvider>
+                </NotificationProvider>
               </LanguageProvider>
-            </CartProvider>
-          </NotificationProvider>
+            </AuthGuard>
+          </AuthProvider>
         </GestureHandlerRootView>
       </Provider>
     </ErrorBoundary>
