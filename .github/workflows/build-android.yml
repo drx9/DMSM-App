@@ -48,6 +48,10 @@ jobs:
       run: |
         echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > google-services.json
         
+    - name: Fix expo-firebase-core build.gradle
+      run: |
+        sed -i 's/android {/android {\n        compileSdkVersion 35\n        buildToolsVersion "35.0.0"/' node_modules/expo-firebase-core/android/build.gradle
+        
     - name: Build APK
       run: |
         cd android
