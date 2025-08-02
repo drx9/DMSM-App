@@ -36,6 +36,11 @@ jobs:
     - name: Accept Android licenses
       run: yes | sdkmanager --licenses
       
+    - name: Check gradlew file
+      run: |
+        ls -la android/
+        ls -la android/gradlew || echo "gradlew not found"
+      
     - name: Create google-services.json
       run: |
         echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > google-services.json
@@ -43,7 +48,9 @@ jobs:
     - name: Build APK
       run: |
         cd android
-        chmod +x ./gradlew
+        ls -la gradlew
+        chmod +x gradlew
+        ls -la gradlew
         ./gradlew assembleRelease
       
     - name: Upload APK
