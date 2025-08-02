@@ -4,6 +4,7 @@ import { checkFirebaseConfig } from '../services/firebaseConfig';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_URL } from '../config';
+import { fcmService } from '../services/fcmService';
 
 export default function FCMTest() {
   const [loading, setLoading] = useState(false);
@@ -134,6 +135,91 @@ export default function FCMTest() {
     setLoading(false);
   };
 
+  const forceReRegisterFCM = async () => {
+    setLoading(true);
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      if (!userId) {
+        Alert.alert('Error', 'No user logged in');
+        setLoading(false);
+        return;
+      }
+
+      console.log('[FCM Test] Force re-registering FCM token...');
+      
+      // Initialize FCM service
+      await fcmService.initialize(userId);
+      
+      // Force re-register
+      const success = await fcmService.forceReRegister();
+      
+      if (success) {
+        Alert.alert('Success', 'FCM token re-registered successfully! ✅');
+      } else {
+        Alert.alert('Error', 'Failed to re-register FCM token ❌');
+      }
+    } catch (error) {
+      console.error('[FCM Test] Error re-registering FCM token:', error);
+      Alert.alert('Error', 'Failed to re-register FCM token: ' + error.message);
+    }
+    setLoading(false);
+  };
+
+  const testFCMNotification = async () => {
+    setLoading(true);
+    try {
+      const success = await fcmService.testFCMNotification();
+      if (success) {
+        Alert.alert('Success', 'FCM notification test sent! Check your device.');
+      } else {
+        Alert.alert('Error', 'FCM notification test failed');
+      }
+    } catch (error) {
+      console.error('[FCM Test] Error testing FCM notification:', error);
+      Alert.alert('Error', 'FCM notification test failed: ' + error.message);
+    }
+    setLoading(false);
+  };
+
+  const manuallyRegisterToken = async () => {
+    setLoading(true);
+    try {
+      const userId = await AsyncStorage.getItem('userId');
+      if (!userId) {
+        Alert.alert('Error', 'No user logged in');
+        setLoading(false);
+        return;
+      }
+
+      console.log('[FCM Test] Manually registering FCM token...');
+      
+      // Get current FCM token
+      const token = await fcmService.getFCMToken();
+      if (!token) {
+        Alert.alert('Error', 'No FCM token available');
+        setLoading(false);
+        return;
+      }
+
+      // Manually register with backend
+      const response = await axios.post(`${API_URL}/users/register-fcm-token`, {
+        userId: userId,
+        fcmToken: token,
+        platform: 'android'
+      });
+
+      if (response.data.success) {
+        Alert.alert('Success', 'FCM token manually registered! ✅');
+      } else {
+        Alert.alert('Error', 'Failed to register FCM token: ' + response.data.message);
+      }
+    } catch (error) {
+      console.error('[FCM Test] Error manually registering token:', error);
+      Alert.alert('Error', 'Failed to register FCM token: ' + error.message);
+    }
+    setLoading(false);
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Firebase Test</Text>
@@ -175,6 +261,36 @@ export default function FCMTest() {
       >
         <Text style={styles.buttonText}>
           {loading ? 'Checking...' : 'Check User FCM Token'}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={styles.button} 
+        onPress={forceReRegisterFCM}
+        disabled={loading}
+      >
+        <Text style={styles.buttonText}>
+          {loading ? 'Re-registering...' : 'Force Re-register FCM'}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={styles.button} 
+        onPress={testFCMNotification}
+        disabled={loading}
+      >
+        <Text style={styles.buttonText}>
+          {loading ? 'Testing...' : 'Test FCM Notification'}
+        </Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity 
+        style={styles.button} 
+        onPress={manuallyRegisterToken}
+        disabled={loading}
+      >
+        <Text style={styles.buttonText}>
+          {loading ? 'Registering...' : 'Manually Register FCM Token'}
         </Text>
       </TouchableOpacity>
     </View>

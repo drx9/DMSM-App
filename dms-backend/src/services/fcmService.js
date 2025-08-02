@@ -60,14 +60,20 @@ const sendFCMNotification = async (fcmToken, title, body, data = {}) => {
 const sendFCMNotificationToUser = async (userId, title, body, data = {}) => {
   try {
     // Get user's FCM token from database
-    const { User } = require('../models/User');
+    const { User } = require('../models');
     const user = await User.findByPk(userId);
     
-    if (!user || !user.fcmToken) {
+    if (!user) {
+      console.log(`User not found: ${userId}`);
+      return false;
+    }
+    
+    if (!user.fcmToken) {
       console.log(`No FCM token found for user ${userId}`);
       return false;
     }
 
+    console.log(`Sending FCM notification to user ${userId} with token: ${user.fcmToken.substring(0, 20)}...`);
     return await sendFCMNotification(user.fcmToken, title, body, data);
   } catch (error) {
     console.error('Error sending FCM notification to user:', error);

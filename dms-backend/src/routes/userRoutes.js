@@ -68,13 +68,19 @@ router.post('/test-notification', async (req, res) => {
 // Debug endpoint to test FCM notifications
 router.post('/test-fcm-notification', async (req, res) => {
   try {
+    console.log('[Backend] FCM test notification requested:', req.body);
+    
     const { userId, title, message } = req.body;
     if (!userId || !title || !message) {
+      console.log('[Backend] Missing required fields:', { userId, title, message });
       return res.status(400).json({ message: 'userId, title, and message are required' });
     }
 
+    console.log('[Backend] Calling sendFCMNotificationToUser for user:', userId);
     const { sendFCMNotificationToUser } = require('../services/fcmService');
     const result = await sendFCMNotificationToUser(userId, title, message, { test: true });
+    
+    console.log('[Backend] FCM notification result:', result);
     
     if (result) {
       res.json({ success: true, message: 'FCM notification sent successfully' });
@@ -82,7 +88,7 @@ router.post('/test-fcm-notification', async (req, res) => {
       res.json({ success: false, message: 'FCM notification failed - check if user has FCM token' });
     }
   } catch (error) {
-    console.error('Error sending FCM notification:', error);
+    console.error('[Backend] Error sending FCM notification:', error);
     res.status(500).json({ message: 'Failed to send FCM notification' });
   }
 });
