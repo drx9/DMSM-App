@@ -40,10 +40,10 @@ jobs:
       run: |
         echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > google-services.json
         
-    - name: Build APK
+    - name: Build APK with gradle
       run: |
         cd android
-        ./gradlew assembleRelease
+        gradle assembleRelease
       
     - name: Upload APK
       uses: actions/upload-artifact@v4
