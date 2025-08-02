@@ -1,9 +1,7 @@
-name: Build Android APK
+name: Android APK Build
 
 on:
   push:
-    branches: [ main, master ]
-  pull_request:
     branches: [ main, master ]
   workflow_dispatch:
 
@@ -36,17 +34,23 @@ jobs:
     - name: Accept Android licenses
       run: yes | sdkmanager --licenses
       
+    - name: Check Gradle version
+      run: |
+        cd android
+        ./gradlew --version
+      
     - name: Create google-services.json
       run: |
         echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > google-services.json
         
-    - name: Build APK with gradle
+    - name: Build APK
       run: |
         cd android
-        gradle assembleRelease
+        ./gradlew clean
+        ./gradlew assembleRelease
       
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
         name: app-release
-        path: android/app/build/outputs/apk/release/app-release.apk
+        path: android/app/build/outputs/apk/release/app-release.apk 
