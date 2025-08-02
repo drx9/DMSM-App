@@ -27,6 +27,13 @@ router.delete('/delete-account', authenticateToken, [
   body('password').notEmpty().withMessage('Password is required'),
 ], userController.deleteAccount);
 
+// Push token endpoints (public - no auth required for app initialization)
+router.post('/register-expo-push-token', userController.registerExpoPushToken);
+router.post('/remove-expo-push-token', userController.removeExpoPushToken);
+router.post('/register-fcm-token', userController.registerFCMToken);
+
+
+
 // Get user by ID (with 'me' support)
 router.get('/:id', authenticateToken, async (req, res) => {
   let userId = req.params.id;
@@ -41,11 +48,6 @@ router.get('/:id', authenticateToken, async (req, res) => {
     res.status(500).json({ message: 'Failed to fetch user profile' });
   }
 });
-
-// Push token endpoints (public - no auth required for app initialization)
-router.post('/register-expo-push-token', userController.registerExpoPushToken);
-router.post('/remove-expo-push-token', userController.removeExpoPushToken);
-router.post('/register-fcm-token', userController.registerFCMToken);
 
 // Debug endpoint to test push notifications
 router.post('/test-notification', async (req, res) => {

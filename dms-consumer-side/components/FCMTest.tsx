@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
 import { fcmService } from '../app/services/fcmService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { API_URL } from '../app/config';
 
 export default function FCMTest() {
   const [token, setToken] = useState<string | null>(null);
@@ -127,13 +128,13 @@ export default function FCMTest() {
     setLoading(true);
     try {
       // Send FCM notification directly using the token
-      const response = await fetch('https://dmsm-app-production-a35d.up.railway.app/api/users/test-direct-fcm', {
+      const response = await fetch(`${API_URL}/users/test-fcm-notification`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          fcmToken: token,
+          userId: await AsyncStorage.getItem('userId'),
           title: 'Direct FCM Test',
           message: 'This is a direct FCM test!'
         }),
