@@ -50,13 +50,28 @@ jobs:
         
     - name: Fix expo-firebase-core build.gradle
       run: |
+        # Fix compileSdkVersion issue
         sed -i 's/android {/android {\n        compileSdkVersion 35\n        buildToolsVersion "35.0.0"/' node_modules/expo-firebase-core/android/build.gradle
+        
+        # Fix classifier issue by removing the problematic task
+        sed -i '/androidSourcesJar/,+3d' node_modules/expo-firebase-core/android/build.gradle
+        
+        # Add proper configuration
+        echo 'android {
+            compileSdkVersion 35
+            buildToolsVersion "35.0.0"
+            defaultConfig {
+                minSdkVersion 24
+                targetSdkVersion 35
+            }
+        }' > node_modules/expo-firebase-core/android/build.gradle.new
+        mv node_modules/expo-firebase-core/android/build.gradle.new node_modules/expo-firebase-core/android/build.gradle
         
     - name: Build APK
       run: |
         cd android
         ./gradlew clean
-        ./gradlew assembleRelease
+        ./gradlew assembleRelease -x :expo-firebase-core:androidSourcesJar
       
     - name: Upload APK
       uses: actions/upload-artifact@v4
