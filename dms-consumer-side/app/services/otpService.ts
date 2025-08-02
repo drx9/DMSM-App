@@ -1,5 +1,5 @@
-import { phoneAuthService } from './phoneAuthService';
+import { firebasePhoneAuthService } from './firebasePhoneAuthService';
 
-// Use simple phone auth for now (can be upgraded to Firebase later)
-export const otpService = phoneAuthService;
+// Use Firebase Phone Auth for REAL SMS OTP delivery
+export const otpService = firebasePhoneAuthService;
 export default otpService; 

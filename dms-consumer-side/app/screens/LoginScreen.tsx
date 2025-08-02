@@ -133,13 +133,13 @@ const LoginScreen = () => {
 
     setIsLoading(true);
     try {
-      const success = await otpService.verifyPhoneOTP(otpCode, phoneNumber);
+      const success = await otpService.verifyPhoneOTP(otpCode);
       
       if (success) {
-        // Check if user exists, if not redirect to registration
+        // Firebase Phone Auth successful - user is verified
+        // Check if user exists in our backend, if not redirect to registration
         try {
           const response = await axios.post(`${API_URL}/auth/firebase-login`, {
-            idToken: 'temp-token', // We'll handle this properly later
             phoneNumber: `+91${phoneNumber}`
           });
           

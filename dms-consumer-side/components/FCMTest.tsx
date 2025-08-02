@@ -10,8 +10,15 @@ export default function FCMTest() {
   const testFCMPermission = async () => {
     setLoading(true);
     try {
-      const permissionGranted = await fcmService.requestPermission();
-      Alert.alert('FCM Permission', permissionGranted ? 'Granted' : 'Denied');
+      const userId = await AsyncStorage.getItem('userId');
+      if (!userId) {
+        Alert.alert('Error', 'No user logged in. Please login first.');
+        setLoading(false);
+        return;
+      }
+      
+      const success = await fcmService.initialize(userId);
+      Alert.alert('FCM Permission', success ? 'Granted' : 'Denied');
     } catch (error) {
       Alert.alert('Error', 'Failed to request permission');
     }
@@ -21,7 +28,7 @@ export default function FCMTest() {
   const testFCMToken = async () => {
     setLoading(true);
     try {
-      const fcmToken = await fcmService.getToken();
+      const fcmToken = await fcmService.getFCMToken();
       setToken(fcmToken);
       Alert.alert('FCM Token', fcmToken ? 'Token received!' : 'Failed to get token');
     } catch (error) {
@@ -46,7 +53,7 @@ export default function FCMTest() {
         return;
       }
       
-      const success = await fcmService.sendTokenToBackend(userId, token);
+      const success = await fcmService.registerTokenWithBackend(token);
       Alert.alert('Backend Registration', success ? 'Success!' : 'Failed - Check console logs');
     } catch (error) {
       Alert.alert('Error', 'Failed to register with backend');
@@ -71,37 +78,12 @@ export default function FCMTest() {
       
       console.log('[FCM Test] Sending test notification to user:', userId);
       
-      // Send a test notification to yourself
-      const response = await fetch('https://dmsm-app-production-a35d.up.railway.app/api/users/test-fcm-notification', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId,
-          title: 'FCM Test',
-          message: 'This is a test FCM notification!'
-        }),
-      });
-      
-      console.log('[FCM Test] Response status:', response.status);
-      const responseText = await response.text();
-      console.log('[FCM Test] Response body:', responseText);
-      
-      let result;
-      try {
-        result = JSON.parse(responseText);
-      } catch (e) {
-        console.error('[FCM Test] Failed to parse JSON response:', e);
-        Alert.alert('Error', 'Invalid response from server');
-        setLoading(false);
-        return;
-      }
-      
-      if (response.ok && result.success) {
-        Alert.alert('FCM Test', 'Test notification sent! Check your phone for notification.');
+      // Use FCM service to send test notification
+      const success = await fcmService.testFCMNotification();
+      if (success) {
+        Alert.alert('Success', 'Test notification sent! Check your device.');
       } else {
-        Alert.alert('FCM Test Failed', result.message || 'Failed to send test notification');
+        Alert.alert('Error', 'Failed to send test notification');
       }
     } catch (error) {
       console.error('[FCM Test] Error:', error);

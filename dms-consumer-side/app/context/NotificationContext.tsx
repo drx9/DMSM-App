@@ -70,7 +70,10 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
   const initializeNotifications = async (userId: string): Promise<boolean> => {
     try {
-      const success = await pushNotificationService.registerForPushNotifications(userId);
+      // Use FCM service for notifications
+      const { fcmService } = require('../services/fcmService');
+      const success = await fcmService.initialize(userId);
+      
       if (success) {
         setIsInitialized(true);
         setHasPermission(true);

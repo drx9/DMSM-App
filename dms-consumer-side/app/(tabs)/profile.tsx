@@ -24,6 +24,7 @@ import AddressManagerModal, { Address } from '../../components/AddressManagerMod
 import LocationSelectionScreen from '../location/LocationSelectionScreen';
 import NotificationTest from '../../components/NotificationTest';
 import FCMTest from '../../components/FCMTest';
+import FirebaseTest from '../components/FirebaseTest';
 
 const ProfileScreen = () => {
   const router = useRouter();
@@ -263,6 +264,7 @@ const ProfileScreen = () => {
         <Text style={styles.sectionTitle}>Debug Tools</Text>
         <NotificationTest />
         <FCMTest />
+        <FirebaseTest />
 
         {/* Profile Features */}
         <Text style={styles.sectionTitle}>Account</Text>
