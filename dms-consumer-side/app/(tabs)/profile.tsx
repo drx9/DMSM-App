@@ -23,6 +23,7 @@ import { useNotifications } from '../context/NotificationContext';
 import AddressManagerModal, { Address } from '../../components/AddressManagerModal';
 import LocationSelectionScreen from '../location/LocationSelectionScreen';
 import NotificationTest from '../../components/NotificationTest';
+import FCMTest from '../../components/FCMTest';
 
 const ProfileScreen = () => {
   const router = useRouter();
@@ -261,6 +262,7 @@ const ProfileScreen = () => {
         {/* Notification Test Section */}
         <Text style={styles.sectionTitle}>Debug Tools</Text>
         <NotificationTest />
+        <FCMTest />
 
         {/* Profile Features */}
         <Text style={styles.sectionTitle}>Account</Text>

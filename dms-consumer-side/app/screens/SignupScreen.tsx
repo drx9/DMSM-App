@@ -114,70 +114,47 @@ const SignupScreen = () => {
       return;
     }
 
-    // For phone signup, redirect to login screen for phone authentication
-    if (phoneNumber) {
-      Alert.alert('Info', 'Please use the login screen for phone authentication');
-      return;
-    }
-
     try {
       setIsLoading(true);
-      console.log('Attempting to register with data:', {
+      
+      // Determine verification type and contact info
+      const verificationType = phoneNumber ? 'phone' : 'email';
+      const contactInfo = phoneNumber || email;
+      
+      // Prepare user data for OTP verification
+      const userData = {
         name,
-        phoneNumber: phoneNumber || undefined,
-        email: email || undefined,
-        // Don't log password for security
-        dateOfBirth: dateOfBirth ? dateOfBirth.toISOString().split('T')[0] : undefined,
-        gender: gender || undefined,
-      });
-
-      const response = await api.post<ApiResponse>(`${API_URL}/auth/register`, {
-        name,
-        phoneNumber: phoneNumber || undefined,
-        email: email || undefined,
         password,
         dateOfBirth: dateOfBirth ? dateOfBirth.toISOString().split('T')[0] : undefined,
         gender: gender || undefined,
-      });
+      };
 
-      console.log('Registration response:', response.data);
+      // Send OTP using Firebase
+      const { firebaseAuthService } = require('../services/firebaseAuthService');
+      let otpSent = false;
+      
+      if (verificationType === 'phone') {
+        otpSent = await firebaseAuthService.sendPhoneOTP(contactInfo);
+      } else {
+        otpSent = await firebaseAuthService.sendEmailOTP(contactInfo);
+      }
 
-      if (response.data.success) {
-        Alert.alert(t('success'), response.data.message || t('registrationSuccessful'));
+      if (otpSent) {
+        // Navigate to OTP verification screen
         router.push({
-          pathname: '/verify-otp',
-          params: { userId: response.data.userId }
+          pathname: '/otp-verification',
+          params: {
+            type: verificationType,
+            contact: contactInfo,
+            userData: JSON.stringify(userData)
+          }
         });
       } else {
-        Alert.alert(t('error'), response.data.message || t('failedToRegister'));
+        Alert.alert('Error', 'Failed to send OTP. Please try again.');
       }
     } catch (error) {
       console.error('Signup error:', error);
-      const axiosError = error as AxiosError<ApiResponse>;
-      console.error('Detailed error:', {
-        message: axiosError.message,
-        code: axiosError.code,
-        response: axiosError.response?.data,
-        status: axiosError.response?.status,
-        config: {
-          url: axiosError.config?.url,
-          method: axiosError.config?.method,
-          data: axiosError.config?.data,
-          headers: axiosError.config?.headers
-        }
-      });
-
-      let errorMessage = t('failedToRegister');
-      if (axiosError.code === 'ECONNABORTED') {
-        errorMessage = t('requestTimedOut');
-      } else if (axiosError.code === 'ERR_NETWORK') {
-        errorMessage = t('networkError');
-      } else {
-        errorMessage = axiosError.response?.data?.message ||
-          axiosError.response?.data?.errors?.[0]?.msg ||
-          t('failedToRegister');
-      }
-      Alert.alert(t('error'), errorMessage);
+      Alert.alert('Error', 'Failed to start registration process. Please try again.');
     } finally {
       setIsLoading(false);
     }

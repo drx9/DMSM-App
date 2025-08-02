@@ -101,6 +101,10 @@ router.post('/user/:userId/change-password', authController.changePassword);
 router.post('/user/:userId/avatar', upload.single('avatar'), authController.uploadAvatar);
 router.delete('/user/:userId', authController.deleteUser);
 
+// Firebase Auth routes
+router.post('/firebase/verify-email', authController.verifyFirebaseEmail);
+router.post('/firebase/verify-phone', authController.verifyFirebasePhone);
+
 router.post(
   '/delivery/login',
   [
@@ -111,6 +115,10 @@ router.post(
 );
 
 router.post("/firebase-login", authController.verifyFirebaseToken);
+
+// Simple phone OTP routes
+router.post('/send-phone-otp', authController.sendPhoneOTP);
+router.post('/verify-phone-otp', authController.verifyPhoneOTP);
 
 // Get current user profile (for /auth/user/me)
 router.get('/user/me', authenticateToken, async (req, res) => {

@@ -81,7 +81,7 @@ const register = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, phoneNumber, email, password } = req.body;
+    const { name, phoneNumber, email, password, isVerified = false, dateOfBirth, gender } = req.body;
 
     // Build the where clause for checking existing user
     const whereClause = [];
@@ -108,16 +108,21 @@ const register = async (req, res) => {
       phoneNumber,
       email,
       password, // The model hook will hash this
-      isVerified: false,
+      isVerified: isVerified, // Use the provided verification status
+      dateOfBirth,
+      gender,
     });
 
-    // Send OTP
-    const type = phoneNumber ? 'PHONE' : 'EMAIL';
-    await authService.sendOTP(user, type);
+    // If user is already verified (Firebase OTP), skip sending OTP
+    if (!isVerified) {
+      // Send OTP for traditional registration
+      const type = phoneNumber ? 'PHONE' : 'EMAIL';
+      await authService.sendOTP(user, type);
+    }
 
     return res.json({
       success: true,
-      message: 'Registration successful. Please verify your account.',
+      message: isVerified ? 'Registration successful!' : 'Registration successful. Please verify your account.',
       userId: user.id,
     });
   } catch (error) {
@@ -330,6 +335,187 @@ async function verifyFirebaseToken(req, res) {
   }
 }
 
+const verifyFirebaseEmail = async (req, res) => {
+  try {
+    const { email, actionCode } = req.body;
+    
+    if (!email || !actionCode) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Email and action code are required' 
+      });
+    }
+
+    // Verify the email action code
+    const decodedToken = await verifyFirebaseTokenService(actionCode);
+    
+    if (decodedToken.email === email) {
+      res.json({
+        success: true,
+        message: 'Email verified successfully'
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid email verification'
+      });
+    }
+  } catch (error) {
+    console.error('Firebase email verification error:', error);
+    res.status(400).json({
+      success: false,
+      message: 'Email verification failed'
+    });
+  }
+};
+
+const verifyFirebasePhone = async (req, res) => {
+  try {
+    const { phoneNumber, idToken } = req.body;
+    
+    if (!phoneNumber || !idToken) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Phone number and ID token are required' 
+      });
+    }
+
+    // Verify the phone ID token
+    const decodedToken = await verifyFirebaseTokenService(idToken);
+    
+    if (decodedToken.phone_number === phoneNumber) {
+      res.json({
+        success: true,
+        message: 'Phone verified successfully'
+      });
+    } else {
+      res.status(400).json({
+        success: false,
+        message: 'Invalid phone verification'
+      });
+    }
+  } catch (error) {
+    console.error('Firebase phone verification error:', error);
+    res.status(400).json({
+      success: false,
+      message: 'Phone verification failed'
+    });
+  }
+};
+
+// Simple phone OTP methods
+const sendPhoneOTP = async (req, res) => {
+  try {
+    const { phoneNumber } = req.body;
+    
+    if (!phoneNumber) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Phone number is required' 
+      });
+    }
+
+    // Generate a simple 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Store OTP in memory (in production, use Redis or database)
+    if (!global.phoneOTPs) {
+      global.phoneOTPs = new Map();
+    }
+    global.phoneOTPs.set(phoneNumber, {
+      otp,
+      timestamp: Date.now(),
+      attempts: 0
+    });
+
+    console.log(`[Phone OTP] Generated OTP for ${phoneNumber}: ${otp}`);
+    
+    res.json({
+      success: true,
+      message: 'OTP sent successfully'
+    });
+  } catch (error) {
+    console.error('Send phone OTP error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to send OTP'
+    });
+  }
+};
+
+const verifyPhoneOTP = async (req, res) => {
+  try {
+    const { phoneNumber, otp } = req.body;
+    
+    if (!phoneNumber || !otp) {
+      return res.status(400).json({ 
+        success: false, 
+        message: 'Phone number and OTP are required' 
+      });
+    }
+
+    // Get stored OTP
+    if (!global.phoneOTPs) {
+      return res.status(400).json({
+        success: false,
+        message: 'No OTP found. Please request a new one.'
+      });
+    }
+
+    const stored = global.phoneOTPs.get(phoneNumber);
+    if (!stored) {
+      return res.status(400).json({
+        success: false,
+        message: 'No OTP found. Please request a new one.'
+      });
+    }
+
+    // Check if OTP is expired (5 minutes)
+    if (Date.now() - stored.timestamp > 5 * 60 * 1000) {
+      global.phoneOTPs.delete(phoneNumber);
+      return res.status(400).json({
+        success: false,
+        message: 'OTP expired. Please request a new one.'
+      });
+    }
+
+    // Check if too many attempts
+    if (stored.attempts >= 3) {
+      global.phoneOTPs.delete(phoneNumber);
+      return res.status(400).json({
+        success: false,
+        message: 'Too many attempts. Please request a new OTP.'
+      });
+    }
+
+    // Verify OTP
+    if (stored.otp === otp) {
+      // Clear OTP after successful verification
+      global.phoneOTPs.delete(phoneNumber);
+      
+      res.json({
+        success: true,
+        message: 'OTP verified successfully'
+      });
+    } else {
+      // Increment attempts
+      stored.attempts += 1;
+      global.phoneOTPs.set(phoneNumber, stored);
+      
+      res.status(400).json({
+        success: false,
+        message: 'Invalid OTP'
+      });
+    }
+  } catch (error) {
+    console.error('Verify phone OTP error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to verify OTP'
+    });
+  }
+};
+
 module.exports = {
   login,
   register,
@@ -342,4 +528,8 @@ module.exports = {
   deleteUser,
   deliveryLogin,
   verifyFirebaseToken,
+  verifyFirebaseEmail,
+  verifyFirebasePhone,
+  sendPhoneOTP,
+  verifyPhoneOTP,
 }; 

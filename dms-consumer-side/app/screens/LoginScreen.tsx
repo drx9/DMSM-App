@@ -110,17 +110,16 @@ const LoginScreen = () => {
 
     setIsLoading(true);
     try {
-      const fullPhoneNumber = `+91${phoneNumber}`;
-      const result = await otpService.sendOTP(fullPhoneNumber);
+      const success = await otpService.sendPhoneOTP(phoneNumber);
       
-      if (result.success) {
-      setOtpSent(true);
-        Alert.alert('Success', 'OTP sent to your WhatsApp!');
+      if (success) {
+        setOtpSent(true);
+        Alert.alert('Success', 'OTP sent to your phone!');
       } else {
-        Alert.alert('Error', result.message || 'Failed to send OTP');
+        Alert.alert('Error', 'Failed to send OTP');
       }
     } catch (error: any) {
-      console.error('WhatsApp OTP error:', error);
+      console.error('Firebase OTP error:', error);
       Alert.alert('Error', error.message || 'Failed to send OTP');
     }
     setIsLoading(false);
@@ -128,30 +127,50 @@ const LoginScreen = () => {
 
   const verifyOTP = async () => {
     if (!otpCode) {
-      Alert.alert('Error', 'Please enter the OTP sent to your WhatsApp');
+      Alert.alert('Error', 'Please enter the OTP sent to your phone');
       return;
     }
 
     setIsLoading(true);
     try {
-      const fullPhoneNumber = `+91${phoneNumber}`;
-      const result = await otpService.verifyOTP(fullPhoneNumber, otpCode);
+      const success = await otpService.verifyPhoneOTP(otpCode, phoneNumber);
       
-      if (result.success && result.token && result.user) {
-        // Store user info and token
-        await AsyncStorage.setItem('userId', result.user.id);
-        await AsyncStorage.setItem('userToken', result.token);
-        
-        // Initialize notifications after successful login
-        await initializeNotifications(result.user.id);
-        
-        Alert.alert('Success', 'WhatsApp authentication successful!');
-      router.replace('/(tabs)');
+      if (success) {
+        // Check if user exists, if not redirect to registration
+        try {
+          const response = await axios.post(`${API_URL}/auth/firebase-login`, {
+            idToken: 'temp-token', // We'll handle this properly later
+            phoneNumber: `+91${phoneNumber}`
+          });
+          
+          if (response.data.success && response.data.user) {
+            // Store user info
+            await AsyncStorage.setItem('userId', response.data.user.id);
+            
+            // Initialize notifications after successful login
+            await initializeNotifications(response.data.user.id);
+            
+            Alert.alert('Success', 'Phone authentication successful!');
+            router.replace('/(tabs)');
+          } else {
+            // User doesn't exist, redirect to registration
+            router.push({
+              pathname: '/signup',
+              params: { phoneNumber }
+            });
+          }
+        } catch (error) {
+          // User doesn't exist, redirect to registration
+          router.push({
+            pathname: '/signup',
+            params: { phoneNumber }
+          });
+        }
       } else {
-        Alert.alert('Error', result.message || 'Invalid OTP');
+        Alert.alert('Error', 'Invalid OTP');
       }
     } catch (error: any) {
-      console.error('WhatsApp OTP verification error:', error);
+      console.error('Phone OTP verification error:', error);
       Alert.alert('Error', error.message || 'Invalid OTP');
     }
     setIsLoading(false);

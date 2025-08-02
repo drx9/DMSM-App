@@ -30,7 +30,8 @@
         "googleMaps": {
           "apiKey": "AIzaSyDxIJneZ8qgkgKLsffP46EENI-EGOdnCEU"
         }
-      }
+      },
+      "reactNativeArchitectures": ["arm64-v8a"]
     },
     "web": {
       "bundler": "metro",
