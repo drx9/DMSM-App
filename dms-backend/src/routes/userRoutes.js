@@ -90,16 +90,24 @@ router.post('/test-fcm-notification', async (req, res) => {
 // Debug endpoint to check user FCM token (public - no auth required)
 router.get('/check-fcm-token/:userId', async (req, res) => {
   try {
+    console.log('[Backend] FCM token check requested for user:', req.params.userId);
+    
     const { userId } = req.params;
     if (!userId) {
+      console.log('[Backend] No userId provided');
       return res.status(400).json({ message: 'userId is required' });
     }
 
+    console.log('[Backend] Looking up user:', userId);
     const user = await User.findByPk(userId);
+    
     if (!user) {
+      console.log('[Backend] User not found:', userId);
       return res.status(404).json({ message: 'User not found' });
     }
 
+    console.log('[Backend] User found, FCM token exists:', !!user.fcmToken);
+    
     res.json({
       success: true,
       hasFCMToken: !!user.fcmToken,
@@ -107,7 +115,7 @@ router.get('/check-fcm-token/:userId', async (req, res) => {
       userId: user.id
     });
   } catch (error) {
-    console.error('Error checking FCM token:', error);
+    console.error('[Backend] Error checking FCM token:', error);
     res.status(500).json({ message: 'Failed to check FCM token' });
   }
 });

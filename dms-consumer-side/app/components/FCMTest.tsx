@@ -109,8 +109,12 @@ export default function FCMTest() {
       }
 
       console.log('[FCM Test] Checking FCM token for user:', userId);
+      console.log('[FCM Test] API URL:', `${API_URL}/users/check-fcm-token/${userId}`);
       
       const response = await axios.get(`${API_URL}/users/check-fcm-token/${userId}`);
+      
+      console.log('[FCM Test] Response status:', response.status);
+      console.log('[FCM Test] Response data:', response.data);
       
       if (response.data.success) {
         if (response.data.hasFCMToken) {
@@ -123,7 +127,9 @@ export default function FCMTest() {
       }
     } catch (error) {
       console.error('[FCM Test] Error checking FCM token:', error);
-      Alert.alert('Error', 'Failed to check FCM token: ' + error.message);
+      console.error('[FCM Test] Error response:', error.response?.data);
+      console.error('[FCM Test] Error status:', error.response?.status);
+      Alert.alert('Error', 'Failed to check FCM token: ' + (error.response?.data?.message || error.message));
     }
     setLoading(false);
   };
