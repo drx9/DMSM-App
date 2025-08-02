@@ -50,22 +50,22 @@ jobs:
         
     - name: Fix expo-firebase-core build.gradle
       run: |
-        # Fix compileSdkVersion issue
-        sed -i 's/android {/android {\n        compileSdkVersion 35\n        buildToolsVersion "35.0.0"/' node_modules/expo-firebase-core/android/build.gradle
-        
-        # Fix classifier issue by removing the problematic task
-        sed -i '/androidSourcesJar/,+3d' node_modules/expo-firebase-core/android/build.gradle
-        
-        # Add proper configuration
-        echo 'android {
+        echo 'apply plugin: "com.android.library"
+        android {
             compileSdkVersion 35
             buildToolsVersion "35.0.0"
             defaultConfig {
                 minSdkVersion 24
                 targetSdkVersion 35
             }
-        }' > node_modules/expo-firebase-core/android/build.gradle.new
-        mv node_modules/expo-firebase-core/android/build.gradle.new node_modules/expo-firebase-core/android/build.gradle
+            compileOptions {
+                sourceCompatibility JavaVersion.VERSION_1_8
+                targetCompatibility JavaVersion.VERSION_1_8
+            }
+        }
+        dependencies {
+            implementation "com.google.firebase:firebase-core:21.1.1"
+        }' > node_modules/expo-firebase-core/android/build.gradle
         
     - name: Build APK
       run: |
