@@ -32,13 +32,19 @@ const sendFCMNotification = async (fcmToken, title, body, data = {}) => {
   }
 
   try {
+    // Convert all data values to strings (Firebase requirement)
+    const stringData = {};
+    Object.keys(data).forEach(key => {
+      stringData[key] = String(data[key]);
+    });
+
     const message = {
       token: fcmToken,
       notification: {
         title,
         body,
       },
-      data: data,
+      data: stringData,
       android: {
         priority: 'high',
         notification: {
