@@ -34,6 +34,11 @@ jobs:
     - name: Accept Android licenses
       run: yes | sdkmanager --licenses
       
+    - name: Fix gradlew permissions
+      run: |
+        cd android
+        chmod +x gradlew
+      
     - name: Check Gradle version
       run: |
         cd android
