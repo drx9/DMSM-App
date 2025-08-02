@@ -45,11 +45,12 @@ const VerifyOTPScreen = () => {
   useEffect(() => {
     const testConnection = async () => {
       try {
-        console.log('Testing connection to backend...');
-        const response = await api.get('/health');
-        console.log('Connection test response:', response.data);
+        const response = await axios.get(`${API_URL}/health`);
+        if (response.status === 200) {
+          Alert.alert('Success', 'Backend connection successful');
+        }
       } catch (error) {
-        console.error('Connection test failed:', error);
+        Alert.alert('Error', 'Backend connection failed');
       }
     };
     testConnection();

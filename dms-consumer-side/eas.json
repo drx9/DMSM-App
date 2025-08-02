@@ -8,7 +8,7 @@
       "developmentClient": false,
       "distribution": "internal",
       "env": {
-        "GOOGLE_SERVICES_JSON_PATH": "GOOGLE_SERVICES_JSON"
+        "GOOGLE_SERVICES_JSON": "GOOGLE_SERVICES_JSON"
       },
       "android": {
         "gradleCommand": ":app:assembleDebug"
@@ -17,14 +17,15 @@
     "preview": {
       "distribution": "internal",
       "env": {
-        "GOOGLE_SERVICES_JSON_PATH": "GOOGLE_SERVICES_JSON"
+        "GOOGLE_SERVICES_JSON": "GOOGLE_SERVICES_JSON"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "GOOGLE_SERVICES_JSON_PATH": "GOOGLE_SERVICES_JSON"
-      }
+        "GOOGLE_SERVICES_JSON": "GOOGLE_SERVICES_JSON"
+      },
+      "prebuildCommand": "yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses"
     }
   },
   "submit": {

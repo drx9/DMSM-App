@@ -201,29 +201,27 @@ class FCMService {
       });
   }
 
-  async testFCMNotification(): Promise<boolean> {
+  // Test FCM notification (for debugging)
+  static async testNotification(userId: string) {
     try {
-      if (!this.userId || !this.fcmToken) {
-        console.error('[FCM] User ID or FCM token not available');
-        return false;
+      if (!userId) {
+        throw new Error('User ID is required for test notification');
       }
-      console.log('[FCM] Testing FCM notification...');
-      const response = await axios.post(`${API_URL}/users/test-fcm-notification`, {
-        userId: this.userId,
-        title: 'FCM Test Notification',
-        message: 'This is a test FCM notification from your app!'
+
+      const response = await axios.post(`${API_URL}/users/${userId}/test-fcm`, {
+        title: 'Test Notification',
+        body: 'This is a test notification from FCM',
+        data: { type: 'test', timestamp: Date.now() }
       });
+
       if (response.data.success) {
-        console.log('[FCM] Test notification sent successfully');
-        return true;
+        Alert.alert('Success', 'Test notification sent successfully');
       } else {
-        console.error('[FCM] Test notification failed:', response.data.message);
-        return false;
+        throw new Error(response.data.message || 'Failed to send test notification');
       }
     } catch (error) {
-      console.error('[FCM] Test notification error:', error);
+      console.error('FCM test notification error:', error);
       Alert.alert('Error', 'Failed to send test notification');
-      return false;
     }
   }
 

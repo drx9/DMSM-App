@@ -16,6 +16,8 @@ import { useRouter } from 'expo-router';
 import { useNotifications } from './context/NotificationContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from './config';
+import * as Notifications from 'expo-notifications';
+import axios from 'axios';
 
 interface NotificationPreference {
   id: string;
@@ -68,6 +70,7 @@ const NotificationSettingsScreen = () => {
   
   const [loading, setLoading] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
+  const [testing, setTesting] = useState(false);
 
   useEffect(() => {
     loadUserPreferences();

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Alert, SafeAreaView, StatusBar, Dimensions } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
@@ -12,13 +12,19 @@ interface Product {
   description: string;
   price: number;
   originalPrice?: number;
-  image: string;
+  discount?: number;
+  images: string[];
   stock: number;
   category: string;
   brand?: string;
   weight?: string;
   unit?: string;
+  expiryDate?: string;
+  manufacturedDate?: string;
+  ordersCount?: number;
 }
+
+const { width } = Dimensions.get('window');
 
 export default function ProductDetail() {
   const { id } = useLocalSearchParams();
@@ -26,13 +32,26 @@ export default function ProductDetail() {
   const { addToCart } = useCart();
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
-  const [quantity, setQuantity] = useState(1);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [isWishlisted, setIsWishlisted] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     if (id) {
       fetchProduct();
     }
   }, [id]);
+
+  useEffect(() => {
+    if (product?.images && product.images.length > 1) {
+      const interval = setInterval(() => {
+        setCurrentImageIndex((prevIndex) => 
+          prevIndex === product.images.length - 1 ? 0 : prevIndex + 1
+        );
+      }, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [product?.images]);
 
   const fetchProduct = async () => {
     try {
@@ -61,10 +80,18 @@ export default function ProductDetail() {
     }
   };
 
+  const toggleWishlist = () => {
+    setIsWishlisted(!isWishlisted);
+  };
+
+  const calculateDiscountedPrice = (originalPrice: number, discount: number) => {
+    return originalPrice - (originalPrice * discount / 100);
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007AFF" />
+        <ActivityIndicator size="large" color="#00A86B" />
         <Text style={styles.loadingText}>Loading product...</Text>
       </View>
     );
@@ -78,21 +105,59 @@ export default function ProductDetail() {
     );
   }
 
-  const discount = product.originalPrice ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100) : 0;
+  const discount = product.discount || 0;
+  const finalPrice = discount > 0 ? calculateDiscountedPrice(product.originalPrice || product.price, discount) : product.price;
 
   return (
     <View style={styles.container}>
-      <ScrollView style={styles.scrollView}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <Ionicons name="arrow-back" size={24} color="#000" />
+        </TouchableOpacity>
+        
+        <View style={styles.searchBar}>
+          <Ionicons name="search" size={18} color="#999" />
+          <Text style={styles.searchText}>Search for products</Text>
+        </View>
+        
+        <TouchableOpacity onPress={() => router.push('/cart')} style={styles.cartButton}>
+          <Ionicons name="bag-outline" size={24} color="#000" />
+        </TouchableOpacity>
+      </View>
+
+      <ScrollView style={styles.scrollView} ref={scrollViewRef}>
         {/* Product Image */}
         <View style={styles.imageContainer}>
           <Image 
-            source={{ uri: product.image }} 
+            source={{ uri: product.images?.[currentImageIndex] || product.images?.[0] || 'https://via.placeholder.com/300' }} 
             style={styles.productImage}
             resizeMode="contain"
           />
-          {discount > 0 && (
-            <View style={styles.discountBadge}>
-              <Text style={styles.discountText}>{discount}% OFF</Text>
+          
+          {/* Wishlist Button */}
+          <TouchableOpacity style={styles.wishlistButton} onPress={toggleWishlist}>
+            <Ionicons 
+              name={isWishlisted ? 'heart' : 'heart-outline'} 
+              size={24} 
+              color={isWishlisted ? '#ff4757' : '#fff'} 
+            />
+          </TouchableOpacity>
+          
+          {/* Image Carousel Dots */}
+          {product.images && product.images.length > 1 && (
+            <View style={styles.carouselDots}>
+              {product.images.map((_, index) => (
+                <View 
+                  key={index} 
+                  style={[
+                    styles.dot, 
+                    index === currentImageIndex ? styles.activeDot : styles.inactiveDot
+                  ]} 
+                />
+              ))}
             </View>
           )}
         </View>
@@ -102,56 +167,54 @@ export default function ProductDetail() {
           <Text style={styles.productName}>{product.name}</Text>
           
           <View style={styles.priceContainer}>
-            <Text style={styles.price}>₹{product.price}</Text>
-            {product.originalPrice && (
-              <Text style={styles.originalPrice}>₹{product.originalPrice}</Text>
-            )}
+            <Text style={styles.weightText}>Kilos</Text>
+            <View style={styles.priceRow}>
+              <Text style={styles.price}>₹{Number(finalPrice).toFixed(2)}</Text>
+              {discount > 0 && product.originalPrice && (
+                <Text style={styles.originalPrice}>MRP ₹{Number(product.originalPrice).toFixed(2)}</Text>
+              )}
+              <TouchableOpacity style={styles.addButton} onPress={handleAddToCart}>
+                <Text style={styles.addButtonText}>Add</Text>
+              </TouchableOpacity>
+            </View>
           </View>
 
-          {product.brand && (
-            <Text style={styles.brand}>Brand: {product.brand}</Text>
+          {/* Delivery Info */}
+          <View style={styles.deliveryInfo}>
+            <Text style={styles.deliveryText}>Add ₹399 for FREE delivery</Text>
+            <Ionicons name="chevron-up" size={20} color="#000" />
+          </View>
+
+          {/* Product Description */}
+          {product.description && (
+            <View style={styles.descriptionContainer}>
+              <Text style={styles.descriptionTitle}>Description</Text>
+              <Text style={styles.descriptionText}>{product.description}</Text>
+            </View>
           )}
 
-          {product.weight && (
-            <Text style={styles.weight}>Weight: {product.weight} {product.unit}</Text>
-          )}
-
-          <Text style={styles.stock}>Stock: {product.stock} available</Text>
-
-          <Text style={styles.description}>{product.description}</Text>
-        </View>
-
-        {/* Quantity Selector */}
-        <View style={styles.quantityContainer}>
-          <Text style={styles.quantityLabel}>Quantity:</Text>
-          <View style={styles.quantityControls}>
-            <TouchableOpacity 
-              style={styles.quantityButton}
-              onPress={() => setQuantity(Math.max(1, quantity - 1))}
-            >
-              <Ionicons name="remove" size={20} color="#007AFF" />
-            </TouchableOpacity>
-            <Text style={styles.quantityText}>{quantity}</Text>
-            <TouchableOpacity 
-              style={styles.quantityButton}
-              onPress={() => setQuantity(Math.min(product.stock, quantity + 1))}
-            >
-              <Ionicons name="add" size={20} color="#007AFF" />
-            </TouchableOpacity>
+          {/* Popularity Indicator */}
+          <View style={styles.popularityContainer}>
+            <Ionicons name="trending-up" size={16} color="#00A86B" />
+            <Text style={styles.popularityText}>
+              {product.ordersCount || '3,000+'}+ people ordered this in the last 15 days
+            </Text>
           </View>
         </View>
       </ScrollView>
 
-      {/* Bottom Action Buttons */}
-      <View style={styles.bottomActions}>
-        <TouchableOpacity style={styles.addToCartButton} onPress={handleAddToCart}>
-          <Ionicons name="cart-outline" size={20} color="#007AFF" />
-          <Text style={styles.addToCartText}>Add to Cart</Text>
-        </TouchableOpacity>
-        
-        <TouchableOpacity style={styles.buyNowButton} onPress={handleBuyNow}>
-          <Text style={styles.buyNowText}>Buy Now</Text>
-        </TouchableOpacity>
+      {/* Bottom Action Bar */}
+      <View style={styles.bottomBar}>
+        <Text style={styles.bottomDeliveryText}>Add ₹399 for FREE delivery</Text>
+        <View style={styles.actionButtons}>
+          <TouchableOpacity style={styles.addToCartButton} onPress={handleAddToCart}>
+            <Text style={styles.addToCartText}>Add to Cart</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.buyNowButton} onPress={handleBuyNow}>
+            <Text style={styles.buyNowText}>Buy Now</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -181,138 +244,194 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
   },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 50,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+    backgroundColor: '#fff',
+  },
+  backButton: {
+    padding: 4,
+    marginRight: 8,
+  },
+  searchBar: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f8f8f8',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    marginHorizontal: 8,
+  },
+  searchText: {
+    marginLeft: 8,
+    color: '#999',
+    fontSize: 14,
+  },
+  cartButton: {
+    padding: 4,
+    marginLeft: 8,
+  },
   scrollView: {
     flex: 1,
   },
   imageContainer: {
     position: 'relative',
     height: 300,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   productImage: {
-    width: '100%',
-    height: '100%',
+    width: '80%',
+    height: '80%',
   },
-  discountBadge: {
+  wishlistButton: {
     position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: '#ff4757',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
+    top: 16,
+    right: 16,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 20,
+    padding: 8,
   },
-  discountText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
+  carouselDots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'absolute',
+    bottom: 20,
+    left: 0,
+    right: 0,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginHorizontal: 4,
+  },
+  activeDot: {
+    backgroundColor: '#00A86B',
+  },
+  inactiveDot: {
+    backgroundColor: '#ccc',
   },
   productInfo: {
     padding: 16,
   },
   productName: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#000',
     marginBottom: 8,
   },
   priceContainer: {
+    marginBottom: 16,
+  },
+  weightText: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+  },
+  priceRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+    justifyContent: 'space-between',
   },
   price: {
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: 'bold',
-    color: '#007AFF',
-    marginRight: 8,
+    color: '#000',
   },
   originalPrice: {
-    fontSize: 16,
-    color: '#999',
+    fontSize: 14,
+    color: '#666',
     textDecorationLine: 'line-through',
   },
-  brand: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
+  addButton: {
+    backgroundColor: '#00A86B',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
-  weight: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 4,
+  addButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '500',
   },
-  stock: {
-    fontSize: 14,
-    color: '#666',
-    marginBottom: 12,
+  deliveryInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+    marginBottom: 16,
   },
-  description: {
+  deliveryText: {
+    fontSize: 14,
+    color: '#000',
+  },
+  descriptionContainer: {
+    marginBottom: 16,
+  },
+  descriptionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#000',
+    marginBottom: 8,
+  },
+  descriptionText: {
     fontSize: 14,
     color: '#333',
     lineHeight: 20,
   },
-  quantityContainer: {
+  popularityContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: 16,
+  },
+  popularityText: {
+    fontSize: 14,
+    color: '#00A86B',
+    marginLeft: 4,
+  },
+  bottomBar: {
     borderTopWidth: 1,
     borderTopColor: '#eee',
+    padding: 16,
+    backgroundColor: '#fff',
   },
-  quantityLabel: {
-    fontSize: 16,
-    fontWeight: '500',
-    color: '#333',
-  },
-  quantityControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  quantityButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: '#007AFF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  quantityText: {
-    fontSize: 16,
-    fontWeight: '500',
-    marginHorizontal: 16,
-    minWidth: 30,
+  bottomDeliveryText: {
+    fontSize: 14,
+    color: '#000',
+    marginBottom: 12,
     textAlign: 'center',
   },
-  bottomActions: {
+  actionButtons: {
     flexDirection: 'row',
-    padding: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-    backgroundColor: '#fff',
+    gap: 12,
   },
   addToCartButton: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#007AFF',
+    borderColor: '#ff4757',
     paddingVertical: 12,
     borderRadius: 8,
-    marginRight: 8,
+    alignItems: 'center',
   },
   addToCartText: {
-    color: '#007AFF',
+    color: '#ff4757',
     fontSize: 16,
     fontWeight: '500',
-    marginLeft: 8,
   },
   buyNowButton: {
     flex: 1,
-    backgroundColor: '#007AFF',
+    backgroundColor: '#ff4757',
     paddingVertical: 12,
     borderRadius: 8,
     alignItems: 'center',

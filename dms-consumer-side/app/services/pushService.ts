@@ -321,10 +321,10 @@ class PushNotificationService {
     return status;
   }
 
-  // Method to send test notification
-  async sendTestNotification() {
-    // DISABLED: Using FCM for notifications instead
-    console.log('[PushService] Test notification disabled - using FCM instead');
+  // Test notification function (disabled in favor of FCM)
+  static async testNotification() {
+    // Test notifications are now handled by FCM
+    return false;
   }
 }
 
