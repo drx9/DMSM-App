@@ -3,6 +3,7 @@ import { useRouter } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Alert } from 'react-native';
 import { fcmService } from '../services/fcmService';
+import * as Notifications from 'expo-notifications';
 
 interface NotificationContextType {
   isInitialized: boolean;
@@ -116,8 +117,25 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
 
   const sendTestNotification = async () => {
     try {
+      console.log('📱 Testing local banner notification...');
+      
+      // Test local banner notification
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Test Banner Notification',
+          body: 'This should appear as a banner at the top!',
+          data: { type: 'test' },
+          sound: true,
+          priority: 'high',
+        },
+        trigger: null, // Show immediately
+      });
+      
+      console.log('✅ Local banner notification sent successfully');
+      Alert.alert('Success', 'Test banner notification sent! Check for banner at the top of screen.');
+      
+      // Also test FCM notification
       await fcmService.testFCMNotification();
-      Alert.alert('Success', 'Test notification sent!');
     } catch (error) {
       console.error('Error sending test notification:', error);
       Alert.alert('Error', 'Failed to send test notification');

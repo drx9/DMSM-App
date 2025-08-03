@@ -64,13 +64,17 @@ const ProductCard: React.FC<ProductCardProps> = ({
     }
   };
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     if (onAddToCart) {
       onAddToCart();
     } else {
-      addToCart(id).then(() => {
-        alert('Added to cart!');
-      });
+      try {
+        await addToCart(id);
+        Toast.show('Added to cart!', { duration: 1500 });
+      } catch (error) {
+        console.error('Error adding to cart:', error);
+        Toast.show('Failed to add to cart', { duration: 1500 });
+      }
     }
   };
 
@@ -129,7 +133,10 @@ const ProductCard: React.FC<ProductCardProps> = ({
         {!isOutOfStock && (
           <TouchableOpacity
             style={styles.cartIconButton}
-            onPress={handleAddToCart}
+            onPress={(e) => { 
+              e.stopPropagation && e.stopPropagation(); 
+              handleAddToCart(); 
+            }}
           >
             <Ionicons name="cart" size={20} color="#fff" />
           </TouchableOpacity>

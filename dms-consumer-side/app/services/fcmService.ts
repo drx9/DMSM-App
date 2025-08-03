@@ -146,15 +146,23 @@ class FCMService {
   setupMessageHandlers(): void {
     console.log('[FCM] Setting up message handlers...');
     
-    // Foreground message handler - DISABLED to prevent duplicate notifications
-    // FCM will show system notifications automatically, no need for custom banner
+    // Foreground message handler - Show banner notifications
     const unsubscribe = messaging().onMessage(async remoteMessage => {
-      console.log('[FCM] Foreground message received (system notification will show automatically):', remoteMessage);
+      console.log('[FCM] Foreground message received:', remoteMessage);
       console.log('[FCM] Message ID:', remoteMessage.messageId);
       console.log('[FCM] Message Title:', remoteMessage.notification?.title);
       
-      // Don't create custom banner - let FCM show system notification
-      console.log('[FCM] System notification will be shown automatically by FCM');
+      // Show banner notification using Expo Notifications
+      if (remoteMessage.notification) {
+        await Notifications.scheduleNotificationAsync({
+          content: {
+            title: remoteMessage.notification.title || 'Notification',
+            body: remoteMessage.notification.body || '',
+            data: remoteMessage.data || {},
+          },
+          trigger: null, // Show immediately
+        });
+      }
     });
 
     // Background message handler

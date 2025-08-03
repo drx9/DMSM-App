@@ -71,16 +71,56 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
     // Add to cart: call backend, then refresh
     const addToCart = async (id: string) => {
         const userId = await AsyncStorage.getItem('userId');
-        if (!userId) return;
+        if (!userId) {
+            console.log('[CartContext] No userId found, cannot add to cart');
+            return;
+        }
+        
         try {
+            console.log('[CartContext] Adding product to cart:', id, 'for user:', userId);
+            
             // Check if item already exists in cart
             const existing = cart.find(item => item.id === id);
             const newQuantity = existing ? existing.quantity + 1 : 1;
-            await axios.post(`${API_URL}/cart`, { userId, productId: id, quantity: newQuantity });
+            
+            console.log('[CartContext] New quantity will be:', newQuantity);
+            
+            const response = await axios.post(`${API_URL}/cart`, { 
+                userId, 
+                productId: id, 
+                quantity: newQuantity 
+            });
+            
+            console.log('[CartContext] Backend response:', response.data);
+            
+            // Update local cart immediately for better UX
+            const updatedCart = existing 
+                ? cart.map(item => item.id === id ? { ...item, quantity: newQuantity } : item)
+                : [...cart, { id, quantity: newQuantity }];
+            
+            setCart(updatedCart);
+            await AsyncStorage.setItem('cartItems', JSON.stringify(updatedCart));
+            
+            // Then refresh from backend to ensure consistency
             await refreshCartFromBackend();
-            console.log('[CartContext] addToCart called, refreshed cart');
-        } catch (err) {
-            // handle error
+            
+            console.log('[CartContext] Successfully added to cart');
+        } catch (err: any) {
+            console.error('[CartContext] Error adding to cart:', err);
+            console.error('[CartContext] Error details:', err.response?.data);
+            
+            // Fallback: add to local cart even if backend fails
+            const existing = cart.find(item => item.id === id);
+            const newQuantity = existing ? existing.quantity + 1 : 1;
+            
+            const updatedCart = existing 
+                ? cart.map(item => item.id === id ? { ...item, quantity: newQuantity } : item)
+                : [...cart, { id, quantity: newQuantity }];
+            
+            setCart(updatedCart);
+            await AsyncStorage.setItem('cartItems', JSON.stringify(updatedCart));
+            
+            console.log('[CartContext] Added to local cart as fallback');
         }
     };
 

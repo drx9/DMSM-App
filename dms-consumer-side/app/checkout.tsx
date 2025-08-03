@@ -65,7 +65,7 @@ const CheckoutScreen = () => {
     const [cartItems, setCartItems] = useState<CartItem[]>([]);
     const [loading, setLoading] = useState(true);
     const [currentStep, setCurrentStep] = useState(1);
-    const [selectedPayment, setSelectedPayment] = useState('googlepay');
+    const [selectedPayment, setSelectedPayment] = useState('cod');
     const [selectedUpiMethod, setSelectedUpiMethod] = useState('googlepay');
     const [userId, setUserId] = useState<string | null>(null);
     const [addresses, setAddresses] = useState<Address[]>([]);
@@ -227,6 +227,10 @@ const CheckoutScreen = () => {
         }
         if (!selectedDeliverySlot) {
             Alert.alert('Error', 'Please select a delivery slot.');
+            return;
+        }
+        if (selectedPayment !== 'cod') {
+            Alert.alert('Error', 'Only Cash on Delivery is currently available. Other payment methods are coming soon.');
             return;
         }
         const selectedAddress = addresses.find(addr => addr.id === selectedAddressId);
@@ -614,38 +618,63 @@ const CheckoutScreen = () => {
                             <TouchableOpacity
                                 style={[
                                     styles.paymentMethod,
-                                    expandedPayment === method.id && styles.paymentMethodExpanded
+                                    expandedPayment === method.id && styles.paymentMethodExpanded,
+                                    !method.available && styles.paymentMethodDisabled
                                 ]}
                                 onPress={() => {
+                                    if (!method.available) {
+                                        Alert.alert('Coming Soon', 'This payment method will be available soon!');
+                                        return;
+                                    }
                                     setExpandedPayment(expandedPayment === method.id ? '' : method.id);
                                     setSelectedPayment(method.id);
                                 }}
+                                disabled={!method.available}
                             >
                                 <View style={styles.paymentMethodLeft}>
-                                    <Ionicons name={getIoniconName(method.icon)} size={20} color="#666" />
+                                    <Ionicons 
+                                        name={getIoniconName(method.icon)} 
+                                        size={20} 
+                                        color={method.available ? "#666" : "#ccc"} 
+                                    />
                                     <View style={styles.paymentMethodText}>
-                                        <Text style={styles.paymentMethodLabel}>{method.label}</Text>
+                                        <Text style={[
+                                            styles.paymentMethodLabel,
+                                            !method.available && styles.paymentMethodLabelDisabled
+                                        ]}>
+                                            {method.label}
+                                        </Text>
                                         {method.subtitle && (
-                                            <Text style={styles.paymentMethodSubtitle}>{method.subtitle}</Text>
+                                            <Text style={[
+                                                styles.paymentMethodSubtitle,
+                                                !method.available && styles.paymentMethodSubtitleDisabled
+                                            ]}>
+                                                {method.subtitle}
+                                            </Text>
                                         )}
-                                        {method.offer && (
+                                        {method.offer && method.available && (
                                             <Text style={styles.paymentMethodOffer}>{method.offer}</Text>
+                                        )}
+                                        {method.comingSoon && (
+                                            <Text style={styles.comingSoonBadge}>Coming Soon</Text>
                                         )}
                                     </View>
                                 </View>
                                 <View style={styles.paymentMethodRight}>
-                                    {method.action && (
+                                    {method.action && method.available && (
                                         <Text style={styles.paymentMethodAction}>{method.action}</Text>
                                     )}
-                                    <Ionicons
-                                        name={expandedPayment === method.id ? "chevron-up" : "chevron-down"}
-                                        size={16}
-                                        color="#666"
-                                    />
+                                    {method.available && (
+                                        <Ionicons
+                                            name={expandedPayment === method.id ? "chevron-up" : "chevron-down"}
+                                            size={16}
+                                            color="#666"
+                                        />
+                                    )}
                                 </View>
                             </TouchableOpacity>
 
-                            {expandedPayment === method.id && method.subMethods && (
+                            {expandedPayment === method.id && method.subMethods && method.available && (
                                 <View style={styles.subMethods}>
                                     {method.subMethods.map((subMethod: any) => (
                                         <TouchableOpacity
@@ -1410,6 +1439,26 @@ const styles = StyleSheet.create({
         color: '#2874F0',
         fontWeight: '600',
         marginRight: 8,
+    },
+    paymentMethodDisabled: {
+        opacity: 0.6,
+    },
+    paymentMethodLabelDisabled: {
+        color: '#999',
+    },
+    paymentMethodSubtitleDisabled: {
+        color: '#ccc',
+    },
+    comingSoonBadge: {
+        fontSize: 10,
+        color: '#FF6B35',
+        fontWeight: '600',
+        backgroundColor: '#FFF3E0',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 4,
+        alignSelf: 'flex-start',
+        marginTop: 4,
     },
     subMethods: {
         backgroundColor: '#F8F9FA',

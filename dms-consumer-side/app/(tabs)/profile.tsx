@@ -23,8 +23,7 @@ import { useNotifications } from '../context/NotificationContext';
 import AddressManagerModal, { Address } from '../../components/AddressManagerModal';
 import LocationSelectionScreen from '../location/LocationSelectionScreen';
 
-import FCMTest from '../../components/FCMTest';
-import FirebaseTest from '../components/FirebaseTest';
+
 
 const ProfileScreen = () => {
   const router = useRouter();
@@ -259,12 +258,6 @@ const ProfileScreen = () => {
             </View>
           </View>
         )}
-
-        {/* Notification Test Section */}
-        <Text style={styles.sectionTitle}>Debug Tools</Text>
-
-        <FCMTest />
-        <FirebaseTest />
 
         {/* Profile Features */}
         <Text style={styles.sectionTitle}>Account</Text>
