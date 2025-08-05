@@ -12,6 +12,7 @@ interface NotificationContextType {
   initializeNotifications: (userId: string) => Promise<boolean>;
   requestPermission: () => Promise<boolean>;
   sendTestNotification: () => Promise<void>;
+  testOrderNotification: () => Promise<void>;
   clearBadge: () => Promise<void>;
   sendOrderNotification: (orderId: string, status: string, userId: string) => Promise<void>;
   sendPromotionalNotification: (title: string, body: string, data?: any) => Promise<void>;
@@ -142,30 +143,106 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     }
   };
 
+  // Add a simple test function for order notifications
+  const testOrderNotification = async () => {
+    try {
+      console.log('📱 Testing order notification...');
+      
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Order Placed',
+          body: 'Your order #12345 has been placed successfully!',
+          data: { 
+            type: 'order', 
+            orderId: '12345', 
+            status: 'placed' 
+          },
+          sound: true,
+          priority: 'high',
+        },
+        trigger: null, // Show immediately
+      });
+      
+      console.log('✅ Order notification test sent successfully');
+      Alert.alert('Success', 'Order notification test sent!');
+    } catch (error) {
+      console.error('Error sending order notification test:', error);
+      Alert.alert('Error', 'Failed to send order notification test');
+    }
+  };
+
   const sendOrderNotification = async (orderId: string, status: string, userId: string) => {
     try {
-      // Order notifications are handled by the backend FCM service
-      console.log('Order notification will be sent by backend FCM service');
+      console.log('📱 Sending order notification:', orderId, status);
+      
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: `Order ${status}`,
+          body: `Your order #${orderId} has been ${status.toLowerCase()}`,
+          data: { 
+            type: 'order', 
+            orderId, 
+            status,
+            userId 
+          },
+          sound: true,
+          priority: 'high',
+        },
+        trigger: null, // Show immediately
+      });
+      
+      console.log('✅ Order notification sent successfully');
     } catch (error) {
-      console.error('Error sending order notification:', error);
+      console.error('❌ Error sending order notification:', error);
     }
   };
 
   const sendPromotionalNotification = async (title: string, body: string, data?: any) => {
     try {
-      // Promotional notifications are handled by the backend FCM service
-      console.log('Promotional notification will be sent by backend FCM service');
+      console.log('📱 Sending promotional notification:', title);
+      
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title,
+          body,
+          data: { 
+            type: 'promotional',
+            ...data 
+          },
+          sound: true,
+          priority: 'default',
+        },
+        trigger: null, // Show immediately
+      });
+      
+      console.log('✅ Promotional notification sent successfully');
     } catch (error) {
-      console.error('Error sending promotional notification:', error);
+      console.error('❌ Error sending promotional notification:', error);
     }
   };
 
   const sendDeliveryNotification = async (orderId: string, message: string, userId: string) => {
     try {
-      // Delivery notifications are handled by the backend FCM service
-      console.log('Delivery notification will be sent by backend FCM service');
+      console.log('📱 Sending delivery notification:', orderId);
+      
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: 'Delivery Update',
+          body: message,
+          data: { 
+            type: 'delivery', 
+            orderId,
+            userId 
+          },
+          sound: true,
+          priority: 'high',
+        },
+        trigger: null, // Show immediately
+      });
+      
+      console.log('✅ Delivery notification sent successfully');
     } catch (error) {
-      console.error('Error sending delivery notification:', error);
+      console.error('❌ Error sending delivery notification:', error);
     }
   };
 
@@ -176,6 +253,7 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({ chil
     initializeNotifications,
     requestPermission,
     sendTestNotification,
+    testOrderNotification,
     clearBadge,
     sendOrderNotification,
     sendPromotionalNotification,

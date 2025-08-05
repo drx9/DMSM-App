@@ -329,7 +329,7 @@ const ProductDetailScreen = () => {
             <Text style={styles.buyNowText}>Buy Now</Text>
           </TouchableOpacity>
         </View>
-      </View>
+    </View>
     </SafeAreaView>
   );
 };

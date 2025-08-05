@@ -59,7 +59,7 @@ const OTPVerificationScreen = () => {
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (countdown > 0) {
-      timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      timer = setTimeout(() => setCountdown(countdown - 1), 1000) as any;
     }
     return () => clearTimeout(timer);
   }, [countdown]);

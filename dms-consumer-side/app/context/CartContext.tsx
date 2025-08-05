@@ -24,27 +24,39 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
     // Fetch cart from backend and update context + AsyncStorage
     const refreshCartFromBackend = async () => {
-        const userId = await AsyncStorage.getItem('userId');
-        if (!userId) return;
         try {
+            const userId = await AsyncStorage.getItem('userId');
+            if (!userId) {
+                console.log('[CartContext] No userId found, skipping cart refresh');
+                return;
+            }
+            
             const res = await axios.get(`${API_URL}/cart/${userId}`);
             console.log('[CartContext] Backend cart response:', res.data);
-            // Map backend cart items to { id, quantity }
-            const items = res.data.map((item: any) => ({
-                id: item.Product?.id?.toString() || item.productId?.toString() || item.id?.toString(),
-                quantity: item.quantity,
-            }));
+            
+            // Safely map backend cart items to { id, quantity }
+            const items = Array.isArray(res.data) ? res.data.map((item: any) => ({
+                id: item.Product?.id?.toString() || item.productId?.toString() || item.id?.toString() || '',
+                quantity: item.quantity || 0,
+            })).filter(item => item.id) : [];
+            
             setCart(items);
             await AsyncStorage.setItem('cartItems', JSON.stringify(items));
             console.log('[CartContext] Cart set to:', items);
+            
             if (items.length === 0) {
                 await AsyncStorage.removeItem('cartItems');
                 console.log('[CartContext] Cart is empty, removed from AsyncStorage');
             }
         } catch (err) {
+            console.error('[CartContext] Error fetching cart:', err);
             setCart([]);
-            await AsyncStorage.removeItem('cartItems');
-            console.log('[CartContext] Error fetching cart, set cart to empty');
+            try {
+                await AsyncStorage.removeItem('cartItems');
+            } catch (storageErr) {
+                console.error('[CartContext] Error removing cart from storage:', storageErr);
+            }
+            console.log('[CartContext] Cart set to empty due to error');
         }
     };
 

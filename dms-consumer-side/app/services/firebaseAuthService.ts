@@ -36,7 +36,7 @@ class FirebaseAuthService {
 
       const result = await confirmation.confirm(otp);
       
-      if (result.user) {
+      if (result?.user) {
         console.log('[Firebase Auth] Phone OTP verified successfully');
         // Sign out to clear the session
         await auth().signOut();
@@ -96,7 +96,7 @@ class FirebaseAuthService {
 
       const result = await auth().signInWithEmailLink(storedEmail, emailLink);
       
-      if (result.user) {
+      if (result?.user) {
         console.log('[Firebase Auth] Email OTP verified successfully');
         // Sign out to clear the session
         await auth().signOut();
@@ -116,11 +116,11 @@ class FirebaseAuthService {
   private async storeConfirmation(confirmation: FirebaseAuthTypes.ConfirmationResult): Promise<void> {
     // Store in AsyncStorage or secure storage
     // For now, we'll use a simple approach
-    global.firebaseConfirmation = confirmation;
+    (global as any).firebaseConfirmation = confirmation;
   }
 
   private async getStoredConfirmation(): Promise<FirebaseAuthTypes.ConfirmationResult | null> {
-    return global.firebaseConfirmation || null;
+    return (global as any).firebaseConfirmation || null;
   }
 
   private async storeEmail(email: string): Promise<void> {
@@ -137,7 +137,7 @@ class FirebaseAuthService {
 
   // Clean up stored data
   async clearStoredData(): Promise<void> {
-    global.firebaseConfirmation = null;
+    (global as any).firebaseConfirmation = null;
     const AsyncStorage = require('@react-native-async-storage/async-storage');
     await AsyncStorage.removeItem('firebaseEmail');
   }

@@ -9,7 +9,7 @@ import { AuthProvider } from './context/AuthContext';
 import React, { useEffect } from 'react';
 import { Provider } from 'react-redux';
 import { store } from '../src/store';
-import { checkFirebaseConfig } from './services/firebaseConfig';
+import { initializeFirebase } from './services/firebaseConfig';
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
@@ -17,16 +17,30 @@ export default function RootLayout() {
   // Configure notifications for banner display
   useEffect(() => {
     const configureNotifications = async () => {
-      // Set notification handler
+      // Set notification handler for banner notifications
       Notifications.setNotificationHandler({
         handleNotification: async () => ({
-          shouldShowAlert: true,
-          shouldShowBanner: true,
+          shouldShowAlert: false, // Don't show popup alerts
+          shouldShowBanner: true, // Show as banner at top
           shouldPlaySound: true,
           shouldSetBadge: true,
           shouldShowList: true,
         }),
       });
+
+      // Request notification permissions
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+      
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+      
+      if (finalStatus !== 'granted') {
+        console.log('Notification permissions not granted');
+        return;
+      }
 
       // Create notification channel for Android
       if (Platform.OS === 'android') {
@@ -39,6 +53,8 @@ export default function RootLayout() {
           bypassDnd: false,
         });
       }
+      
+      console.log('✅ Notification permissions and channels configured successfully');
     };
 
     configureNotifications();
@@ -46,7 +62,7 @@ export default function RootLayout() {
 
   // Initialize Firebase on app start
   useEffect(() => {
-    checkFirebaseConfig();
+    initializeFirebase();
   }, []);
 
   // Add comprehensive error boundary
@@ -99,28 +115,28 @@ export default function RootLayout() {
   }, []);
 
   return (
-    <Provider store={store}>
-      <GestureHandlerRootView style={{ flex: 1 }}>
+      <Provider store={store}>
+        <GestureHandlerRootView style={{ flex: 1 }}>
         <LanguageProvider>
           <AuthProvider>
-            <NotificationProvider>
-              <CartProvider>
-                <WishlistProvider>
-                  <Stack screenOptions={{ headerShown: false }}>
-                    <Stack.Screen name="splash" />
-                    <Stack.Screen name="language" />
-                    <Stack.Screen name="login" />
-                    <Stack.Screen name="signup" />
-                    <Stack.Screen name="verify-otp" />
-                    <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                    <Stack.Screen name="notification-settings" options={{ headerShown: false }} />
-                  </Stack>
-                </WishlistProvider>
-              </CartProvider>
-            </NotificationProvider>
+                <NotificationProvider>
+                  <CartProvider>
+                    <WishlistProvider>
+                  <Stack screenOptions={{ headerShown: false }} initialRouteName="splash">
+                        <Stack.Screen name="splash" />
+                        <Stack.Screen name="language" />
+                        <Stack.Screen name="login" />
+                        <Stack.Screen name="signup" />
+                        <Stack.Screen name="verify-otp" />
+                        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                        <Stack.Screen name="notification-settings" options={{ headerShown: false }} />
+                      </Stack>
+                    </WishlistProvider>
+                  </CartProvider>
+                </NotificationProvider>
           </AuthProvider>
         </LanguageProvider>
-      </GestureHandlerRootView>
-    </Provider>
+        </GestureHandlerRootView>
+      </Provider>
   );
 }

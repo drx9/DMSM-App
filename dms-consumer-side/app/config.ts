@@ -1,4 +1,4 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL || "https://dmsm-app-production-a35d.up.railway.app/api";
 
 // Use the API key from app.json or environment variables
 export const GOOGLE_MAPS_API_KEY = process.env.GOOGLE_MAPS_API_KEY || 

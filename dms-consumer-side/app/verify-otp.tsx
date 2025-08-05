@@ -13,6 +13,7 @@ import {
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios, { AxiosError } from 'axios';
+import { useAuth } from './context/AuthContext';
 import { 
   getResponsiveFontSize, 
   getResponsiveWidth, 
@@ -36,6 +37,7 @@ const VerifyOTPScreen = () => {
   const [timer, setTimer] = useState(30);
   const router = useRouter();
   const { userId } = useLocalSearchParams();
+  const { login } = useAuth();
 
   useEffect(() => {
     if (timer > 0) {
@@ -67,6 +69,14 @@ const VerifyOTPScreen = () => {
           console.log('VerifyOTP: Token stored successfully');
         } else {
           console.log('VerifyOTP: No token received from server');
+        }
+        
+        // Store user data using AuthContext
+        if (userId) {
+          await login({
+            id: userId as string,
+            phone: '', // Will be filled when user data is fetched
+          });
         }
         
         // Navigate to main app

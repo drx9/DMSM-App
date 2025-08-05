@@ -21,6 +21,7 @@ import * as WebBrowser from 'expo-web-browser';
 import { AntDesign, FontAwesome } from '@expo/vector-icons';
 import otpService from '../services/otpService';
 import { useNotifications } from '../context/NotificationContext';
+import { useAuth } from '../context/AuthContext';
 
 // TODO: Add token storage mechanism (e.g., AsyncStorage)
 // import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -40,6 +41,7 @@ interface EmailLoginResponse {
     id: string;
     name: string;
     email: string;
+    phone?: string;
   };
 }
 
@@ -56,6 +58,7 @@ const LoginScreen = () => {
   const router = useRouter();
   const { t } = useLanguage();
   const { initializeNotifications, requestPermission } = useNotifications();
+  const { login } = useAuth();
 
   // Firebase phone auth states
   // const recaptchaVerifier = useRef(null);
@@ -78,9 +81,13 @@ const LoginScreen = () => {
         axios.post(`${API_URL}/auth/google`, { token: id_token })
           .then(async (res) => {
             if (res.data.success && res.data.token && res.data.user) {
-              // Store user info and token
-              await AsyncStorage.setItem('userId', res.data.user.id);
-              // await AsyncStorage.setItem('userToken', res.data.token);
+              // Store user info using AuthContext
+              await login({
+                id: res.data.user.id,
+                name: res.data.user.name,
+                email: res.data.user.email,
+                phone: res.data.user.phone || '',
+              });
               
               // Initialize notifications after successful login
               await initializeNotifications(res.data.user.id);
@@ -144,8 +151,13 @@ const LoginScreen = () => {
           });
           
           if (response.data.success && response.data.user) {
-            // Store user info
-            await AsyncStorage.setItem('userId', response.data.user.id);
+            // Store user info using AuthContext
+            await login({
+              id: response.data.user.id,
+              name: response.data.user.name,
+              email: response.data.user.email || '',
+              phone: response.data.user.phone || `+91${phoneNumber}`,
+            });
             
             // Initialize notifications after successful login
             await initializeNotifications(response.data.user.id);
@@ -203,19 +215,19 @@ const LoginScreen = () => {
       });
 
       if (response.data.success && response.data.token && response.data.user) {
-        // Store token and userId
-        await AsyncStorage.setItem('userId', response.data.user.id);
-        // await AsyncStorage.setItem('userToken', response.data.token); // if you want to store token
+        // Store user info using AuthContext
+        await login({
+          id: response.data.user.id,
+          name: response.data.user.name,
+          email: response.data.user.email,
+          phone: response.data.user.phone || '',
+        });
         
         // Initialize notifications after successful login
         await initializeNotifications(response.data.user.id);
         
         Alert.alert(t('success'), t('loginSuccessful'));
-        
-        // Add a small delay to ensure AsyncStorage is written before navigation
-        setTimeout(() => {
         router.replace('/(tabs)');
-        }, 100);
       } else {
         Alert.alert(t('error'), response.data.message || t('loginFailed'));
       }

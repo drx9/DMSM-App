@@ -24,6 +24,16 @@ class FCMService {
       console.log('[FCM] Initializing FCM for user:', userId);
       this.userId = userId;
 
+      // Check if Firebase is available
+      try {
+        const firebase = require('@react-native-firebase/app');
+        firebase.app();
+      } catch (error) {
+        console.warn('[FCM] Firebase not available, FCM features will be disabled');
+        console.warn('[FCM] To enable FCM: Add google-services.json to android/app/');
+        return false;
+      }
+
       // Request permission
       const authStatus = await messaging().requestPermission();
       const enabled = authStatus === messaging.AuthorizationStatus.AUTHORIZED || 
@@ -148,20 +158,33 @@ class FCMService {
     
     // Foreground message handler - Show banner notifications
     const unsubscribe = messaging().onMessage(async remoteMessage => {
-      console.log('[FCM] Foreground message received:', remoteMessage);
+      console.log('[FCM] 🔥 Foreground message received:', remoteMessage);
       console.log('[FCM] Message ID:', remoteMessage.messageId);
       console.log('[FCM] Message Title:', remoteMessage.notification?.title);
+      console.log('[FCM] Message Body:', remoteMessage.notification?.body);
+      console.log('[FCM] Message Data:', remoteMessage.data);
+      console.log('[FCM] Notification Type:', remoteMessage.data?.type || 'unknown');
       
       // Show banner notification using Expo Notifications
       if (remoteMessage.notification) {
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: remoteMessage.notification.title || 'Notification',
-            body: remoteMessage.notification.body || '',
-            data: remoteMessage.data || {},
-          },
-          trigger: null, // Show immediately
-        });
+        try {
+          console.log('[FCM] 📱 Scheduling banner notification...');
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: remoteMessage.notification.title || 'Notification',
+              body: remoteMessage.notification.body || '',
+              data: remoteMessage.data || {},
+              sound: true,
+              priority: 'high',
+            },
+            trigger: null, // Show immediately
+          });
+          console.log('[FCM] ✅ Banner notification scheduled successfully');
+        } catch (error) {
+          console.error('[FCM] ❌ Error scheduling banner notification:', error);
+        }
+      } else {
+        console.log('[FCM] ⚠️ No notification object in message');
       }
     });
 

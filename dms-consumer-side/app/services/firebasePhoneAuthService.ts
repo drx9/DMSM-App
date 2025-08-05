@@ -56,11 +56,11 @@ class FirebasePhoneAuthService {
       // Confirm the OTP with Firebase
       const result = await this.confirmation.confirm(otp);
       
-      if (result.user) {
+      if (result?.user) {
         console.log('[Firebase Phone Auth] SMS OTP verified successfully');
         
         // Get the user's ID token for backend verification
-        const idToken = await result.user.getIdToken();
+        const idToken = await result?.user?.getIdToken();
         console.log('[Firebase Phone Auth] User ID token:', idToken);
         
         // Sign out to clear the session (we'll handle login separately)

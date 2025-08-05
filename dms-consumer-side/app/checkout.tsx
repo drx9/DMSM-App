@@ -306,8 +306,8 @@ const CheckoutScreen = () => {
             
             // Send order confirmation notification
             if (orderRes.data.success && orderRes.data.orderId) {
-                // Send local notification
-                await sendOrderNotification(orderRes.data.orderId, 'Order Placed', userId || '');
+                // Send local notification immediately
+                await sendOrderNotification(orderRes.data.orderId, 'Placed', userId || '');
                 
                 // Also trigger backend notification as backup
                 try {
@@ -323,6 +323,15 @@ const CheckoutScreen = () => {
             }
             
             await refreshCartFromBackend();
+            
+            // Send immediate success notification
+            try {
+                await sendOrderNotification(orderRes.data.orderId, 'Placed', userId || '');
+                console.log('✅ Order placement notification sent');
+            } catch (notificationError) {
+                console.error('❌ Order placement notification failed:', notificationError);
+            }
+            
             Alert.alert('Success', 'Order placed successfully!');
             router.replace('/(tabs)');
         } catch (error) {

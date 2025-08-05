@@ -20,6 +20,8 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { API_URL } from '../config';
 import { useNotifications } from '../context/NotificationContext';
+import { useAuth } from '../context/AuthContext';
+import { fcmService } from '../services/fcmService';
 import AddressManagerModal, { Address } from '../../components/AddressManagerModal';
 import LocationSelectionScreen from '../location/LocationSelectionScreen';
 
@@ -28,6 +30,7 @@ import LocationSelectionScreen from '../location/LocationSelectionScreen';
 const ProfileScreen = () => {
   const router = useRouter();
   const { hasPermission, requestPermission, sendTestNotification } = useNotifications();
+  const { logout } = useAuth();
   const [orders, setOrders] = useState<any[]>([]);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
@@ -47,6 +50,13 @@ const ProfileScreen = () => {
         fetchUser(storedUserId);
         fetchOrders(storedUserId);
         fetchAddresses(storedUserId);
+        
+        // Initialize FCM for notifications
+        try {
+          await fcmService.initialize(storedUserId);
+        } catch (error) {
+          console.error('Error initializing FCM:', error);
+        }
       }
     };
     fetchUserData();
@@ -147,11 +157,11 @@ const ProfileScreen = () => {
 
   const handleLogout = async () => {
     // Clear all user-specific data
-    await AsyncStorage.removeItem('userId');
     await AsyncStorage.removeItem('cartItems');
     await AsyncStorage.removeItem('userAddress');
     await AsyncStorage.removeItem('addressSet');
-    // Optionally, clear any other user-specific keys here
+    // Use AuthContext logout to clear user data
+    await logout();
     router.replace('/login');
   };
 
@@ -189,6 +199,8 @@ const ProfileScreen = () => {
       sendTestNotification();
     }
   };
+
+
 
   const handleRequestLocation = () => {
     setShowAddressManager(false);

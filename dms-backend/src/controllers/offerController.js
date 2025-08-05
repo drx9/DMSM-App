@@ -58,11 +58,22 @@ const offerController = {
     getActiveOffers: async (req, res) => {
         try {
             const now = new Date();
+            // Create date-only versions for comparison (removes time component)
+            const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+            const tomorrow = new Date(today);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            
+            console.log('🔍 Fetching active offers with date range:', {
+                today: today.toISOString(),
+                tomorrow: tomorrow.toISOString(),
+                currentTime: now.toISOString()
+            });
+            
             const offers = await Offer.findAll({
                 where: {
                     isActive: true,
-                    startDate: { [Op.lte]: now },
-                    endDate: { [Op.gte]: now },
+                    startDate: { [Op.lt]: tomorrow },  // startDate < tomorrow (includes today)
+                    endDate: { [Op.gte]: today },      // endDate >= today
                 },
                 include: [{
                     model: Product,
@@ -71,9 +82,59 @@ const offerController = {
                 }],
                 order: [['createdAt', 'DESC']],
             });
+            
+            console.log('📦 Found offers:', offers.length);
+            offers.forEach(offer => {
+                console.log('🎯 Offer:', {
+                    id: offer.id,
+                    name: offer.name,
+                    startDate: offer.startDate,
+                    endDate: offer.endDate,
+                    isActive: offer.isActive,
+                    banner_image: offer.banner_image ? 'Present' : 'Missing'
+                });
+            });
+            
             res.json(offers);
         } catch (err) {
+            console.error('❌ Error fetching active offers:', err);
             res.status(500).json({ message: 'Error fetching active offers' });
+        }
+    },
+
+    // Debug endpoint - get all active offers regardless of date
+    getAllActiveOffers: async (req, res) => {
+        try {
+            console.log('🔍 Debug: Fetching ALL active offers (no date filter)');
+            
+            const offers = await Offer.findAll({
+                where: {
+                    isActive: true,
+                },
+                include: [{
+                    model: Product,
+                    as: 'products',
+                    through: { attributes: ['extraDiscount', 'customOfferText'] },
+                }],
+                order: [['createdAt', 'DESC']],
+            });
+            
+            console.log('📦 Debug: Found offers:', offers.length);
+            offers.forEach(offer => {
+                console.log('🎯 Debug Offer:', {
+                    id: offer.id,
+                    name: offer.name,
+                    startDate: offer.startDate,
+                    endDate: offer.endDate,
+                    isActive: offer.isActive,
+                    banner_image: offer.banner_image ? 'Present' : 'Missing'
+                });
+            });
+            
+            res.json(offers);
+        } catch (err) {
+            console.error('❌ Error fetching all active offers:', err);
+            res.status(500).json({ message: 'Error fetching all active offers' });
         }
     },
 

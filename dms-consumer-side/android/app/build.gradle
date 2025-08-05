@@ -82,47 +82,19 @@ def enableProguardInReleaseBuilds = (findProperty('android.enableProguardInRelea
 def jscFlavor = 'io.github.react-native-community:jsc-android:2026004.+'
 
 android {
-    namespace "com.dmsm.dmsconsumerside"
-    compileSdkVersion rootProject.ext.compileSdkVersion
-    ndkVersion "27.1.12297006"
+    ndkVersion rootProject.ext.ndkVersion
 
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
-    }
+    buildToolsVersion rootProject.ext.buildToolsVersion
+    compileSdk rootProject.ext.compileSdkVersion
 
-    kotlinOptions {
-        jvmTarget = "17"
-    }
-
-    sourceSets {
-        main.java.srcDirs += 'src/main/kotlin'
-    }
-
+    namespace 'com.dmsm.dmsconsumerside'
     defaultConfig {
-        applicationId "com.dmsm.dmsconsumerside"
-        // You can remove the applicationId above and uncomment the line below if you want to use the package name from the manifest.
-        // applicationId project.findProperty("android.applicationId")
+        applicationId 'com.dmsm.dmsconsumerside'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
-        versionName "1.0"
-        multiDexEnabled true
-        ndk {
-            abiFilters "arm64-v8a"
-        }
-        
-        // Force only arm64-v8a architecture
-        resValue "string", "reactNativeArchitectures", "arm64-v8a"
+        versionName "1.0.0"
     }
-
-    // Disable external native build to avoid path issues
-    // externalNativeBuild {
-    //     cmake {
-    //         path "CMakeLists.txt"
-    //         version "3.22.1"
-    //     }
-    // }
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
@@ -203,5 +175,3 @@ dependencies {
         implementation jscFlavor
     }
 }
-
-apply plugin: 'com.google.gms.google-services'
