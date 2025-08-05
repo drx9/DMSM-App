@@ -308,11 +308,29 @@ const useHomeAPI = (updateState: (updates: any) => void) => {
 
   const fetchActiveOffers = useCallback(async () => {
     try {
+      console.log('🔍 Fetching active offers from:', `${API_URL}/offers/active`);
       const res = await axios.get(`${API_URL}/offers/active`);
+      console.log('📦 Raw offers response:', res.data);
+      
       const offersData = Array.isArray(res.data) ? res.data : (res.data.offers || []);
+      console.log('✅ Processed offers data:', offersData);
+      console.log('📊 Number of offers:', offersData.length);
+      
+      if (offersData.length > 0) {
+        console.log('🎯 First offer details:', {
+          id: offersData[0].id,
+          name: offersData[0].name,
+          banner_image: offersData[0].banner_image,
+          isActive: offersData[0].isActive,
+          startDate: offersData[0].startDate,
+          endDate: offersData[0].endDate
+        });
+      }
+      
       updateState({ activeOffers: offersData });
-    } catch (error) {
-      console.error('Error fetching active offers:', error);
+    } catch (error: any) {
+      console.error('❌ Error fetching active offers:', error);
+      console.error('🔍 Error response:', error.response?.data);
       updateState({ activeOffers: [] });
     }
   }, [updateState]);
@@ -935,13 +953,24 @@ const HomeScreen = () => {
         showsVerticalScrollIndicator={false}
       >
         {/* Sale Banner Carousel */}
-        <View style={[styles.bannerContainer, { height: 120, marginBottom: 8 }]}>
+        <View style={{ height: 180, marginBottom: 8, marginHorizontal: 16 }}>
           {state.activeOffers.length > 0 && state.activeOffers[0].banner_image ? (
             <TouchableOpacity onPress={handleViewAllOffers} activeOpacity={0.9} style={{ flex: 1 }}>
               <Image 
-                source={{ uri: state.activeOffers[0].banner_image }} 
-                style={{ width: '100%', height: '100%', borderRadius: 12, resizeMode: 'cover' }}
-                onError={(error) => {
+                source={{ 
+                  uri: state.activeOffers[0].banner_image,
+                  headers: {
+                    'Accept': 'image/*',
+                  },
+                  cache: 'reload'
+                }} 
+                style={{ 
+                  width: '100%', 
+                  height: '100%', 
+                  borderRadius: 12, 
+                  resizeMode: 'cover'
+                }}
+                onError={(error: any) => {
                   console.log('❌ Banner image failed to load:', error);
                   console.log('🖼️ Image URL:', state.activeOffers[0].banner_image);
                 }}
@@ -952,18 +981,17 @@ const HomeScreen = () => {
               />
             </TouchableOpacity>
           ) : (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF8E1' }}>
-              <Text style={{ color: '#FFB300', fontWeight: 'bold', fontSize: 16 }}>
-                {state.activeOffers.length === 0 ? 'No active offers' : 'Banner image not available'}
-              </Text>
-            </View>
+            <TouchableOpacity onPress={handleViewAllOffers} activeOpacity={0.9} style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#FFF8E1', borderRadius: 12 }}>
+              <View style={{ alignItems: 'center' }}>
+                <Text style={{ color: '#FFB300', fontWeight: 'bold', fontSize: 18, marginBottom: 4 }}>
+                  {state.activeOffers.length === 0 ? 'No Active Offers' : 'Special Offers Available'}
+                </Text>
+                <Text style={{ color: '#FFB300', fontSize: 14 }}>
+                  Tap to view all offers
+                </Text>
+              </View>
+            </TouchableOpacity>
           )}
-        </View>
-        
-        <View style={{ alignItems: 'center', marginBottom: 16 }}>
-          <TouchableOpacity style={{ backgroundColor: '#FF6B35', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 24 }} onPress={handleViewAllOffers}>
-            <Text style={{ color: 'white', fontWeight: 'bold', fontSize: 16 }}>View All Offers</Text>
-          </TouchableOpacity>
         </View>
 
         {/* Category Chips Section */}

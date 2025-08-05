@@ -45,6 +45,7 @@ const offerController = {
                     model: Product,
                     as: 'products',
                     through: { attributes: ['extraDiscount', 'customOfferText'] },
+                    attributes: ['id', 'name', 'description', 'price', 'images', 'stock', 'isActive']
                 }],
                 order: [['createdAt', 'DESC']],
             });
@@ -79,6 +80,7 @@ const offerController = {
                     model: Product,
                     as: 'products',
                     through: { attributes: ['extraDiscount', 'customOfferText'] },
+                    attributes: ['id', 'name', 'description', 'price', 'images', 'stock', 'isActive']
                 }],
                 order: [['createdAt', 'DESC']],
             });
@@ -115,6 +117,7 @@ const offerController = {
                     model: Product,
                     as: 'products',
                     through: { attributes: ['extraDiscount', 'customOfferText'] },
+                    attributes: ['id', 'name', 'description', 'price', 'images', 'stock', 'isActive']
                 }],
                 order: [['createdAt', 'DESC']],
             });
