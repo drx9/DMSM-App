@@ -313,12 +313,8 @@ async function verifyFirebaseToken(req, res) {
     // Find or create user
     let user = await User.findOne({ where: { phoneNumber } });
     if (!user) {
-      user = await User.create({
-        name: "User" + phoneNumber.slice(-4),
-        phoneNumber,
-        password: Math.random().toString(36).slice(-8), // random password, not used
-        isVerified: true,
-      });
+      // User does not exist, tell frontend to redirect to signup/profile completion
+      return res.status(200).json({ success: false, reason: 'new_user', phoneNumber });
     } else if (!user.isVerified) {
       user.isVerified = true;
       await user.save();
