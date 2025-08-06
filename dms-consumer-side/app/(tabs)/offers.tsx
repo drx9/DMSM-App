@@ -19,6 +19,8 @@ import { useRouter } from 'expo-router';
 import { onSocketEvent, offSocketEvent } from '../services/socketService';
 import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
+import { useCart } from '../context/CartContext';
+import { Colors } from '../../constants/Colors';
 
 const { width } = Dimensions.get('window');
 
@@ -39,6 +41,7 @@ export default function OffersPage() {
     const [refreshing, setRefreshing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const router = useRouter();
+    const { addToCart } = useCart();
 
     const fetchActiveOffers = useCallback(async () => {
         try {
@@ -107,22 +110,32 @@ export default function OffersPage() {
 
     const handleProductPress = useCallback((productId: string) => {
         try {
-            router.push({ pathname: '/product/[id]', params: { id: productId } } as any);
+        router.push({ pathname: '/product/[id]', params: { id: productId } } as any);
         } catch (error) {
             console.error('❌ Error navigating to product:', error);
         }
     }, [router]);
 
+    const handleAddToCart = useCallback(async (productId: string) => {
+        try {
+            await addToCart(productId);
+            Alert.alert('Success', 'Product added to cart!');
+        } catch (error) {
+            console.error('❌ Error adding to cart:', error);
+            Alert.alert('Error', 'Failed to add product to cart');
+        }
+    }, [addToCart]);
+
     const getValidImageUrl = useCallback((images: any, banner_image?: string): string => {
         try {
-            if (banner_image && typeof banner_image === 'string' && banner_image.startsWith('http')) {
-                return banner_image;
-            }
-            if (Array.isArray(images) && images.length > 0 && typeof images[0] === 'string' && images[0].startsWith('http')) {
-                return images[0];
-            }
-            // Fallback to a default image
-            return 'https://via.placeholder.com/300x200?text=Offer';
+        if (banner_image && typeof banner_image === 'string' && banner_image.startsWith('http')) {
+            return banner_image;
+        }
+        if (Array.isArray(images) && images.length > 0 && typeof images[0] === 'string' && images[0].startsWith('http')) {
+            return images[0];
+        }
+        // Fallback to a default image
+        return 'https://via.placeholder.com/300x200?text=Offer';
         } catch (error) {
             console.error('❌ Error getting image URL:', error);
             return 'https://via.placeholder.com/300x200?text=Offer';
@@ -196,13 +209,7 @@ export default function OffersPage() {
                             showsHorizontalScrollIndicator={false}
                             keyExtractor={(product) => product.id.toString()}
                             renderItem={({ item: product }) => {
-                                console.log('🔍 Product data:', {
-                                    id: product.id,
-                                    name: product.name,
-                                    price: product.price,
-                                    priceType: typeof product.price,
-                                    OfferProduct: product.OfferProduct
-                                });
+                                console.log('🔍 Product data:', JSON.stringify(product, null, 2));
                                 
                                 // Handle different price formats
                                 let originalPrice = 0;
@@ -229,20 +236,22 @@ export default function OffersPage() {
                                         onPress={() => handleProductPress(product.id)}
                                         activeOpacity={0.8}
                                     >
-                                        <Image 
-                                            source={{ uri: getValidImageUrl(product.images) }} 
-                                            style={styles.productImage}
-                                            resizeMode="cover"
-                                        />
-                                        
-                                        {/* Discount Badge */}
-                                        {extraDiscount > 0 && (
-                                            <View style={styles.discountBadge}>
-                                                <Text style={styles.discountText}>
-                                                    {extraDiscount}% OFF
-                                                </Text>
-                                            </View>
-                                        )}
+                                        <View style={styles.productImageContainer}>
+                                            <Image 
+                                                source={{ uri: getValidImageUrl(product.images) }} 
+                                                style={styles.productImage}
+                                                resizeMode="cover"
+                                            />
+                                            
+                                            {/* Discount Badge */}
+                                            {extraDiscount > 0 && (
+                                                <View style={styles.discountBadge}>
+                                                    <Text style={styles.discountText}>
+                                                        {extraDiscount}% OFF
+                                                    </Text>
+                                                </View>
+                                            )}
+                                        </View>
                                         
                                         <View style={styles.productInfo}>
                                             <Text style={styles.productName} numberOfLines={2}>
@@ -251,15 +260,30 @@ export default function OffersPage() {
                                             
                                             {/* Price Display */}
                                             <View style={styles.priceContainer}>
-                                                <Text style={styles.discountedPrice}>
-                                                    ₹{discountedPrice.toFixed(2)}
-                                                </Text>
-                                                {extraDiscount > 0 && (
-                                                    <Text style={styles.originalPrice}>
+                                                {extraDiscount > 0 ? (
+                                                    <>
+                                                        <Text style={styles.discountedPrice}>
+                                                            ₹{discountedPrice.toFixed(2)}
+                                                        </Text>
+                                                        <Text style={styles.originalPrice}>
+                                                            ₹{originalPrice.toFixed(2)}
+                                                        </Text>
+                                                    </>
+                                                ) : (
+                                                    <Text style={styles.discountedPrice}>
                                                         ₹{originalPrice.toFixed(2)}
                                                     </Text>
                                                 )}
                                             </View>
+                                            
+                                            {/* Add to Cart Button */}
+                                            <TouchableOpacity 
+                                                style={styles.addToCartButton}
+                                                onPress={() => handleAddToCart(product.id)}
+                                            >
+                                                <Ionicons name="add" size={16} color="#fff" />
+                                                <Text style={styles.addToCartText}>ADD</Text>
+                                            </TouchableOpacity>
                                         </View>
                                     </TouchableOpacity>
                                 );
@@ -275,14 +299,14 @@ export default function OffersPage() {
                 )}
             </View>
         </View>
-    ), [getValidImageUrl, formatDate, handleProductPress]);
+    ), [getValidImageUrl, formatDate, handleProductPress, handleAddToCart]);
 
     if (loading) {
         return (
             <SafeAreaView style={styles.container}>
                 <StatusBar barStyle="dark-content" backgroundColor="#fff" />
                 <View style={styles.centered}>
-                    <ActivityIndicator size="large" color="#FF6B35" />
+                    <ActivityIndicator size="large" color="#4CAF50" />
                     <Text style={styles.loadingText}>Loading amazing offers...</Text>
                 </View>
             </SafeAreaView>
@@ -293,14 +317,14 @@ export default function OffersPage() {
         return (
             <SafeAreaView style={styles.container}>
                 <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-                <View style={styles.centered}>
-                    <Ionicons name="alert-circle-outline" size={64} color="#FF6B35" />
+            <View style={styles.centered}>
+                    <Ionicons name="alert-circle-outline" size={64} color="#4CAF50" />
                     <Text style={styles.errorText}>Oops! Something went wrong</Text>
                     <Text style={styles.errorSubtext}>{error}</Text>
                     <TouchableOpacity style={styles.retryButton} onPress={fetchActiveOffers}>
                         <Text style={styles.retryButtonText}>Try Again</Text>
                     </TouchableOpacity>
-                </View>
+            </View>
             </SafeAreaView>
         );
     }
@@ -309,14 +333,14 @@ export default function OffersPage() {
         return (
             <SafeAreaView style={styles.container}>
                 <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-                <View style={styles.centered}>
+            <View style={styles.centered}>
                     <Ionicons name="pricetag-outline" size={64} color="#ccc" />
                     <Text style={styles.noOffersTitle}>No Active Offers</Text>
                     <Text style={styles.noOffersText}>Check back soon for amazing deals!</Text>
-                    <TouchableOpacity style={styles.retryButton} onPress={fetchActiveOffers}>
-                        <Text style={styles.retryButtonText}>Refresh</Text>
-                    </TouchableOpacity>
-                </View>
+                <TouchableOpacity style={styles.retryButton} onPress={fetchActiveOffers}>
+                    <Text style={styles.retryButtonText}>Refresh</Text>
+                </TouchableOpacity>
+            </View>
             </SafeAreaView>
         );
     }
@@ -335,14 +359,14 @@ export default function OffersPage() {
                 data={offers}
                 renderItem={renderOfferCard}
                 keyExtractor={(item) => item.id}
-                showsVerticalScrollIndicator={false}
+            showsVerticalScrollIndicator={false}
                 contentContainerStyle={styles.listContainer}
-                refreshControl={
+            refreshControl={
                     <RefreshControl 
                         refreshing={refreshing} 
                         onRefresh={onRefresh}
-                        tintColor="#FF6B35"
-                        colors={["#FF6B35"]}
+                        tintColor="#4CAF50"
+                        colors={["#4CAF50"]}
                     />
                 }
                 initialNumToRender={2}
@@ -357,7 +381,7 @@ export default function OffersPage() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff',
+        backgroundColor: '#f5f5f5',
     },
     header: {
         paddingTop: 40,
@@ -379,17 +403,11 @@ const styles = StyleSheet.create({
     },
     listContainer: {
         padding: 16,
-        paddingBottom: 80, // Add padding at the bottom for the footer
     },
     offerCard: {
         backgroundColor: '#fff',
         borderRadius: 15,
         marginBottom: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.08,
-        shadowRadius: 5,
-        elevation: 3,
         overflow: 'hidden',
     },
     offerHeader: {
@@ -411,7 +429,7 @@ const styles = StyleSheet.create({
         color: '#CB202D',
     },
     activeBadge: {
-        backgroundColor: '#FF6B35',
+        backgroundColor: '#4CAF50',
         paddingHorizontal: 10,
         paddingVertical: 5,
         borderRadius: 10,
@@ -482,12 +500,25 @@ const styles = StyleSheet.create({
         gap: 10,
     },
     productCard: {
-        width: 120,
-        height: 160,
+        width: 160,
         borderRadius: 12,
         overflow: 'hidden',
-        backgroundColor: '#f0f0f0',
+        backgroundColor: '#fff',
         marginRight: 10,
+        borderWidth: 1,
+        borderColor: '#eee',
+        elevation: 2,
+        shadowColor: '#000',
+        shadowOffset: {
+            width: 0,
+            height: 1,
+        },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+    },
+    productImageContainer: {
+        width: '100%',
+        height: 120,
         position: 'relative',
     },
     productImage: {
@@ -496,43 +527,33 @@ const styles = StyleSheet.create({
         borderRadius: 12,
     },
     productInfo: {
-        padding: 8,
-        backgroundColor: 'rgba(0,0,0,0.6)',
-        borderBottomLeftRadius: 12,
-        borderBottomRightRadius: 12,
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
+        padding: 12,
+        flex: 1,
+        justifyContent: 'space-between',
     },
     productName: {
         fontSize: 13,
         fontWeight: '600',
-        color: '#fff',
+        color: '#333',
         textAlign: 'center',
         marginBottom: 4,
-    },
-    productPrice: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#fff',
-        textAlign: 'center',
     },
     priceContainer: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
         gap: 8,
+        marginBottom: 8,
     },
     discountedPrice: {
         fontSize: 16,
         fontWeight: 'bold',
-        color: '#fff',
+        color: '#4CAF50',
         textAlign: 'center',
     },
     originalPrice: {
         fontSize: 14,
-        color: '#ccc',
+        color: '#999',
         textDecorationLine: 'line-through',
         textAlign: 'center',
     },
@@ -543,12 +564,27 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         position: 'absolute',
         top: 8,
-        right: 8,
+        left: 8,
     },
     discountText: {
         color: '#fff',
         fontSize: 12,
         fontWeight: 'bold',
+    },
+    addToCartButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#4CAF50',
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 8,
+    },
+    addToCartText: {
+        color: '#fff',
+        fontSize: 12,
+        fontWeight: '600',
+        marginLeft: 4,
     },
     noProductsContainer: {
         alignItems: 'center',
@@ -563,47 +599,48 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#fff',
         padding: 20,
     },
     loadingText: {
-        marginTop: 12,
+        marginTop: 10,
         fontSize: 16,
         color: '#666',
     },
     errorText: {
         fontSize: 20,
         fontWeight: 'bold',
-        color: '#FF6B35',
-        marginBottom: 10,
+        color: '#333',
+        marginTop: 10,
+        marginBottom: 5,
     },
     errorSubtext: {
-        fontSize: 14,
+        fontSize: 16,
         color: '#666',
         textAlign: 'center',
         marginBottom: 20,
     },
-    retryButton: {
-        backgroundColor: '#FF6B35',
-        paddingHorizontal: 24,
-        paddingVertical: 12,
-        borderRadius: 10,
-    },
-    retryButtonText: {
-        color: '#fff',
-        fontSize: 16,
-        fontWeight: '600',
-    },
     noOffersTitle: {
-        fontSize: 22,
+        fontSize: 24,
         fontWeight: 'bold',
         color: '#333',
-        marginBottom: 10,
+        marginTop: 10,
+        marginBottom: 5,
     },
     noOffersText: {
         fontSize: 16,
         color: '#666',
         textAlign: 'center',
         marginBottom: 20,
+    },
+    retryButton: {
+        backgroundColor: '#4CAF50',
+        paddingHorizontal: 20,
+        paddingVertical: 12,
+        borderRadius: 8,
+    },
+    retryButtonText: {
+        color: '#fff',
+        fontSize: 16,
+        fontWeight: '600',
     },
 }); 

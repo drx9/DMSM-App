@@ -10,6 +10,9 @@ export const initializeFirebase = () => {
     try {
       const existingApp = firebase.app();
       console.log('[Firebase Config] Firebase already initialized');
+      if (existingApp.options?.projectId) {
+        console.log('[Firebase Config] Project ID:', existingApp.options.projectId);
+      }
       return existingApp;
     } catch (error) {
       console.log('[Firebase Config] No existing Firebase app, creating new one...');
@@ -18,7 +21,13 @@ export const initializeFirebase = () => {
     // Initialize Firebase app
     const app = firebase.initializeApp();
     console.log('[Firebase Config] Firebase initialized successfully');
-    console.log('[Firebase Config] Project ID:', app.options.projectId);
+    
+    // Safely access project ID
+    if (app.options?.projectId) {
+      console.log('[Firebase Config] Project ID:', app.options.projectId);
+    } else {
+      console.warn('[Firebase Config] Project ID not found in app options');
+    }
     
     return app;
   } catch (error) {
@@ -60,8 +69,20 @@ export const checkFirebaseConfig = () => {
     
     if (app) {
       console.log('[Firebase Config] Firebase is properly initialized');
-      console.log('[Firebase Config] Project ID:', app.options.projectId);
-      console.log('[Firebase Config] App ID:', app.options.appId);
+      
+      // Safely access app options
+      if (app.options?.projectId) {
+        console.log('[Firebase Config] Project ID:', app.options.projectId);
+      } else {
+        console.warn('[Firebase Config] Project ID not found in app options');
+      }
+      
+      if (app.options?.appId) {
+        console.log('[Firebase Config] App ID:', app.options.appId);
+      } else {
+        console.warn('[Firebase Config] App ID not found in app options');
+      }
+      
       return true;
     } else {
       console.error('[Firebase Config] Firebase app is null');
@@ -78,7 +99,13 @@ export const getFirebaseConfig = () => {
     const firebase = require('@react-native-firebase/app');
     const appFunction = firebase.default?.app || firebase.app;
     const app = appFunction();
-    return app.options;
+    
+    if (app?.options) {
+      return app.options;
+    } else {
+      console.warn('[Firebase Config] App options not available');
+      return null;
+    }
   } catch (error) {
     console.error('[Firebase Config] Failed to get Firebase config:', error);
     return null;

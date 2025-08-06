@@ -9,14 +9,24 @@ async function verifyFirebaseToken(idToken) {
     // In production, you should verify the token with Firebase
     console.log('Firebase token verification (simplified):', idToken);
     
-    // Extract user info from token (this is a simplified approach)
-    // In production, you should properly verify the token with Firebase
+    // Since we're not using firebase-admin, we'll decode the JWT manually
+    // This is a simplified approach - in production, verify with Firebase
+    const tokenParts = idToken.split('.');
+    if (tokenParts.length !== 3) {
+      throw new Error('Invalid token format');
+    }
+    
+    // Decode the payload (second part of JWT)
+    const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
+    
     const decodedToken = {
-      uid: idToken.uid || 'unknown',
-      email: idToken.email || 'unknown@example.com',
-      email_verified: idToken.email_verified || false
+      uid: payload.user_id || payload.sub || 'unknown',
+      email: payload.email || 'unknown@example.com',
+      email_verified: payload.email_verified || false,
+      phone_number: payload.phone_number || null
     };
     
+    console.log('Decoded token:', decodedToken);
     return decodedToken;
   } catch (error) {
     console.error('Error verifying Firebase token:', error);

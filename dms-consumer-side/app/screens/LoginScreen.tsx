@@ -140,14 +140,14 @@ const LoginScreen = () => {
 
     setIsLoading(true);
     try {
-      const success = await otpService.verifyPhoneOTP(otpCode);
+      const result = await otpService.verifyPhoneOTP(otpCode);
       
-      if (success) {
+      if (result.success && result.idToken) {
         // Firebase Phone Auth successful - user is verified
-        // Check if user exists in our backend, if not redirect to registration
+        // Send ID token to backend for user verification/creation
         try {
           const response = await axios.post(`${API_URL}/auth/firebase-login`, {
-            phoneNumber: `+91${phoneNumber}`
+            idToken: result.idToken
           });
           
           if (response.data.success && response.data.user) {
@@ -156,7 +156,7 @@ const LoginScreen = () => {
               id: response.data.user.id,
               name: response.data.user.name,
               email: response.data.user.email || '',
-              phone: response.data.user.phone || `+91${phoneNumber}`,
+              phone: response.data.user.phoneNumber || `+91${phoneNumber}`,
             });
             
             // Initialize notifications after successful login
@@ -172,6 +172,7 @@ const LoginScreen = () => {
             });
           }
         } catch (error) {
+          console.error('Backend verification error:', error);
           // User doesn't exist, redirect to registration
           router.push({
             pathname: '/signup',

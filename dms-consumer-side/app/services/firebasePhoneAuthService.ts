@@ -44,13 +44,13 @@ class FirebasePhoneAuthService {
   }
 
   // Verify the SMS OTP entered by user
-  async verifyPhoneOTP(otp: string): Promise<boolean> {
+  async verifyPhoneOTP(otp: string): Promise<{ success: boolean; idToken?: string }> {
     try {
       console.log('[Firebase Phone Auth] Verifying SMS OTP');
       
       if (!this.confirmation) {
         Alert.alert('Error', 'No OTP confirmation found. Please request OTP again.');
-        return false;
+        return { success: false };
       }
 
       // Confirm the OTP with Firebase
@@ -66,10 +66,10 @@ class FirebasePhoneAuthService {
         // Sign out to clear the session (we'll handle login separately)
         await auth().signOut();
         
-        return true;
+        return { success: true, idToken };
       } else {
         Alert.alert('Error', 'Invalid OTP code');
-        return false;
+        return { success: false };
       }
     } catch (error: any) {
       console.error('[Firebase Phone Auth] OTP verification error:', error);
@@ -83,7 +83,7 @@ class FirebasePhoneAuthService {
         Alert.alert('Error', 'Failed to verify OTP. Please try again.');
       }
       
-      return false;
+      return { success: false };
     }
   }
 
