@@ -83,9 +83,32 @@ const register = async (req, res) => {
 
     const { name, phoneNumber, email, password, isVerified = false, dateOfBirth, gender } = req.body;
 
+    // Normalize phone number format if provided
+    let normalizedPhoneNumber = phoneNumber;
+    if (normalizedPhoneNumber) {
+      // Remove +91 prefix if present
+      if (normalizedPhoneNumber.startsWith('+91')) {
+        normalizedPhoneNumber = normalizedPhoneNumber.substring(3);
+      }
+      // Remove 91 prefix if present
+      if (normalizedPhoneNumber.startsWith('91')) {
+        normalizedPhoneNumber = normalizedPhoneNumber.substring(2);
+      }
+      // Ensure it's a 10-digit number
+      if (normalizedPhoneNumber.length !== 10) {
+        return res.status(400).json({ message: 'Phone number must be 10 digits' });
+      }
+    }
+
     // Build the where clause for checking existing user
     const whereClause = [];
-    if (phoneNumber) whereClause.push({ phoneNumber });
+    if (normalizedPhoneNumber) {
+      // Check for multiple phone number formats
+      whereClause.push(
+        { phoneNumber: normalizedPhoneNumber },
+        { phoneNumber: `+91${normalizedPhoneNumber}` }
+      );
+    }
     if (email) whereClause.push({ email });
 
     if (whereClause.length === 0) {
@@ -102,10 +125,10 @@ const register = async (req, res) => {
         .json({ message: 'User already exists with this phone number or email' });
     }
 
-    // Create new user
+    // Create new user with normalized phone number
     const user = await User.create({
       name,
-      phoneNumber,
+      phoneNumber: normalizedPhoneNumber, // Store as 10-digit format
       email,
       password, // The model hook will hash this
       isVerified: isVerified, // Use the provided verification status
@@ -116,7 +139,7 @@ const register = async (req, res) => {
     // If user is already verified (Firebase OTP), skip sending OTP
     if (!isVerified) {
       // Send OTP for traditional registration
-      const type = phoneNumber ? 'PHONE' : 'EMAIL';
+      const type = normalizedPhoneNumber ? 'PHONE' : 'EMAIL';
       await authService.sendOTP(user, type);
     }
 
@@ -303,30 +326,85 @@ const deliveryLogin = async (req, res) => {
 };
 
 async function verifyFirebaseToken(req, res) {
-  const { idToken } = req.body;
+  const { idToken, phoneNumber: requestPhoneNumber } = req.body;
   try {
     const decodedToken = await verifyFirebaseTokenService(idToken);
-    const phoneNumber = decodedToken.phone_number;
-    if (!phoneNumber) {
-      return res.status(400).json({ error: "No phone number in token" });
+    let phoneNumber = decodedToken.phone_number;
+    
+    console.log('Decoded token:', decodedToken);
+    console.log('Phone number from token:', phoneNumber);
+    console.log('Phone number from request:', requestPhoneNumber);
+    
+    // If phone number is not in token, use the one from request body
+    if (!phoneNumber && requestPhoneNumber) {
+      phoneNumber = requestPhoneNumber;
+      console.log('Using phone number from request body:', phoneNumber);
     }
-    // Find or create user
-    let user = await User.findOne({ where: { phoneNumber } });
+    
+    if (!phoneNumber) {
+      console.log('No phone number found in token or request');
+      return res.status(400).json({ error: "No phone number in token or request" });
+    }
+    
+    // Normalize phone number format (remove +91 if present, ensure consistent format)
+    let normalizedPhoneNumber = phoneNumber;
+    if (normalizedPhoneNumber.startsWith('+91')) {
+      normalizedPhoneNumber = normalizedPhoneNumber.substring(3);
+    }
+    if (normalizedPhoneNumber.startsWith('91')) {
+      normalizedPhoneNumber = normalizedPhoneNumber.substring(2);
+    }
+    
+    console.log('Normalized phone number:', normalizedPhoneNumber);
+    
+    // Try to find user with multiple phone number formats
+    let user = null;
+    
+    // Try different formats in order of likelihood
+    const phoneFormats = [
+      normalizedPhoneNumber,                    // 10-digit: 9998887771
+      `+91${normalizedPhoneNumber}`,           // +91 prefix: +919998887771
+      phoneNumber,                             // Original format
+      normalizedPhoneNumber.substring(1)       // Without leading 9/8/7/6
+    ];
+    
+    for (const format of phoneFormats) {
+      console.log(`Trying phone format: ${format}`);
+      user = await User.findOne({ 
+        where: { 
+          phoneNumber: format 
+        } 
+      });
+      
+      if (user) {
+        console.log(`User found with phone format: ${format}`);
+        break;
+      }
+    }
+    
+    console.log('User found:', user ? user.id : 'not found');
+    
     if (!user) {
       // User does not exist, tell frontend to redirect to signup/profile completion
-      return res.status(200).json({ success: false, reason: 'new_user', phoneNumber });
+      console.log('User does not exist, redirecting to signup');
+      return res.status(200).json({ success: false, reason: 'new_user', phoneNumber: normalizedPhoneNumber });
     } else if (!user.isVerified) {
       user.isVerified = true;
       await user.save();
+      console.log('User verified:', user.id);
     }
+    
     // Generate JWT
     const token = jwt.sign(
       { id: user.id, role: user.role },
       process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
+    
+    console.log('Login successful for user:', user.id);
     res.json({ success: true, token, user: { id: user.id, phoneNumber: user.phoneNumber, name: user.name } });
   } catch (err) {
+    console.error('Firebase token verification error:', err);
     res.status(401).json({ error: "Invalid token" });
   }
 }

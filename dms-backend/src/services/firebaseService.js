@@ -19,11 +19,13 @@ async function verifyFirebaseToken(idToken) {
     // Decode the payload (second part of JWT)
     const payload = JSON.parse(Buffer.from(tokenParts[1], 'base64').toString());
     
+    console.log('Raw payload:', payload);
+    
     const decodedToken = {
       uid: payload.user_id || payload.sub || 'unknown',
       email: payload.email || 'unknown@example.com',
       email_verified: payload.email_verified || false,
-      phone_number: payload.phone_number || null
+      phone_number: payload.phone_number || payload.phoneNumber || null
     };
     
     console.log('Decoded token:', decodedToken);

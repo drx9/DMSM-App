@@ -147,11 +147,15 @@ const LoginScreen = () => {
         // Send ID token to backend for user verification/creation
         try {
           const response = await axios.post(`${API_URL}/auth/firebase-login`, {
-            idToken: result.idToken
+            idToken: result.idToken,
+            phoneNumber: `+91${phoneNumber}` // Send phone number explicitly
           });
           
+          console.log('Backend response:', response.data);
+          
           if (response.data.success && response.data.user) {
-            // Store user info using AuthContext
+            // User exists - login successful
+            console.log('User exists, logging in:', response.data.user);
             await login({
               id: response.data.user.id,
               name: response.data.user.name,
@@ -162,22 +166,44 @@ const LoginScreen = () => {
             // Initialize notifications after successful login
             await initializeNotifications(response.data.user.id);
             
+            console.log('✅ Login successful, redirecting to main app');
             Alert.alert('Success', 'Phone authentication successful!');
             router.replace('/(tabs)');
-          } else {
-            // User doesn't exist, redirect to registration
+          } else if (response.data.success === false && response.data.reason === 'new_user') {
+            // User doesn't exist - redirect to registration
+            console.log('User does not exist, redirecting to signup');
+            // Store the verified phone number to skip second OTP verification
+            await AsyncStorage.setItem('verifiedPhoneNumber', phoneNumber);
+            await AsyncStorage.setItem('phoneVerificationTime', Date.now().toString());
+            
+            console.log('✅ Redirecting to signup with verified phone:', phoneNumber);
             router.push({
               pathname: '/signup',
               params: { phoneNumber }
             });
+          } else {
+            // Unexpected response
+            console.log('Unexpected response:', response.data);
+            Alert.alert('Error', 'Unexpected response from server');
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error('Backend verification error:', error);
-          // User doesn't exist, redirect to registration
-          router.push({
-            pathname: '/signup',
-            params: { phoneNumber }
-          });
+          
+          // Check if it's a 401 error (invalid token) or other error
+          if (error.response?.status === 401) {
+            Alert.alert('Error', 'Invalid authentication. Please try again.');
+          } else if (error.response?.data?.reason === 'new_user') {
+            // User doesn't exist - redirect to registration
+            await AsyncStorage.setItem('verifiedPhoneNumber', phoneNumber);
+            await AsyncStorage.setItem('phoneVerificationTime', Date.now().toString());
+            
+            router.push({
+              pathname: '/signup',
+              params: { phoneNumber }
+            });
+          } else {
+            Alert.alert('Error', 'Failed to verify with server. Please try again.');
+          }
         }
       } else {
         Alert.alert('Error', 'Invalid OTP');

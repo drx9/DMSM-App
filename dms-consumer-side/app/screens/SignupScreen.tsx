@@ -58,8 +58,47 @@ const SignupScreen = () => {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [gender, setGender] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
   const router = useRouter();
   const { t } = useLanguage();
+
+  // Check if phone number was already verified during login
+  useEffect(() => {
+    const checkPhoneVerification = async () => {
+      try {
+        const verifiedPhone = await AsyncStorage.getItem('verifiedPhoneNumber');
+        const verificationTime = await AsyncStorage.getItem('phoneVerificationTime');
+        
+        if (verifiedPhone && verificationTime) {
+          const timeDiff = Date.now() - parseInt(verificationTime);
+          // Check if verification was within last 10 minutes
+          if (verifiedPhone === phoneNumber && timeDiff < 10 * 60 * 1000) {
+            setIsPhoneVerified(true);
+            console.log('Phone number already verified, skipping second OTP');
+          } else {
+            // Clear expired verification
+            await clearVerificationData();
+          }
+        }
+      } catch (error) {
+        console.error('Error checking phone verification:', error);
+      }
+    };
+
+    if (phoneNumber) {
+      checkPhoneVerification();
+    }
+  }, [phoneNumber]);
+
+  const clearVerificationData = async () => {
+    try {
+      await AsyncStorage.removeItem('verifiedPhoneNumber');
+      await AsyncStorage.removeItem('phoneVerificationTime');
+      setIsPhoneVerified(false);
+    } catch (error) {
+      console.error('Error clearing verification data:', error);
+    }
+  };
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     clientId: '875079305931-f0k3mdqqrrbj9ablfn1gdqp7rn4567iq.apps.googleusercontent.com', // Android client ID
@@ -117,40 +156,82 @@ const SignupScreen = () => {
     try {
       setIsLoading(true);
       
-      // Determine verification type and contact info
-      const verificationType = phoneNumber ? 'phone' : 'email';
-      const contactInfo = phoneNumber || email;
-      
-      // Prepare user data for OTP verification
-      const userData = {
-        name,
-        password,
-        dateOfBirth: dateOfBirth ? dateOfBirth.toISOString().split('T')[0] : undefined,
-        gender: gender || undefined,
-      };
+      // If phone number was already verified during login, skip OTP verification
+      if (isPhoneVerified && phoneNumber) {
+        console.log('Phone already verified, creating user directly');
+        
+        // Prepare user data
+        const userData = {
+          name,
+          phoneNumber: `+91${phoneNumber}`,
+          email: email || undefined,
+          password,
+          dateOfBirth: dateOfBirth ? dateOfBirth.toISOString().split('T')[0] : undefined,
+          gender: gender || undefined,
+        };
 
-      // Send OTP using Firebase
-      const { firebaseAuthService } = require('../services/firebaseAuthService');
-      let otpSent = false;
-      
-      if (verificationType === 'phone') {
-        otpSent = await firebaseAuthService.sendPhoneOTP(contactInfo);
-      } else {
-        otpSent = await firebaseAuthService.sendEmailOTP(contactInfo);
-      }
-
-      if (otpSent) {
-        // Navigate to OTP verification screen
-        router.push({
-          pathname: '/otp-verification',
-          params: {
-            type: verificationType,
-            contact: contactInfo,
-            userData: JSON.stringify(userData)
+        // Create user directly without OTP verification
+        try {
+          const response = await axios.post(`${API_URL}/auth/register`, {
+            name,
+            phoneNumber: `+91${phoneNumber}`,
+            email: email || undefined,
+            password,
+            dateOfBirth: dateOfBirth ? dateOfBirth.toISOString().split('T')[0] : undefined,
+            gender: gender || undefined,
+            isVerified: true // Mark as verified since we already verified the phone
+          });
+          
+          if (response.data.success) {
+            // Clear the stored verification data
+            await clearVerificationData();
+            
+            Alert.alert('Success', 'Account created successfully! Please login.');
+            router.replace('/login');
+          } else {
+            Alert.alert('Error', response.data.message || 'Failed to create account');
           }
-        });
+        } catch (error: any) {
+          console.error('Registration error:', error);
+          Alert.alert('Error', error.response?.data?.message || 'Failed to create account');
+        }
       } else {
-        Alert.alert('Error', 'Failed to send OTP. Please try again.');
+        // Original flow - send OTP for verification
+        // Determine verification type and contact info
+        const verificationType = phoneNumber ? 'phone' : 'email';
+        const contactInfo = phoneNumber || email;
+        
+        // Prepare user data for OTP verification
+        const userData = {
+          name,
+          password,
+          dateOfBirth: dateOfBirth ? dateOfBirth.toISOString().split('T')[0] : undefined,
+          gender: gender || undefined,
+        };
+
+        // Send OTP using Firebase
+        const { firebaseAuthService } = require('../services/firebaseAuthService');
+        let otpSent = false;
+        
+        if (verificationType === 'phone') {
+          otpSent = await firebaseAuthService.sendPhoneOTP(contactInfo);
+        } else {
+          otpSent = await firebaseAuthService.sendEmailOTP(contactInfo);
+        }
+
+        if (otpSent) {
+          // Navigate to OTP verification screen
+          router.push({
+            pathname: '/otp-verification',
+            params: {
+              type: verificationType,
+              contact: contactInfo,
+              userData: JSON.stringify(userData)
+            }
+          });
+        } else {
+          Alert.alert('Error', 'Failed to send OTP. Please try again.');
+        }
       }
     } catch (error) {
       console.error('Signup error:', error);
@@ -205,8 +286,17 @@ const SignupScreen = () => {
                 value={phoneNumber}
                 onChangeText={setPhoneNumber}
                 maxLength={10}
+                editable={!isPhoneVerified}
               />
             </View>
+            {isPhoneVerified && (
+              <View style={styles.verifiedContainer}>
+                <Text style={styles.verifiedText}>✓ Phone number already verified</Text>
+                <TouchableOpacity onPress={clearVerificationData} style={styles.reverifyButton}>
+                  <Text style={styles.reverifyButtonText}>Re-verify</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
 
           <View style={styles.inputContainer}>
@@ -275,7 +365,7 @@ const SignupScreen = () => {
             disabled={isLoading}
           >
             <Text style={styles.signupButtonText}>
-              {isLoading ? t('registering') : t('register')}
+              {isLoading ? t('registering') : (isPhoneVerified ? 'Create Account (Phone Verified)' : t('register'))}
             </Text>
           </TouchableOpacity>
 
@@ -406,6 +496,28 @@ const styles = StyleSheet.create({
   loginText: {
     color: '#10B981',
     fontWeight: '600',
+  },
+  verifiedText: {
+    color: '#10B981',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  verifiedContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 6,
+  },
+  reverifyButton: {
+    backgroundColor: '#E5E7EB',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+  },
+  reverifyButtonText: {
+    color: '#1F2937',
+    fontSize: 11,
+    fontWeight: '500',
   },
   pickerContainer: {
     backgroundColor: '#F9FAFB',
