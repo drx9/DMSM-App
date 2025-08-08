@@ -23,9 +23,6 @@ import otpService from '../services/otpService';
 import { useNotifications } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 
-// TODO: Add token storage mechanism (e.g., AsyncStorage)
-// import AsyncStorage from '@react-native-async-storage/async-storage';
-
 interface PhoneLoginResponse {
   success: boolean;
   message?: string;
@@ -33,27 +30,12 @@ interface PhoneLoginResponse {
   userExists?: boolean;
 }
 
-interface EmailLoginResponse {
-  success: boolean;
-  message?: string;
-  token?: string;
-  user?: {
-    id: string;
-    name: string;
-    email: string;
-    phone?: string;
-  };
-}
-
-type ApiResponse = PhoneLoginResponse | EmailLoginResponse;
+type ApiResponse = PhoneLoginResponse;
 
 WebBrowser.maybeCompleteAuthSession();
 
 const LoginScreen = () => {
-  const [loginMode, setLoginMode] = useState<'phone' | 'email'>('phone');
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { t } = useLanguage();
@@ -61,17 +43,15 @@ const LoginScreen = () => {
   const { login } = useAuth();
 
   // Firebase phone auth states
-  // const recaptchaVerifier = useRef(null);
   const [otpCode, setOtpCode] = useState('');
-  // const [verificationId, setVerificationId] = useState<string | null>(null);
   const [otpSent, setOtpSent] = useState(false);
   const [testModeEnabled, setTestModeEnabled] = useState(false);
 
   const [request, response, promptAsync] = Google.useAuthRequest({
-    clientId: '875079305931-f0k3mdqqrrbj9ablfn1gdqp7rn4567iq.apps.googleusercontent.com', // Android client ID
-    iosClientId: '875079305931-f0k3mdqqrrbj9ablfn1gdqp7rn4567iq.apps.googleusercontent.com', // Same for now, update when you create iOS client
-    androidClientId: '875079305931-f0k3mdqqrrbj9ablfn1gdqp7rn4567iq.apps.googleusercontent.com', // Your Android client ID
-    webClientId: '875079305931-f0k3mdqqrrbj9ablfn1gdqp7rn4567iq.apps.googleusercontent.com', // Same for now, update when you create web client
+    clientId: '875079305931-f0k3mdqqrrbj9ablfn1gdqp7rn4567iq.apps.googleusercontent.com',
+    iosClientId: '875079305931-f0k3mdqqrrbj9ablfn1gdqp7rn4567iq.apps.googleusercontent.com',
+    androidClientId: '875079305931-f0k3mdqqrrbj9ablfn1gdqp7rn4567iq.apps.googleusercontent.com',
+    webClientId: '875079305931-f0k3mdqqrrbj9ablfn1gdqp7rn4567iq.apps.googleusercontent.com',
   });
 
   useEffect(() => {
@@ -210,7 +190,7 @@ const LoginScreen = () => {
                 name: response.data.user.name,
                 email: response.data.user.email || '',
                 phone: response.data.user.phoneNumber || `+91${phoneNumber}`,
-              });
+              }, response.data.token);
               
               // Initialize notifications after successful login
               await initializeNotifications(response.data.user.id);
@@ -308,7 +288,7 @@ const LoginScreen = () => {
           name: response.data.user.name,
           email: response.data.user.email || '',
           phone: response.data.user.phoneNumber || `+91${extractedPhone}`,
-        });
+        }, response.data.token);
         
         // Initialize notifications after successful login
         await initializeNotifications(response.data.user.id);
@@ -346,55 +326,12 @@ const LoginScreen = () => {
 
   const handleLogin = async () => {
     setIsLoading(true);
-    if (loginMode === 'phone') {
-      if (!otpSent) {
-        await sendOTP();
-      } else {
-        await verifyOTP();
-      }
+    if (!otpSent) {
+      await sendOTP();
     } else {
-      await handleEmailLogin();
+      await verifyOTP();
     }
     setIsLoading(false);
-  };
-
-  const handleEmailLogin = async () => {
-    if (!email || !password) {
-      Alert.alert(t('error'), t('pleaseEnterEmailAndPassword'));
-      return;
-    }
-
-    try {
-      const response = await axios.post<EmailLoginResponse>(`${API_URL}/auth/login`, {
-        email,
-        password,
-      });
-
-      if (response.data.success && response.data.token && response.data.user) {
-        // Store the auth token
-        await AsyncStorage.setItem('userToken', response.data.token);
-        console.log('✅ Auth token stored successfully');
-        
-        // Store user info using AuthContext
-        await login({
-          id: response.data.user.id,
-          name: response.data.user.name,
-          email: response.data.user.email,
-          phone: response.data.user.phone || '',
-        });
-        
-        // Initialize notifications after successful login
-        await initializeNotifications(response.data.user.id);
-        
-        Alert.alert(t('success'), t('loginSuccessful'));
-        router.replace('/(tabs)');
-      } else {
-        Alert.alert(t('error'), response.data.message || t('loginFailed'));
-      }
-    } catch (error) {
-      console.error('Login error:', error);
-      handleApiError(error);
-    }
   };
 
   const handleApiError = (error: any) => {
@@ -408,20 +345,14 @@ const LoginScreen = () => {
 
   const isButtonDisabled = () => {
     if (isLoading) return true;
-    if (loginMode === 'phone') {
-      if (!otpSent) return !phoneNumber;
-      return !otpCode;
-    }
-    if (loginMode === 'email') return !email || !password;
-    return true;
+    if (!otpSent) return !phoneNumber;
+    return !otpCode;
   };
 
   const getButtonText = () => {
     if (isLoading) return t('loading');
-    if (loginMode === 'phone') {
-      return otpSent ? 'Verify OTP' : 'Send OTP';
-    }
-    return t('continue');
+    if (!otpSent) return 'Send OTP';
+    return 'Verify OTP';
   };
 
   return (
@@ -476,81 +407,34 @@ const LoginScreen = () => {
         </View>
 
         <View style={styles.formContainer}>
-          <View style={styles.modeSelector}>
-            <TouchableOpacity
-              style={[styles.modeButton, loginMode === 'phone' && styles.modeButtonActive]}
-              onPress={() => setLoginMode('phone')}
-            >
-              <Text style={[styles.modeButtonText, loginMode === 'phone' && styles.modeButtonTextActive]}>
-                {t('phone')}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modeButton, loginMode === 'email' && styles.modeButtonActive]}
-              onPress={() => setLoginMode('email')}
-            >
-              <Text style={[styles.modeButtonText, loginMode === 'email' && styles.modeButtonTextActive]}>
-                {t('email')}
-              </Text>
-            </TouchableOpacity>
+          <View style={styles.inputContainer}>
+            <Text style={styles.label}>{t('phoneNumber')}</Text>
+            <View style={styles.phoneInputContainer}>
+              <Text style={styles.countryCode}>+91</Text>
+              <TextInput
+                style={styles.input}
+                placeholder={t('enterYourPhoneNumber')}
+                keyboardType="phone-pad"
+                value={phoneNumber}
+                onChangeText={setPhoneNumber}
+                maxLength={10}
+                editable={!otpSent}
+              />
+            </View>
           </View>
-
-          {loginMode === 'phone' ? (
-            <>
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>{t('phoneNumber')}</Text>
-                <View style={styles.phoneInputContainer}>
-                  <Text style={styles.countryCode}>+91</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder={t('enterYourPhoneNumber')}
-                    keyboardType="phone-pad"
-                    value={phoneNumber}
-                    onChangeText={setPhoneNumber}
-                    maxLength={10}
-                    editable={!otpSent}
-                  />
-                </View>
-              </View>
               
-              {otpSent && (
-                <View style={styles.inputContainer}>
-                  <Text style={styles.label}>OTP Code</Text>
-                  <TextInput
-                    style={styles.input}
-                    placeholder="Enter OTP"
-                    keyboardType="number-pad"
-                    value={otpCode}
-                    onChangeText={setOtpCode}
-                    maxLength={6}
-                  />
-                </View>
-              )}
-            </>
-          ) : (
-            <>
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>{t('emailAddress')}</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder={t('enterYourEmail')}
-                  keyboardType="email-address"
-                  value={email}
-                  onChangeText={setEmail}
-                  autoCapitalize="none"
-                />
-              </View>
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>{t('password')}</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder={t('enterYourPassword')}
-                  secureTextEntry
-                  value={password}
-                  onChangeText={setPassword}
-                />
-              </View>
-            </>
+          {otpSent && (
+            <View style={styles.inputContainer}>
+              <Text style={styles.label}>OTP Code</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Enter OTP"
+                keyboardType="number-pad"
+                value={otpCode}
+                onChangeText={setOtpCode}
+                maxLength={6}
+              />
+            </View>
           )}
 
           <TouchableOpacity
@@ -563,22 +447,17 @@ const LoginScreen = () => {
             </Text>
           </TouchableOpacity>
 
-          {loginMode === 'phone' && otpSent && (
+          {otpSent && (
             <TouchableOpacity 
               style={styles.resendButton}
               onPress={() => {
                 setOtpSent(false);
                 setOtpCode('');
-                // setVerificationId(null);
               }}
             >
               <Text style={styles.resendButtonText}>Change Phone Number</Text>
             </TouchableOpacity>
           )}
-
-          <TouchableOpacity style={styles.forgotPasswordButton}>
-            <Text style={styles.forgotPasswordText}>{t('forgotPassword')}</Text>
-          </TouchableOpacity>
         </View>
 
         <View style={styles.socialContainer}>
@@ -595,12 +474,6 @@ const LoginScreen = () => {
               disabled
             >
               <FontAwesome name="facebook" size={20} color="#1877F2" />
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.socialButton}
-              onPress={() => setLoginMode('email')}
-            >
-              <AntDesign name="mail" size={20} color="#10B981" />
             </TouchableOpacity>
           </View>
         </View>
@@ -655,32 +528,6 @@ const styles = StyleSheet.create({
   },
   formContainer: {
     width: '100%',
-  },
-  modeSelector: {
-    flexDirection: 'row',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    marginBottom: 20,
-    overflow: 'hidden',
-    backgroundColor: '#F9FAFB',
-  },
-  modeButton: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-  },
-  modeButtonActive: {
-    backgroundColor: '#10B981',
-  },
-  modeButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  modeButtonTextActive: {
-    color: '#FFFFFF',
   },
   inputContainer: {
     marginBottom: 14,
@@ -743,15 +590,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   resendButtonText: {
-    color: '#10B981',
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  forgotPasswordButton: {
-    alignSelf: 'flex-end',
-    marginTop: 10,
-  },
-  forgotPasswordText: {
     color: '#10B981',
     fontSize: 11,
     fontWeight: '500',

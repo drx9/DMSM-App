@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useRouter } from 'expo-router';
+import { API_URL } from '../config';
 
 // AuthContext for user authentication management
 
@@ -15,7 +16,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   isAuthenticated: boolean;
-  login: (userData: User) => Promise<void>;
+  login: (userData: User, token?: string) => Promise<void>;
   logout: () => Promise<void>;
   updateUser: (userData: Partial<User>) => Promise<void>;
   checkAuthStatus: () => Promise<boolean>;
@@ -48,41 +49,41 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       
-      // Check for userId in AsyncStorage (current implementation)
-      const userId = await AsyncStorage.getItem('userId');
+      // Check for JWT token first
+      const token = await AsyncStorage.getItem('userToken');
+      const userData = await AsyncStorage.getItem('user');
       
-      if (userId) {
-        // Also check for user data in AsyncStorage
-        const userData = await AsyncStorage.getItem('user');
-        
-        if (userData) {
-          const parsedUser = JSON.parse(userData);
-          setUser(parsedUser);
-          console.log('✅ User authenticated from storage:', parsedUser.id);
-          return true;
-        } else {
-          // If we have userId but no user data, try to fetch user data
-          try {
-            // You can add an API call here to fetch user data if needed
-            // For now, create a basic user object from userId
-            const basicUser: User = {
-              id: userId,
-              phone: '', // Will be filled when user data is fetched
-            };
-            setUser(basicUser);
-            await AsyncStorage.setItem('user', JSON.stringify(basicUser));
-            console.log('✅ User authenticated with basic data:', userId);
+      if (token && userData) {
+        try {
+          // Validate token with backend
+          const response = await fetch(`${API_URL}/auth/user/me`, {
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+          });
+          
+          if (response.ok) {
+            const parsedUser = JSON.parse(userData);
+            setUser(parsedUser);
+            console.log('✅ User authenticated with valid token:', parsedUser.id);
             return true;
-          } catch (error) {
-            console.error('Error fetching user data:', error);
-            // If we can't fetch user data, clear the userId and require re-login
-            await AsyncStorage.removeItem('userId');
-            setUser(null);
+          } else {
+            // Token is invalid, clear storage
+            console.log('❌ Invalid token, clearing storage');
+            await logout();
             return false;
           }
+        } catch (error) {
+          console.error('Error validating token:', error);
+          // Network error, but we have local data - allow offline access
+          const parsedUser = JSON.parse(userData);
+          setUser(parsedUser);
+          console.log('✅ User authenticated offline:', parsedUser.id);
+          return true;
         }
       } else {
-        console.log('❌ No userId found in storage');
+        console.log('❌ No token or user data found');
         setUser(null);
         return false;
       }
@@ -95,11 +96,13 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   };
 
-  const login = async (userData: User) => {
+  const login = async (userData: User, token?: string) => {
     try {
       setUser(userData);
       await AsyncStorage.setItem('user', JSON.stringify(userData));
-      await AsyncStorage.setItem('userId', userData.id);
+      if (token) {
+        await AsyncStorage.setItem('userToken', token);
+      }
       console.log('✅ User logged in and stored:', userData.id);
     } catch (error) {
       console.error('Error saving user to storage:', error);
@@ -110,7 +113,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setUser(null);
       await AsyncStorage.removeItem('user');
-      await AsyncStorage.removeItem('userId');
       await AsyncStorage.removeItem('userToken');
       console.log('✅ User logged out and storage cleared');
     } catch (error) {

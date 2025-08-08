@@ -46,9 +46,7 @@ const upload = multer({ dest: path.join(__dirname, '../../uploads/avatars') });
 router.post(
   '/login',
   [
-    body('phoneNumber').optional().isString(),
-    body('email').optional().isEmail(),
-    body('password').optional().isString()
+    body('phoneNumber').isString().withMessage('Phone number is required')
   ],
   authController.login
 );
@@ -57,7 +55,7 @@ router.post(
   '/register',
   [
     nameValidation,
-    body('phoneNumber').optional().matches(/^[0-9]{10}$/).withMessage('Invalid phone number format'),
+    body('phoneNumber').matches(/^[0-9]{10}$/).withMessage('Phone number is required and must be 10 digits'),
     body('email').optional().isEmail().withMessage('Invalid email format'),
     passwordValidation,
     addressValidation,
@@ -67,18 +65,6 @@ router.post(
     countryValidation,
     dateOfBirthValidation,
     genderValidation,
-    body('phoneNumber').custom((value, { req }) => {
-      if (!value && !req.body.email) {
-        throw new Error('Either phone number or email is required');
-      }
-      return true;
-    }),
-    body('email').custom((value, { req }) => {
-      if (!value && !req.body.phoneNumber) {
-        throw new Error('Either phone number or email is required');
-      }
-      return true;
-    }),
   ],
   authController.register
 );
@@ -95,6 +81,12 @@ router.post(
 router.get('/user/:userId', authController.getUserById);
 
 router.post('/google', authController.googleLogin);
+
+// Auto-login after registration
+router.post('/auto-login', [
+  body('phoneNumber').isString().withMessage('Phone number is required'),
+  body('password').isString().withMessage('Password is required')
+], authController.autoLoginAfterRegistration);
 
 router.put('/user/:userId', authController.updateUser);
 router.post('/user/:userId/change-password', authController.changePassword);

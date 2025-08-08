@@ -18,9 +18,9 @@ import {
 } from 'expo-router';
 import axios, { AxiosError } from 'axios';
 import { useLanguage } from '../context/LanguageContext';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { Picker } from '@react-native-picker/picker';
-import { API_URL } from '../config'; // Import from central config
+import { useAuth } from '../context/AuthContext';
+import { useNotifications } from '../context/NotificationContext';
+import { API_URL } from '../config';
 import * as Google from 'expo-auth-session/providers/google';
 import * as WebBrowser from 'expo-web-browser';
 import { AntDesign, FontAwesome } from '@expo/vector-icons';
@@ -52,15 +52,12 @@ const SignupScreen = () => {
   } = params;
   const [name, setName] = useState('');
   const [phoneNumber, setPhoneNumber] = useState((initialPhoneNumber as string) || '');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [dateOfBirth, setDateOfBirth] = useState<Date | undefined>(undefined);
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [gender, setGender] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isPhoneVerified, setIsPhoneVerified] = useState(false);
   const router = useRouter();
   const { t } = useLanguage();
+  const { login } = useAuth();
+  const { initializeNotifications } = useNotifications();
 
   // Check if phone number was already verified during login
   useEffect(() => {
@@ -119,7 +116,7 @@ const SignupScreen = () => {
               Alert.alert('Success', 'Logged in with Google!');
               router.replace('/(tabs)');
             } else if (res.data.redirectToRegister && res.data.email) {
-              setEmail(res.data.email); // Prefill email field
+              // setEmail(res.data.email); // Prefill email field - REMOVED
             } else {
               Alert.alert('Error', res.data.message || 'Google login failed');
             }
@@ -133,23 +130,13 @@ const SignupScreen = () => {
   }, [response]);
 
   const handleSignup = async () => {
-    if (!name || (!phoneNumber && !email) || !password) {
-      Alert.alert(t('error'), t('pleaseFillInAllRequiredFields'));
+    if (!name || !phoneNumber) {
+      Alert.alert(t('error'), t('enterYourPhoneNumber'));
       return;
     }
 
-    if (phoneNumber && phoneNumber.length !== 10) {
+    if (phoneNumber.length !== 10) {
       Alert.alert(t('error'), t('pleaseEnterAValid10DigitPhoneNumber'));
-      return;
-    }
-
-    if (email && !/^[\w-]+(?:\.[\w-]+)*@(?:[\w-]+\.)+[a-zA-Z]{2,7}$/.test(email)) {
-      Alert.alert(t('error'), t('pleaseEnterAValidEmailAddress'));
-      return;
-    }
-
-    if (password.length < 6) {
-      Alert.alert(t('error'), t('passwordMustBeAtLeast6CharactersLong'));
       return;
     }
 
@@ -163,74 +150,74 @@ const SignupScreen = () => {
         // Prepare user data
         const userData = {
           name,
-          phoneNumber: `+91${phoneNumber}`,
-          email: email || undefined,
-          password,
-          dateOfBirth: dateOfBirth ? dateOfBirth.toISOString().split('T')[0] : undefined,
-          gender: gender || undefined,
+          phoneNumber: phoneNumber, // Send without +91 prefix
         };
 
         // Create user directly without OTP verification
         try {
-          const response = await axios.post(`${API_URL}/auth/register`, {
+          const requestData: any = {
             name,
-            phoneNumber: `+91${phoneNumber}`,
-            email: email || undefined,
-            password,
-            dateOfBirth: dateOfBirth ? dateOfBirth.toISOString().split('T')[0] : undefined,
-            gender: gender || undefined,
-            isVerified: true // Mark as verified since we already verified the phone
-          });
+            phoneNumber: phoneNumber,
+            isVerified: true
+          };
+
+          console.log('Sending registration data:', requestData);
+
+          const response = await axios.post(`${API_URL}/auth/register`, requestData);
           
           if (response.data.success) {
             // Clear the stored verification data
             await clearVerificationData();
             
-            Alert.alert('Success', 'Account created successfully! Please login.');
-            router.replace('/login');
+            // Auto-login after successful registration
+            try {
+              console.log('Auto-login after registration...');
+              
+              // Use the new auto-login endpoint
+              const loginResponse = await axios.post(`${API_URL}/auth/auto-login`, {
+                phoneNumber: phoneNumber,
+                password: 'default_password_123' // Use a default password for phone-only registration
+              });
+              
+              if (loginResponse.data.success && loginResponse.data.token) {
+                // Store the auth token
+                await AsyncStorage.setItem('userToken', loginResponse.data.token);
+                console.log('✅ Auto-login successful, token stored');
+                
+                // Store user info using AuthContext
+                await login({
+                  id: loginResponse.data.user.id,
+                  name: loginResponse.data.user.name,
+                  email: loginResponse.data.user.email || '',
+                  phone: loginResponse.data.user.phoneNumber || phoneNumber,
+                }, loginResponse.data.token);
+                
+                // Initialize notifications
+                await initializeNotifications(loginResponse.data.user.id);
+                
+                Alert.alert('Success', 'Account created and logged in successfully!');
+                router.replace('/(tabs)');
+              } else {
+                Alert.alert('Success', 'Account created successfully! Please login to continue.');
+                router.replace('/login');
+              }
+            } catch (loginError) {
+              console.error('Auto-login error:', loginError);
+              Alert.alert('Success', 'Account created successfully! Please login to continue.');
+              router.replace('/login');
+            }
           } else {
             Alert.alert('Error', response.data.message || 'Failed to create account');
           }
         } catch (error: any) {
           console.error('Registration error:', error);
-          Alert.alert('Error', error.response?.data?.message || 'Failed to create account');
-        }
-      } else {
-        // Original flow - send OTP for verification
-        // Determine verification type and contact info
-        const verificationType = phoneNumber ? 'phone' : 'email';
-        const contactInfo = phoneNumber || email;
-        
-        // Prepare user data for OTP verification
-        const userData = {
-          name,
-          password,
-          dateOfBirth: dateOfBirth ? dateOfBirth.toISOString().split('T')[0] : undefined,
-          gender: gender || undefined,
-        };
-
-        // Send OTP using Firebase
-        const { firebaseAuthService } = require('../services/firebaseAuthService');
-        let otpSent = false;
-        
-        if (verificationType === 'phone') {
-          otpSent = await firebaseAuthService.sendPhoneOTP(contactInfo);
-        } else {
-          otpSent = await firebaseAuthService.sendEmailOTP(contactInfo);
-        }
-
-        if (otpSent) {
-          // Navigate to OTP verification screen
-          router.push({
-            pathname: '/otp-verification',
-            params: {
-              type: verificationType,
-              contact: contactInfo,
-              userData: JSON.stringify(userData)
-            }
-          });
-        } else {
-          Alert.alert('Error', 'Failed to send OTP. Please try again.');
+          if (error.response?.data?.errors) {
+            // Show validation errors
+            const errorMessages = error.response.data.errors.map((err: any) => err.msg).join('\n');
+            Alert.alert('Validation Error', errorMessages);
+          } else {
+            Alert.alert('Error', error.response?.data?.message || 'Failed to create account');
+          }
         }
       }
     } catch (error) {
@@ -242,9 +229,9 @@ const SignupScreen = () => {
   };
 
   const onChangeDate = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(Platform.OS === 'ios');
+    // setShowDatePicker(Platform.OS === 'ios'); // REMOVED
     if (selectedDate) {
-      setDateOfBirth(selectedDate);
+      // setDateOfBirth(selectedDate); // REMOVED
     }
   };
 
@@ -297,63 +284,6 @@ const SignupScreen = () => {
                 </TouchableOpacity>
               </View>
             )}
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>{t('emailOptional')}</Text>
-            <TextInput
-              style={styles.input}
-              placeholder={t('enterYourEmailAddress')}
-              keyboardType="email-address"
-              value={email}
-              onChangeText={setEmail}
-              autoCapitalize="none"
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>{t('password')}</Text>
-            <TextInput
-              style={styles.input}
-              placeholder={t('enterYourPassword')}
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-              maxLength={20}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>{t('dateOfBirth')}</Text>
-            <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.input}>
-              <Text style={{ color: dateOfBirth ? '#1F2937' : '#9CA3AF', fontSize: 13 }}>
-                {dateOfBirth ? dateOfBirth.toISOString().split('T')[0] : t('enterDateOfBirth')}
-              </Text>
-            </TouchableOpacity>
-            {showDatePicker && (
-              <DateTimePicker
-                value={dateOfBirth || new Date()}
-                mode="date"
-                display="default"
-                onChange={onChangeDate}
-              />
-            )}
-          </View>
-
-          <View style={styles.inputContainer}>
-            <Text style={styles.label}>{t('gender')}</Text>
-            <View style={styles.pickerContainer}>
-              <Picker
-                selectedValue={gender}
-                onValueChange={(itemValue: string) => setGender(itemValue)}
-                style={styles.picker}
-              >
-                <Picker.Item label={t('selectGender')} value="" />
-                <Picker.Item label={t('male')} value="Male" />
-                <Picker.Item label={t('female')} value="Female" />
-                <Picker.Item label={t('other')} value="Other" />
-              </Picker>
-            </View>
           </View>
 
           <TouchableOpacity

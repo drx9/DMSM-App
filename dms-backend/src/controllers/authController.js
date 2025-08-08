@@ -7,64 +7,21 @@ const { verifyFirebaseToken: verifyFirebaseTokenService, createOrUpdateUserFromF
 
 const login = async (req, res) => {
   try {
-    const { phoneNumber, email, password } = req.body;
+    const { phoneNumber } = req.body;
 
-    // --- EMAIL + PASSWORD LOGIN ---
-    if (email && password) {
-      const user = await User.findOne({ where: { email } });
-
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: 'User not found. Please check your email or sign up.',
-        });
-      }
-
-      const isMatch = await bcrypt.compare(password, user.password);
-
-      if (!isMatch) {
-        return res.status(401).json({
-          success: false,
-          message: 'Invalid credentials. Please check your password.',
-        });
-      }
-
-      // Login successful, generate JWT
-      const token = jwt.sign(
-        { id: user.id, role: user.role },
-        process.env.JWT_SECRET,
-        { expiresIn: '7d' }
-      );
-
-      return res.json({
-        success: true,
-        message: 'Login successful.',
-        token,
-        user: {
-          id: user.id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
-      });
-    }
-
-    // --- PHONE + OTP LOGIN ---
-    else if (phoneNumber) {
-      // Phone login is now handled by Firebase Phone Auth
+    // Phone login is now handled by Firebase Phone Auth
+    if (!phoneNumber) {
       return res.status(400).json({
         success: false,
-        message: 'Phone login is now handled by Firebase. Please use the phone authentication flow in the app.',
+        message: 'Phone number is required for login.',
       });
     }
 
-    // --- INVALID INPUT ---
-    else {
-      return res.status(400).json({
-        success: false,
-        message: 'Please provide either a phone number or an email and password.',
-      });
-    }
+    // Phone login is handled by Firebase Phone Auth
+    return res.status(400).json({
+      success: false,
+      message: 'Phone login is handled by Firebase. Please use the phone authentication flow in the app.',
+    });
   } catch (error) {
     console.error('Login error:', error);
     return res.status(500).json({
@@ -76,72 +33,57 @@ const login = async (req, res) => {
 
 const register = async (req, res) => {
   try {
+    console.log('Registration request body:', req.body);
+    
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('Validation errors:', errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
 
     const { name, phoneNumber, email, password, isVerified = false, dateOfBirth, gender } = req.body;
 
-    // Normalize phone number format if provided
+    // Phone number is required
+    if (!phoneNumber) {
+      return res.status(400).json({ message: 'Phone number is required' });
+    }
+
+    // Normalize phone number format
     let normalizedPhoneNumber = phoneNumber;
-    if (normalizedPhoneNumber) {
-      // Remove +91 prefix if present
-      if (normalizedPhoneNumber.startsWith('+91')) {
-        normalizedPhoneNumber = normalizedPhoneNumber.substring(3);
-      }
-      // Remove 91 prefix if present
-      if (normalizedPhoneNumber.startsWith('91')) {
-        normalizedPhoneNumber = normalizedPhoneNumber.substring(2);
-      }
-      // Ensure it's a 10-digit number
-      if (normalizedPhoneNumber.length !== 10) {
-        return res.status(400).json({ message: 'Phone number must be 10 digits' });
-      }
+    if (normalizedPhoneNumber.startsWith('+91')) {
+      normalizedPhoneNumber = normalizedPhoneNumber.substring(3);
+    }
+    if (normalizedPhoneNumber.startsWith('91')) {
+      normalizedPhoneNumber = normalizedPhoneNumber.substring(2);
+    }
+    if (normalizedPhoneNumber.length !== 10) {
+      return res.status(400).json({ message: 'Phone number must be 10 digits' });
     }
 
-    // Build the where clause for checking existing user
-    const whereClause = [];
-    if (normalizedPhoneNumber) {
-      // Check for multiple phone number formats
-      whereClause.push(
-        { phoneNumber: normalizedPhoneNumber },
-        { phoneNumber: `+91${normalizedPhoneNumber}` }
-      );
-    }
-    if (email) whereClause.push({ email });
-
-    if (whereClause.length === 0) {
-      return res.status(400).json({ message: 'Phone number or email is required.' });
-    }
-
+    // Check if user already exists with this phone number
     const existingUser = await User.findOne({
-      where: { [require('sequelize').Op.or]: whereClause },
+      where: { 
+        [require('sequelize').Op.or]: [
+          { phoneNumber: normalizedPhoneNumber },
+          { phoneNumber: `+91${normalizedPhoneNumber}` }
+        ]
+      },
     });
 
     if (existingUser) {
-      return res
-        .status(400)
-        .json({ message: 'User already exists with this phone number or email' });
+      return res.status(400).json({ message: 'User already exists with this phone number' });
     }
 
     // Create new user with normalized phone number
     const user = await User.create({
       name,
-      phoneNumber: normalizedPhoneNumber, // Store as 10-digit format
+      phoneNumber: normalizedPhoneNumber,
       email,
-      password, // The model hook will hash this
-      isVerified: isVerified, // Use the provided verification status
+      password: password || `default_${normalizedPhoneNumber}_${Date.now()}`, // Generate default password if not provided
+      isVerified: isVerified,
       dateOfBirth,
       gender,
     });
-
-    // If user is already verified (Firebase OTP), skip sending OTP
-    if (!isVerified) {
-      // Send OTP for traditional registration
-      const type = normalizedPhoneNumber ? 'PHONE' : 'EMAIL';
-      await authService.sendOTP(user, type);
-    }
 
     return res.json({
       success: true,
@@ -613,6 +555,86 @@ const verifyPhoneOTP = async (req, res) => {
   }
 };
 
+// Auto-login after registration (for phone + password users)
+const autoLoginAfterRegistration = async (req, res) => {
+  try {
+    const { phoneNumber, password } = req.body;
+
+    if (!phoneNumber || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Phone number and password are required'
+      });
+    }
+
+    // Normalize phone number
+    let normalizedPhoneNumber = phoneNumber;
+    if (normalizedPhoneNumber.startsWith('+91')) {
+      normalizedPhoneNumber = normalizedPhoneNumber.substring(3);
+    }
+    if (normalizedPhoneNumber.startsWith('91')) {
+      normalizedPhoneNumber = normalizedPhoneNumber.substring(2);
+    }
+
+    // Find user by phone number
+    const user = await User.findOne({ 
+      where: { phoneNumber: normalizedPhoneNumber } 
+    });
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Verify password - handle default password pattern
+    let isMatch = false;
+    if (password.startsWith('default_')) {
+      // For default passwords, check if it matches the pattern
+      const expectedPassword = `default_${normalizedPhoneNumber}_`;
+      isMatch = user.password.includes(expectedPassword);
+    } else {
+      // For regular passwords, use bcrypt comparison
+      isMatch = await bcrypt.compare(password, user.password);
+    }
+    
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials'
+      });
+    }
+
+    // Generate JWT token
+    const token = jwt.sign(
+      { id: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
+    return res.json({
+      success: true,
+      message: 'Auto-login successful',
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phoneNumber: user.phoneNumber,
+        role: user.role,
+      },
+    });
+
+  } catch (error) {
+    console.error('Auto-login error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'An internal server error occurred'
+    });
+  }
+};
+
 module.exports = {
   login,
   register,
@@ -629,4 +651,5 @@ module.exports = {
   verifyFirebasePhone,
   sendPhoneOTP,
   verifyPhoneOTP,
+  autoLoginAfterRegistration,
 }; 
