@@ -150,7 +150,7 @@ const deleteAccount = async (req, res) => {
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const userId = req.user.userId;
+    const userId = req.user.id;
     const { password } = req.body;
 
     const user = await User.findByPk(userId);

@@ -5,6 +5,36 @@ const { User } = require('../models');
 // Simple Firebase token verification without firebase-admin
 async function verifyFirebaseToken(idToken) {
   try {
+    console.log('Verifying token:', idToken);
+    
+    // Check if this is a test mode token
+    if (idToken && idToken.startsWith('test_mode_token_')) {
+      console.log('Test mode token detected:', idToken);
+      
+      // Extract phone number from test token (format: test_mode_token_timestamp_phoneNumber)
+      const tokenParts = idToken.split('_');
+      console.log('Token parts:', tokenParts);
+      
+      if (tokenParts.length >= 4) {
+        // Extract phone number - everything after the timestamp
+        const phoneNumber = tokenParts.slice(3).join(''); // Join without underscores
+        console.log('Test mode phone number:', phoneNumber);
+        
+        const decodedToken = {
+          uid: 'test_user_' + Date.now(),
+          email: 'test@example.com',
+          email_verified: true,
+          phone_number: phoneNumber
+        };
+        
+        console.log('Test mode decoded token:', decodedToken);
+        return decodedToken;
+      } else {
+        console.error('Invalid test mode token format:', idToken);
+        throw new Error('Invalid test mode token format');
+      }
+    }
+    
     // For now, we'll use a simplified approach
     // In production, you should verify the token with Firebase
     console.log('Firebase token verification (simplified):', idToken);

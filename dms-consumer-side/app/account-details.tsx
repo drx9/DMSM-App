@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, SafeAreaView, TextInput, TouchableOpacity, Image, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, SafeAreaView, TextInput, TouchableOpacity, Image, Alert, ScrollView, Modal } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import * as ImagePicker from 'expo-image-picker';
 import { API_URL } from './config';
+import { useRouter } from 'expo-router';
+import { useAuth } from './context/AuthContext';
 
 const CLOUDINARY_CLOUD_NAME = 'dpdlmdl5x';
 const CLOUDINARY_UPLOAD_PRESET = 'dmsmart';
@@ -18,8 +20,12 @@ const AccountDetailsScreen = () => {
     const [passwords, setPasswords] = useState({ currentPassword: '', newPassword: '' });
     const [deleting, setDeleting] = useState(false);
     const [verifying, setVerifying] = useState(false);
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [deletePassword, setDeletePassword] = useState('');
     const userIdRef = useRef<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
+    const router = useRouter();
+    const { logout } = useAuth();
 
     const showMessage = (msg: string) => {
         setMessage(msg);
@@ -113,24 +119,67 @@ const AccountDetailsScreen = () => {
     };
 
     const handleDelete = async () => {
-        if (!userIdRef.current) return;
-        Alert.alert('Delete Account', 'Are you sure? This cannot be undone.', [
-            { text: 'Cancel', style: 'cancel' },
-            {
-                text: 'Delete', style: 'destructive', onPress: async () => {
-                    setDeleting(true);
-                    try {
-                        await axios.delete(`${API_URL}/auth/user/${userIdRef.current}`);
-                        showMessage('Account deleted');
-                        await AsyncStorage.clear();
-                        // Optionally, navigate to login or splash
-                    } catch (err) {
-                        showMessage('Failed to delete account');
+        Alert.alert(
+            'Delete Account', 
+            'This action cannot be undone. All your data will be permanently deleted. Are you sure you want to continue?', 
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Delete Account', 
+                    style: 'destructive', 
+                    onPress: () => {
+                        setShowDeleteModal(true);
+                        setDeletePassword('');
                     }
-                    setDeleting(false);
                 }
+            ]
+        );
+    };
+
+    const handleConfirmDelete = async () => {
+        if (!deletePassword.trim()) {
+            showMessage('Please enter your password');
+            return;
+        }
+
+        setDeleting(true);
+        try {
+            // Get auth token from AsyncStorage
+            const token = await AsyncStorage.getItem('userToken');
+            if (!token) {
+                showMessage('Authentication required. Please login again.');
+                return;
             }
-        ]);
+
+            // Use the correct endpoint with password verification and auth token
+            await axios.delete(`${API_URL}/users/delete-account`, {
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                },
+                data: { password: deletePassword }
+            });
+            
+            showMessage('Account deleted successfully');
+            setShowDeleteModal(false);
+            setDeletePassword('');
+            
+            // Clear all data and navigate to login
+            await AsyncStorage.clear();
+            await logout();
+            router.replace('/login');
+        } catch (err: any) {
+            console.error('Delete account error:', err);
+            if (err.response?.status === 400) {
+                showMessage(err.response.data?.message || 'Password is incorrect');
+            } else if (err.response?.status === 401) {
+                showMessage('Authentication failed. Please login again.');
+            } else {
+                showMessage('Failed to delete account. Please try again.');
+            }
+        } finally {
+            setDeleting(false);
+        }
     };
 
     const handleResendVerification = async () => {
@@ -348,6 +397,60 @@ const AccountDetailsScreen = () => {
                         </View>
                     </View>
                 )}
+
+                {/* Delete Account Modal */}
+                <Modal
+                    visible={showDeleteModal}
+                    animationType="slide"
+                    transparent
+                    onRequestClose={() => setShowDeleteModal(false)}
+                >
+                    <View style={styles.modalOverlay}>
+                        <View style={styles.modalContent}>
+                            <View style={styles.modalHeader}>
+                                <Text style={styles.modalTitle}>Delete Account</Text>
+                                <TouchableOpacity onPress={() => setShowDeleteModal(false)}>
+                                    <Text style={styles.closeButton}>✕</Text>
+                                </TouchableOpacity>
+                            </View>
+                            
+                            <Text style={styles.modalDescription}>
+                                This action cannot be undone. All your data including orders, addresses, and preferences will be permanently deleted.
+                            </Text>
+                            
+                            <Text style={styles.modalSubtitle}>Enter your password to confirm:</Text>
+                            
+                            <TextInput
+                                style={styles.input}
+                                value={deletePassword}
+                                onChangeText={setDeletePassword}
+                                placeholder="Enter your password"
+                                placeholderTextColor="#94A3B8"
+                                secureTextEntry
+                                autoFocus
+                            />
+                            
+                            <View style={styles.formButtons}>
+                                <TouchableOpacity 
+                                    style={[styles.saveBtn, styles.deleteConfirmBtn]} 
+                                    onPress={handleConfirmDelete}
+                                    disabled={deleting}
+                                >
+                                    <Text style={styles.deleteConfirmBtnText}>
+                                        {deleting ? 'Deleting...' : 'Delete Account'}
+                                    </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity 
+                                    style={styles.cancelBtn} 
+                                    onPress={() => setShowDeleteModal(false)}
+                                    disabled={deleting}
+                                >
+                                    <Text style={styles.cancelBtnText}>Cancel</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </View>
+                    </View>
+                </Modal>
             </ScrollView>
         </SafeAreaView>
     );
@@ -613,6 +716,60 @@ const styles = StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.1,
         shadowRadius: 4,
+    },
+    modalOverlay: {
+        flex: 1,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+    modalContent: {
+        backgroundColor: '#FFFFFF',
+        borderRadius: 12,
+        padding: 20,
+        width: '80%',
+        alignItems: 'center',
+    },
+    modalHeader: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        width: '100%',
+        marginBottom: 15,
+    },
+    modalTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        color: '#1E293B',
+    },
+    closeButton: {
+        fontSize: 24,
+        color: '#64748B',
+    },
+    modalDescription: {
+        fontSize: 14,
+        color: '#475569',
+        textAlign: 'center',
+        marginBottom: 15,
+    },
+    modalSubtitle: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#1E293B',
+        marginBottom: 8,
+    },
+    deleteConfirmBtn: {
+        backgroundColor: '#EF4444',
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        borderRadius: 8,
+        flex: 1,
+    },
+    deleteConfirmBtnText: {
+        color: '#FFFFFF',
+        textAlign: 'center',
+        fontSize: 13,
+        fontWeight: '500',
     },
 });
 

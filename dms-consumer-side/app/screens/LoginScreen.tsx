@@ -65,6 +65,7 @@ const LoginScreen = () => {
   const [otpCode, setOtpCode] = useState('');
   // const [verificationId, setVerificationId] = useState<string | null>(null);
   const [otpSent, setOtpSent] = useState(false);
+  const [testModeEnabled, setTestModeEnabled] = useState(false);
 
   const [request, response, promptAsync] = Google.useAuthRequest({
     clientId: '875079305931-f0k3mdqqrrbj9ablfn1gdqp7rn4567iq.apps.googleusercontent.com', // Android client ID
@@ -74,6 +75,35 @@ const LoginScreen = () => {
   });
 
   useEffect(() => {
+    checkTestModeStatus();
+  }, []);
+
+  const checkTestModeStatus = async () => {
+    try {
+      const testMode = await AsyncStorage.getItem('testMode');
+      setTestModeEnabled(testMode === 'true');
+    } catch (error) {
+      console.error('Error checking test mode status:', error);
+    }
+  };
+
+  const toggleTestMode = async () => {
+    try {
+      if (testModeEnabled) {
+        await AsyncStorage.removeItem('testMode');
+        setTestModeEnabled(false);
+        Alert.alert('Test Mode Disabled', 'Real SMS OTPs will be used.');
+      } else {
+        await AsyncStorage.setItem('testMode', 'true');
+        setTestModeEnabled(true);
+        Alert.alert('Test Mode Enabled', 'You can now use test OTPs for development.');
+      }
+    } catch (error) {
+      console.error('Error toggling test mode:', error);
+    }
+  };
+
+  useEffect(() => {
     if (response?.type === 'success') {
       const { id_token } = response.params;
       if (id_token) {
@@ -81,6 +111,10 @@ const LoginScreen = () => {
         axios.post(`${API_URL}/auth/google`, { token: id_token })
           .then(async (res) => {
             if (res.data.success && res.data.token && res.data.user) {
+              // Store the auth token
+              await AsyncStorage.setItem('userToken', res.data.token);
+              console.log('✅ Auth token stored successfully');
+              
               // Store user info using AuthContext
               await login({
                 id: res.data.user.id,
@@ -143,66 +177,82 @@ const LoginScreen = () => {
       const result = await otpService.verifyPhoneOTP(otpCode);
       
       if (result.success && result.idToken) {
-        // Firebase Phone Auth successful - user is verified
-        // Send ID token to backend for user verification/creation
-        try {
-          const response = await axios.post(`${API_URL}/auth/firebase-login`, {
-            idToken: result.idToken,
-            phoneNumber: `+91${phoneNumber}` // Send phone number explicitly
-          });
-          
-          console.log('Backend response:', response.data);
-          
-          if (response.data.success && response.data.user) {
-            // User exists - login successful
-            console.log('User exists, logging in:', response.data.user);
-            await login({
-              id: response.data.user.id,
-              name: response.data.user.name,
-              email: response.data.user.email || '',
-              phone: response.data.user.phoneNumber || `+91${phoneNumber}`,
+        // Check if this is a test mode token
+        const isTestMode = result.idToken.startsWith('test_mode_token_');
+        
+        if (isTestMode) {
+          console.log('Test mode authentication detected');
+          // Handle test mode authentication
+          await handleTestModeAuthentication(result.idToken, phoneNumber);
+        } else {
+          // Firebase Phone Auth successful - user is verified
+          // Send ID token to backend for user verification/creation
+          try {
+            const response = await axios.post(`${API_URL}/auth/firebase-login`, {
+              idToken: result.idToken,
+              phoneNumber: `+91${phoneNumber}` // Send phone number explicitly
             });
             
-            // Initialize notifications after successful login
-            await initializeNotifications(response.data.user.id);
+            console.log('Backend response:', response.data);
             
-            console.log('✅ Login successful, redirecting to main app');
-            Alert.alert('Success', 'Phone authentication successful!');
-            router.replace('/(tabs)');
-          } else if (response.data.success === false && response.data.reason === 'new_user') {
-            // User doesn't exist - redirect to registration
-            console.log('User does not exist, redirecting to signup');
-            // Store the verified phone number to skip second OTP verification
-            await AsyncStorage.setItem('verifiedPhoneNumber', phoneNumber);
-            await AsyncStorage.setItem('phoneVerificationTime', Date.now().toString());
+            if (response.data.success && response.data.user) {
+              // User exists - login successful
+              console.log('User exists, logging in:', response.data.user);
+              
+              // Store the auth token if provided
+              if (response.data.token) {
+                await AsyncStorage.setItem('userToken', response.data.token);
+                console.log('✅ Auth token stored successfully');
+              }
+              
+              await login({
+                id: response.data.user.id,
+                name: response.data.user.name,
+                email: response.data.user.email || '',
+                phone: response.data.user.phoneNumber || `+91${phoneNumber}`,
+              });
+              
+              // Initialize notifications after successful login
+              await initializeNotifications(response.data.user.id);
+              
+              console.log('✅ Login successful, redirecting to main app');
+              Alert.alert('Success', 'Phone authentication successful!');
+              router.replace('/(tabs)');
+            } else if (response.data.success === false && response.data.reason === 'new_user') {
+              // User doesn't exist - redirect to registration
+              console.log('User does not exist, redirecting to signup');
+              // Store the verified phone number to skip second OTP verification
+              await AsyncStorage.setItem('verifiedPhoneNumber', phoneNumber);
+              await AsyncStorage.setItem('phoneVerificationTime', Date.now().toString());
+              
+              console.log('✅ Redirecting to signup with verified phone:', phoneNumber);
+              router.push({
+                pathname: '/signup',
+                params: { phoneNumber }
+              });
+            } else {
+              // Unexpected response
+              console.log('Unexpected response:', response.data);
+              Alert.alert('Error', 'Unexpected response from server');
+            }
+          } catch (error: any) {
+            console.error('Backend verification error:', error);
             
-            console.log('✅ Redirecting to signup with verified phone:', phoneNumber);
-            router.push({
-              pathname: '/signup',
-              params: { phoneNumber }
-            });
-          } else {
-            // Unexpected response
-            console.log('Unexpected response:', response.data);
-            Alert.alert('Error', 'Unexpected response from server');
-          }
-        } catch (error: any) {
-          console.error('Backend verification error:', error);
-          
-          // Check if it's a 401 error (invalid token) or other error
-          if (error.response?.status === 401) {
-            Alert.alert('Error', 'Invalid authentication. Please try again.');
-          } else if (error.response?.data?.reason === 'new_user') {
-            // User doesn't exist - redirect to registration
-            await AsyncStorage.setItem('verifiedPhoneNumber', phoneNumber);
-            await AsyncStorage.setItem('phoneVerificationTime', Date.now().toString());
-            
-            router.push({
-              pathname: '/signup',
-              params: { phoneNumber }
-            });
-          } else {
-            Alert.alert('Error', 'Failed to verify with server. Please try again.');
+            // Check if it's a 401 error (invalid token) or other error
+            if (error.response?.status === 401) {
+              Alert.alert('Error', 'Invalid authentication. Please try again.');
+            } else if (error.response?.data?.reason === 'new_user') {
+              // User doesn't exist - redirect to registration
+              await AsyncStorage.setItem('verifiedPhoneNumber', phoneNumber);
+              await AsyncStorage.setItem('phoneVerificationTime', Date.now().toString());
+              
+              router.push({
+                pathname: '/signup',
+                params: { phoneNumber }
+              });
+            } else {
+              Alert.alert('Error', 'Failed to verify with server. Please try again.');
+            }
           }
         }
       } else {
@@ -213,6 +263,85 @@ const LoginScreen = () => {
       Alert.alert('Error', error.message || 'Invalid OTP');
     }
     setIsLoading(false);
+  };
+
+  // Handle test mode authentication
+  const handleTestModeAuthentication = async (testToken: string, phoneNumber: string) => {
+    try {
+      console.log('Handling test mode authentication for phone:', phoneNumber);
+      console.log('Test token:', testToken);
+      
+      // Check if test mode is enabled
+      const testModeEnabled = await AsyncStorage.getItem('testMode');
+      if (testModeEnabled !== 'true') {
+        Alert.alert('Error', 'Test mode is not enabled. Please enable test mode first.');
+        return;
+      }
+      
+      // Extract phone number from test token
+      const tokenParts = testToken.split('_');
+      const extractedPhone = tokenParts.slice(3).join(''); // Join without underscores
+      
+      console.log('Test mode: Extracted phone number:', extractedPhone);
+      console.log('Test mode: Token parts:', tokenParts);
+      
+      // Send test mode authentication to backend
+      const response = await axios.post(`${API_URL}/auth/firebase-login`, {
+        idToken: testToken,
+        phoneNumber: `+91${extractedPhone}`
+      });
+      
+      console.log('Test mode backend response:', response.data);
+      
+      if (response.data.success && response.data.user) {
+        // User exists - login successful
+        console.log('Test mode: User exists, logging in:', response.data.user);
+        
+        // Store the auth token if provided
+        if (response.data.token) {
+          await AsyncStorage.setItem('userToken', response.data.token);
+          console.log('✅ Test mode auth token stored successfully');
+        }
+        
+        await login({
+          id: response.data.user.id,
+          name: response.data.user.name,
+          email: response.data.user.email || '',
+          phone: response.data.user.phoneNumber || `+91${extractedPhone}`,
+        });
+        
+        // Initialize notifications after successful login
+        await initializeNotifications(response.data.user.id);
+        
+        console.log('✅ Test mode login successful, redirecting to main app');
+        Alert.alert('Success', 'Test mode authentication successful!');
+        router.replace('/(tabs)');
+      } else if (response.data.success === false && response.data.reason === 'new_user') {
+        // User doesn't exist - redirect to registration
+        console.log('Test mode: User does not exist, redirecting to signup');
+        await AsyncStorage.setItem('verifiedPhoneNumber', extractedPhone);
+        await AsyncStorage.setItem('phoneVerificationTime', Date.now().toString());
+        
+        router.push({
+          pathname: '/signup',
+          params: { phoneNumber: extractedPhone }
+        });
+      } else {
+        Alert.alert('Error', 'Test mode authentication failed');
+      }
+    } catch (error: any) {
+      console.error('Test mode authentication error:', error);
+      console.error('Test mode error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      if (error.response?.status === 401) {
+        Alert.alert('Error', 'Test mode authentication failed. Please check if test mode is properly configured.');
+      } else {
+        Alert.alert('Error', 'Test mode authentication failed. Please try again.');
+      }
+    }
   };
 
   const handleLogin = async () => {
@@ -242,6 +371,10 @@ const LoginScreen = () => {
       });
 
       if (response.data.success && response.data.token && response.data.user) {
+        // Store the auth token
+        await AsyncStorage.setItem('userToken', response.data.token);
+        console.log('✅ Auth token stored successfully');
+        
         // Store user info using AuthContext
         await login({
           id: response.data.user.id,
@@ -305,6 +438,41 @@ const LoginScreen = () => {
           />
           <Text style={styles.welcomeText}>{t('welcomeBack')}</Text>
           <Text style={styles.subtitle}>{t('loginToContinueShopping')}</Text>
+          
+          {/* Test Mode Toggle */}
+          <TouchableOpacity 
+            style={[styles.testModeButton, testModeEnabled && styles.testModeButtonActive]} 
+            onPress={toggleTestMode}
+          >
+            <Text style={[styles.testModeButtonText, testModeEnabled && styles.testModeButtonTextActive]}>
+              {testModeEnabled ? '🧪 Test Mode ON' : '🧪 Test Mode OFF'}
+            </Text>
+          </TouchableOpacity>
+          
+          {/* Development Info */}
+          {testModeEnabled && (
+            <View style={styles.devInfoContainer}>
+              <Text style={styles.devInfoText}>
+                💡 Test Mode: You'll receive OTP codes in alerts instead of SMS
+              </Text>
+              <TouchableOpacity 
+                style={styles.devSettingsButton}
+                onPress={() => {
+                  Alert.alert(
+                    'Development Settings',
+                    'What would you like to do?',
+                    [
+                      { text: 'Clear Test Data', onPress: () => otpService.clearRateLimitData() },
+                      { text: 'Disable Test Mode', onPress: toggleTestMode },
+                      { text: 'Cancel', style: 'cancel' }
+                    ]
+                  );
+                }}
+              >
+                <Text style={styles.devSettingsButtonText}>⚙️ Dev Settings</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
         <View style={styles.formContainer}>
@@ -631,6 +799,51 @@ const styles = StyleSheet.create({
   },
   signUpText: {
     color: '#10B981',
+    fontWeight: '600',
+  },
+  testModeButton: {
+    backgroundColor: '#E0E0E0',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    marginTop: 10,
+    alignSelf: 'flex-start',
+  },
+  testModeButtonActive: {
+    backgroundColor: '#10B981',
+  },
+  testModeButtonText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  testModeButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  devInfoContainer: {
+    backgroundColor: '#E0E0E0',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    marginTop: 10,
+    alignSelf: 'flex-start',
+  },
+  devInfoText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#1F2937',
+  },
+  devSettingsButton: {
+    backgroundColor: '#10B981',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    marginTop: 10,
+    alignSelf: 'flex-start',
+  },
+  devSettingsButtonText: {
+    color: '#FFFFFF',
+    fontSize: 11,
     fontWeight: '600',
   },
 });

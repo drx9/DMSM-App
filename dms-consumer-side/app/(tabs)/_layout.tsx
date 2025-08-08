@@ -39,19 +39,49 @@ export default function TabLayout() {
           return;
         }
 
-        // Check if user has saved addresses in AsyncStorage first
+        // First check if user has saved addresses in AsyncStorage
         const savedAddress = await AsyncStorage.getItem('userAddress');
         const hasSetOnce = await AsyncStorage.getItem('hasSetAddressOnce');
         
         if (savedAddress && hasSetOnce === 'true') {
-          console.log('[TabLayout] User has saved address, setting addressSet = true');
+          console.log('[TabLayout] User has saved address in AsyncStorage, setting addressSet = true');
           setAddressSet(true);
           setHasSetAddressOnce(true);
           return;
         }
         
-        // Skip backend check to prevent crashes - just use local storage
-        console.log('[TabLayout] No saved address found, setting addressSet = false');
+        // If no local address, check backend for existing addresses
+        try {
+          console.log('[TabLayout] Checking backend for existing addresses for user:', userId);
+          const response = await fetch(`${API_URL}/addresses/${userId}`);
+          
+          if (response.ok) {
+            const addresses = await response.json();
+            console.log('[TabLayout] Found addresses in backend:', addresses.length);
+            
+            if (addresses && addresses.length > 0) {
+              // User has addresses in backend, use the first one as primary
+              const primaryAddress = addresses.find((addr: any) => addr.isDefault) || addresses[0];
+              await AsyncStorage.setItem('userAddress', JSON.stringify(primaryAddress));
+              await AsyncStorage.setItem('hasSetAddressOnce', 'true');
+              
+              console.log('[TabLayout] User has addresses in backend, setting addressSet = true');
+              setAddressSet(true);
+              setHasSetAddressOnce(true);
+              return;
+            } else {
+              console.log('[TabLayout] No addresses found in backend for user');
+            }
+          } else {
+            console.log('[TabLayout] Backend returned status:', response.status);
+          }
+        } catch (backendError: any) {
+          console.log('[TabLayout] Backend check failed, using local storage only:', backendError?.message || 'Unknown error');
+          // If backend check fails, fall back to local storage logic
+        }
+        
+        // No addresses found anywhere
+        console.log('[TabLayout] No saved address found anywhere, setting addressSet = false');
         setAddressSet(false);
         setHasSetAddressOnce(false);
         

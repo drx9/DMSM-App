@@ -385,9 +385,32 @@ async function verifyFirebaseToken(req, res) {
     console.log('User found:', user ? user.id : 'not found');
     
     if (!user) {
-      // User does not exist, tell frontend to redirect to signup/profile completion
-      console.log('User does not exist, redirecting to signup');
-      return res.status(200).json({ success: false, reason: 'new_user', phoneNumber: normalizedPhoneNumber });
+      // Check if this is a test mode token
+      if (idToken && idToken.startsWith('test_mode_token_')) {
+        console.log('Test mode: Creating new user for phone:', normalizedPhoneNumber);
+        console.log('Test mode: Token details:', { idToken, phoneNumber, requestPhoneNumber });
+        
+        // Create a new user for test mode
+        try {
+          user = await User.create({
+            phoneNumber: normalizedPhoneNumber,
+            name: `Test User ${normalizedPhoneNumber}`,
+            email: `test_${normalizedPhoneNumber}@example.com`,
+            password: 'test_password_123', // Required field
+            isVerified: true,
+            role: 'user' // Use 'user' instead of 'customer' to match the enum
+          });
+          console.log('Test mode: New user created:', user.id);
+        } catch (createError) {
+          console.error('Test mode: Failed to create user:', createError);
+          console.error('Test mode: Create error details:', createError.message);
+          return res.status(500).json({ error: "Failed to create test user: " + createError.message });
+        }
+      } else {
+        // User does not exist, tell frontend to redirect to signup/profile completion
+        console.log('User does not exist, redirecting to signup');
+        return res.status(200).json({ success: false, reason: 'new_user', phoneNumber: normalizedPhoneNumber });
+      }
     } else if (!user.isVerified) {
       user.isVerified = true;
       await user.save();

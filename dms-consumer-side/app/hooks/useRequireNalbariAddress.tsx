@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import LocationSelectionScreen from '../location/LocationSelectionScreen';
+import { API_URL } from '../config';
 
 const NALBARI_BOUNDS = {
     northeast: { lat: 26.464, lng: 91.468 },
@@ -23,19 +24,60 @@ export default function useRequireNalbariAddress() {
 
     useEffect(() => {
         const checkAddress = async () => {
-            const addr = await AsyncStorage.getItem('userAddress');
-            if (addr) {
-                const parsed = JSON.parse(addr);
-                if (isWithinNalbari(parsed.latitude, parsed.longitude)) {
-                    setUserLocation(parsed);
-                    setShowLocationScreen(false);
-                } else {
-                    setShowLocationScreen(true);
+            try {
+                // First check AsyncStorage
+                const addr = await AsyncStorage.getItem('userAddress');
+                if (addr) {
+                    const parsed = JSON.parse(addr);
+                    if (isWithinNalbari(parsed.latitude, parsed.longitude)) {
+                        setUserLocation(parsed);
+                        setShowLocationScreen(false);
+                        setLoading(false);
+                        return;
+                    } else {
+                        setShowLocationScreen(true);
+                        setLoading(false);
+                        return;
+                    }
                 }
-            } else {
+
+                // If no local address, check backend for existing addresses
+                const userId = await AsyncStorage.getItem('userId');
+                if (userId) {
+                    try {
+                        const response = await fetch(`${API_URL}/addresses/${userId}`);
+                        if (response.ok) {
+                            const addresses = await response.json();
+                            if (addresses && addresses.length > 0) {
+                                // User has addresses in backend, use the first one as primary
+                                const primaryAddress = addresses.find((addr: any) => addr.isDefault) || addresses[0];
+                                
+                                if (isWithinNalbari(primaryAddress.latitude, primaryAddress.longitude)) {
+                                    await AsyncStorage.setItem('userAddress', JSON.stringify(primaryAddress));
+                                    setUserLocation(primaryAddress);
+                                    setShowLocationScreen(false);
+                                    setLoading(false);
+                                    return;
+                                } else {
+                                    setShowLocationScreen(true);
+                                    setLoading(false);
+                                    return;
+                                }
+                            }
+                        }
+                    } catch (backendError) {
+                        console.log('Backend check failed in useRequireNalbariAddress:', backendError);
+                    }
+                }
+
+                // No addresses found anywhere
                 setShowLocationScreen(true);
+                setLoading(false);
+            } catch (error) {
+                console.error('Error in useRequireNalbariAddress:', error);
+                setShowLocationScreen(true);
+                setLoading(false);
             }
-            setLoading(false);
         };
         checkAddress();
     }, []);
