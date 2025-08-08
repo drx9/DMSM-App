@@ -163,20 +163,80 @@ const deleteAccount = async (req, res) => {
       return res.status(400).json({ message: 'Please type "Delete" to confirm account deletion' });
     }
 
-    // Real-time: notify user
-    emitToUser(user.id, 'account_deleted', {});
-    // Push: notify user
-    const tokens = await ExpoPushToken.findAll({ where: { userId: user.id } });
-    for (const t of tokens) {
-              // Removed old push notification - using FCM instead
-    }
-    // Delete user account
-    await user.destroy();
+    // Import required models
+    const { Address, OTP, Review, ExpoPushToken } = require('../models');
 
-    res.json({
-      success: true,
-      message: 'Account deleted successfully'
-    });
+    // Delete related data first to avoid foreign key constraint violations
+    try {
+      // Delete user's addresses
+      await Address.destroy({ where: { userId: user.id } });
+      console.log(`Deleted addresses for user ${user.id}`);
+
+      // Delete user's OTPs
+      await OTP.destroy({ where: { userId: user.id } });
+      console.log(`Deleted OTPs for user ${user.id}`);
+
+      // Delete user's reviews
+      await Review.destroy({ where: { userId: user.id } });
+      console.log(`Deleted reviews for user ${user.id}`);
+
+      // Delete user's push tokens
+      await ExpoPushToken.destroy({ where: { userId: user.id } });
+      console.log(`Deleted push tokens for user ${user.id}`);
+
+      // Delete user's cart items
+      const { CartItem } = require('../models');
+      await CartItem.destroy({ where: { userId: user.id } });
+      console.log(`Deleted cart items for user ${user.id}`);
+
+      // Delete user's wishlist items
+      const { Wishlist } = require('../models');
+      await Wishlist.destroy({ where: { userId: user.id } });
+      console.log(`Deleted wishlist items for user ${user.id}`);
+
+      // Delete user's orders and order items
+      const { Order, OrderItem } = require('../models');
+      const userOrders = await Order.findAll({ where: { userId: user.id } });
+      for (const order of userOrders) {
+        await OrderItem.destroy({ where: { orderId: order.id } });
+      }
+      await Order.destroy({ where: { userId: user.id } });
+      console.log(`Deleted orders for user ${user.id}`);
+
+      // Delete orders where user is delivery boy
+      await Order.destroy({ where: { deliveryBoyId: user.id } });
+      console.log(`Deleted delivery orders for user ${user.id}`);
+
+      // Delete products created by the user
+      const { Product } = require('../models');
+      await Product.destroy({ where: { createdBy: user.id } });
+      console.log(`Deleted products created by user ${user.id}`);
+
+      // Delete payouts for the user (as delivery boy)
+      const { Payout } = require('../models');
+      await Payout.destroy({ where: { deliveryBoyId: user.id } });
+      console.log(`Deleted payouts for user ${user.id}`);
+
+      // Delete coupon usages for the user
+      const { CouponUsage } = require('../models');
+      await CouponUsage.destroy({ where: { userId: user.id } });
+      console.log(`Deleted coupon usages for user ${user.id}`);
+
+      // Real-time: notify user
+      emitToUser(user.id, 'account_deleted', {});
+      
+      // Delete user account
+      await user.destroy();
+      console.log(`Deleted user account ${user.id}`);
+
+      res.json({
+        success: true,
+        message: 'Account deleted successfully'
+      });
+    } catch (deleteError) {
+      console.error('Error deleting related data:', deleteError);
+      return res.status(500).json({ message: 'Failed to delete account data' });
+    }
   } catch (error) {
     console.error('Error deleting account:', error);
     res.status(500).json({ message: 'Internal server error' });
