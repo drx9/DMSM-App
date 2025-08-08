@@ -21,7 +21,7 @@ const AccountDetailsScreen = () => {
     const [deleting, setDeleting] = useState(false);
     const [verifying, setVerifying] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [deletePassword, setDeletePassword] = useState('');
+    const [deleteConfirmation, setDeleteConfirmation] = useState('');
     const userIdRef = useRef<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
     const router = useRouter();
@@ -129,7 +129,7 @@ const AccountDetailsScreen = () => {
                     style: 'destructive', 
                     onPress: () => {
                         setShowDeleteModal(true);
-                        setDeletePassword('');
+                        setDeleteConfirmation('');
                     }
                 }
             ]
@@ -137,8 +137,13 @@ const AccountDetailsScreen = () => {
     };
 
     const handleConfirmDelete = async () => {
-        if (!deletePassword.trim()) {
-            showMessage('Please enter your password');
+        if (!deleteConfirmation.trim()) {
+            showMessage('Please enter "Delete" to confirm');
+            return;
+        }
+
+        if (deleteConfirmation.trim() !== 'Delete') {
+            showMessage('Please type "Delete" exactly to confirm deletion');
             return;
         }
 
@@ -151,18 +156,18 @@ const AccountDetailsScreen = () => {
                 return;
             }
 
-            // Use the correct endpoint with password verification and auth token
+            // Use the correct endpoint with confirmation text and auth token
             await axios.delete(`${API_URL}/users/delete-account`, {
                 headers: {
                     'Authorization': `Bearer ${token}`,
                     'Content-Type': 'application/json'
                 },
-                data: { password: deletePassword }
+                data: { confirmationText: deleteConfirmation.trim() }
             });
             
             showMessage('Account deleted successfully');
             setShowDeleteModal(false);
-            setDeletePassword('');
+            setDeleteConfirmation('');
             
             // Clear all data and navigate to login
             await AsyncStorage.clear();
@@ -171,7 +176,7 @@ const AccountDetailsScreen = () => {
         } catch (err: any) {
             console.error('Delete account error:', err);
             if (err.response?.status === 400) {
-                showMessage(err.response.data?.message || 'Password is incorrect');
+                showMessage(err.response.data?.message || 'Please type "Delete" to confirm');
             } else if (err.response?.status === 401) {
                 showMessage('Authentication failed. Please login again.');
             } else {
@@ -418,15 +423,14 @@ const AccountDetailsScreen = () => {
                                 This action cannot be undone. All your data including orders, addresses, and preferences will be permanently deleted.
                             </Text>
                             
-                            <Text style={styles.modalSubtitle}>Enter your password to confirm:</Text>
+                            <Text style={styles.modalSubtitle}>Type "Delete" to confirm account deletion:</Text>
                             
                             <TextInput
                                 style={styles.input}
-                                value={deletePassword}
-                                onChangeText={setDeletePassword}
-                                placeholder="Enter your password"
+                                value={deleteConfirmation}
+                                onChangeText={setDeleteConfirmation}
+                                placeholder="Enter 'Delete' to confirm"
                                 placeholderTextColor="#94A3B8"
-                                secureTextEntry
                                 autoFocus
                             />
                             

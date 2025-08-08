@@ -151,17 +151,16 @@ const deleteAccount = async (req, res) => {
     }
 
     const userId = req.user.id;
-    const { password } = req.body;
+    const { confirmationText } = req.body;
 
     const user = await User.findByPk(userId);
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    // Verify password before deletion
-    const isPasswordValid = await user.comparePassword(password);
-    if (!isPasswordValid) {
-      return res.status(400).json({ message: 'Password is incorrect' });
+    // Verify confirmation text before deletion
+    if (confirmationText !== 'Delete') {
+      return res.status(400).json({ message: 'Please type "Delete" to confirm account deletion' });
     }
 
     // Real-time: notify user

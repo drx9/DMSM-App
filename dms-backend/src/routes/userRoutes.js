@@ -24,7 +24,7 @@ router.put('/change-password', authenticateToken, [
 
 // Delete account
 router.delete('/delete-account', authenticateToken, [
-  body('password').notEmpty().withMessage('Password is required'),
+  body('confirmationText').notEmpty().withMessage('Confirmation text is required'),
 ], userController.deleteAccount);
 
 // Push token endpoints (public - no auth required for app initialization)
