@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, SafeAreaView, StatusBar, TouchableOpacity, Modal, TextInput } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from './context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { API_URL } from '../config';
 import LocationSelectionScreen from './location/LocationSelectionScreen';
@@ -15,14 +16,16 @@ const SavedAddressesScreen = () => {
     const [newAddress, setNewAddress] = useState({ line1: '', city: '', state: '', postalCode: '', country: 'India' });
     const [addingAddress, setAddingAddress] = useState(false);
     const [showLocationSelector, setShowLocationSelector] = useState(false);
+    const { user: authUser, checkAuthStatus } = useAuth();
 
     useEffect(() => {
         const fetchAddresses = async () => {
             setLoading(true);
             setError(null);
-            const storedUserId = await AsyncStorage.getItem('userId');
+            const isAuthed = await checkAuthStatus();
+            const storedUserId = authUser?.id || null;
             setUserId(storedUserId);
-            if (!storedUserId) {
+            if (!isAuthed || !storedUserId) {
                 setError('Please log in to view your addresses.');
                 setLoading(false);
                 return;
@@ -37,7 +40,7 @@ const SavedAddressesScreen = () => {
             }
         };
         fetchAddresses();
-    }, []);
+    }, [authUser?.id]);
 
     const handleAddAddress = async () => {
         if (!userId) return;

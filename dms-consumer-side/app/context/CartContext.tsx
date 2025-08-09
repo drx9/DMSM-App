@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_URL } from '../config';
+import { useAuth } from './AuthContext';
 
 interface CartItem {
     id: string;
@@ -20,12 +21,12 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export const CartProvider = ({ children }: { children: ReactNode }) => {
     const [cart, setCart] = useState<CartItem[]>([]);
-    const [userId, setUserId] = useState<string | null>(null);
+    const { user: authUser } = useAuth();
 
     // Fetch cart from backend and update context + AsyncStorage
     const refreshCartFromBackend = async () => {
         try {
-            const userId = await AsyncStorage.getItem('userId');
+            const userId = authUser?.id || null;
             if (!userId) {
                 console.log('[CartContext] No userId found, skipping cart refresh');
                 return;
@@ -60,20 +61,18 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
-    // Watch for userId changes and reset cart
+    // Refresh when auth user id changes
     useEffect(() => {
-        const getUserIdAndResetCart = async () => {
-            const uid = await AsyncStorage.getItem('userId');
-            setUserId(uid);
-            if (uid) {
+        const handle = async () => {
+            if (authUser?.id) {
                 await refreshCartFromBackend();
             } else {
                 setCart([]);
                 await AsyncStorage.removeItem('cartItems');
             }
         };
-        getUserIdAndResetCart();
-    }, []); // Only run once on mount
+        handle();
+    }, [authUser?.id]);
 
     // Save cart to AsyncStorage on change
     useEffect(() => {
@@ -82,7 +81,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
     // Add to cart: call backend, then refresh
     const addToCart = async (id: string) => {
-        const userId = await AsyncStorage.getItem('userId');
+        const userId = authUser?.id || null;
         if (!userId) {
             console.log('[CartContext] No userId found, cannot add to cart');
             return;
@@ -138,7 +137,7 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
 
     // Remove from cart: call backend, then refresh
     const removeFromCart = async (id: string) => {
-        const userId = await AsyncStorage.getItem('userId');
+        const userId = authUser?.id || null;
         if (!userId) return;
         try {
             await axios.delete(`${API_URL}/cart/${userId}/${id}`);

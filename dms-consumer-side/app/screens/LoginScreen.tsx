@@ -258,9 +258,11 @@ const LoginScreen = () => {
         return;
       }
       
-      // Extract phone number from test token
+      // Extract phone number from test token (use last segment; supports with/without timestamp)
       const tokenParts = testToken.split('_');
-      const extractedPhone = tokenParts.slice(3).join(''); // Join without underscores
+      let extractedPhone = tokenParts[tokenParts.length - 1];
+      extractedPhone = extractedPhone.replace(/\D/g, '');
+      if (extractedPhone.length > 10) extractedPhone = extractedPhone.slice(-10);
       
       console.log('Test mode: Extracted phone number:', extractedPhone);
       console.log('Test mode: Token parts:', tokenParts);

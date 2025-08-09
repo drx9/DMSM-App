@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, SafeAreaView, StatusBar, TouchableOpacity, Modal, TextInput } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from './context/AuthContext';
 import { API_URL } from './config';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import io from 'socket.io-client';
@@ -24,14 +25,16 @@ const MyOrdersScreen = () => {
     const [liveStatus, setLiveStatus] = useState<string | null>(null);
     const pollingRef = useRef<any>(null);
     const socketRef = useRef<any>(null);
+    const { user: authUser, checkAuthStatus } = useAuth();
 
     useEffect(() => {
         const fetchOrders = async () => {
             setLoading(true);
             setError(null);
-            const storedUserId = await AsyncStorage.getItem('userId');
+            const isAuthed = await checkAuthStatus();
+            const storedUserId = authUser?.id || null;
             setUserId(storedUserId);
-            if (!storedUserId) {
+            if (!isAuthed || !storedUserId) {
                 setError('Please log in to view your orders.');
                 setLoading(false);
                 return;
@@ -47,7 +50,7 @@ const MyOrdersScreen = () => {
             }
         };
         fetchOrders();
-    }, []);
+    }, [authUser?.id]);
 
     // Real-time order status updates
     useEffect(() => {

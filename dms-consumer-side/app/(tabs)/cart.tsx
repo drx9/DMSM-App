@@ -20,6 +20,7 @@ import { useLanguage } from '../context/LanguageContext';
 import axios from 'axios';
 import { API_URL } from '../config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useAuth } from '../context/AuthContext';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Swipeable } from 'react-native-gesture-handler';
 import { useCart } from '../context/CartContext';
@@ -64,6 +65,7 @@ const CartScreen = () => {
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [addresses, setAddresses] = useState<any[]>([]);
   const [addressLoading, setAddressLoading] = useState(true);
+  const { user: authUser, checkAuthStatus } = useAuth();
 
   // Free delivery threshold
   const FREE_DELIVERY_THRESHOLD = 399;
@@ -96,10 +98,11 @@ const CartScreen = () => {
   const loadUserDataAndCart = async () => {
     try {
       setLoading(true);
-      const storedUserId = await AsyncStorage.getItem('userId');
+      const isAuthed = await checkAuthStatus();
+      const storedUserId = authUser?.id || null;
       setUserId(storedUserId);
 
-      if (storedUserId) {
+      if (isAuthed && storedUserId) {
         // Fetch user address
         await fetchUserAddress(storedUserId);
         // Fetch cart items
@@ -244,7 +247,7 @@ const CartScreen = () => {
   // Handler for setting primary address
   const handleSetPrimaryAddress = async (id: string) => {
     try {
-      const userId = await AsyncStorage.getItem('userId');
+      const userId = authUser?.id || null;
       if (!userId) return;
       await axios.patch(`${API_URL}/addresses/${id}/set-primary`, { userId });
       await fetchAddresses(userId);
@@ -254,7 +257,7 @@ const CartScreen = () => {
 
   // Handler for adding a new address
   const handleAddAddress = async (addr: any) => {
-    const userId = await AsyncStorage.getItem('userId');
+    const userId = authUser?.id || null;
     if (!userId) return;
     await axios.post(`${API_URL}/addresses`, { ...addr, userId });
     await fetchAddresses(userId);
@@ -263,14 +266,14 @@ const CartScreen = () => {
   // Handler for editing an address
   const handleEditAddress = async (id: string, addr: any) => {
     await axios.put(`${API_URL}/addresses/${id}`, addr);
-    const userId = await AsyncStorage.getItem('userId');
+    const userId = authUser?.id || null;
     if (userId) await fetchAddresses(userId);
   };
 
   // Handler for deleting an address
   const handleDeleteAddress = async (id: string) => {
     await axios.delete(`${API_URL}/addresses/${id}`);
-    const userId = await AsyncStorage.getItem('userId');
+    const userId = authUser?.id || null;
     if (userId) await fetchAddresses(userId);
   };
 

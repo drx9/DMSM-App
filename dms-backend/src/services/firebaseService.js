@@ -11,13 +11,21 @@ async function verifyFirebaseToken(idToken) {
     if (idToken && idToken.startsWith('test_mode_token_')) {
       console.log('Test mode token detected:', idToken);
       
-      // Extract phone number from test token (format: test_mode_token_timestamp_phoneNumber)
+      // Extract phone number from test token
+      // Supported formats:
+      //  - test_mode_token_<phone>
+      //  - test_mode_token_<timestamp>_<phone>
       const tokenParts = idToken.split('_');
       console.log('Token parts:', tokenParts);
       
       if (tokenParts.length >= 4) {
-        // Extract phone number - everything after the timestamp
-        const phoneNumber = tokenParts.slice(3).join(''); // Join without underscores
+        // Use the last segment as phone number to avoid including timestamp
+        let phoneNumber = tokenParts[tokenParts.length - 1];
+        // Keep only digits and trim to last 10 digits (Indian numbers)
+        phoneNumber = phoneNumber.replace(/\D/g, '');
+        if (phoneNumber.length > 10) {
+          phoneNumber = phoneNumber.slice(-10);
+        }
         console.log('Test mode phone number:', phoneNumber);
         
         const decodedToken = {

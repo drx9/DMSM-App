@@ -268,27 +268,31 @@ const useHomeAPI = (updateState: (updates: any) => void) => {
 
   const fetchUserData = useCallback(async () => {
     try {
+      // Prefer AuthContext user id; fallback to stored userId
       const uid = await AsyncStorage.getItem('userId');
       updateState({ userId: uid });
       
       if (uid) {
-        const [userRes, addrRes] = await Promise.all([
-          axios.get(`${API_URL}/auth/user/${uid}`),
-          axios.get(`${API_URL}/addresses/${uid}`)
-        ]);
+        // Fetch profile if possible (token may be absent in test mode)
+        let userData: any = null;
+        const token = await AsyncStorage.getItem('userToken');
+        try {
+          if (token) {
+            const userRes = await axios.get(`${API_URL}/auth/user/me`, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            userData = userRes.data;
+          }
+        } catch (e) {
+          userData = null;
+        }
         
-        const addresses = addrRes.data;
+        const addrRes = await axios.get(`${API_URL}/addresses/${uid}`);
+        const addresses = addrRes.data || [];
         const primary = addresses.find((a: Address) => a.isDefault) || addresses[0] || null;
         
-        updateState({
-          user: userRes.data,
-          addresses,
-          primaryAddress: primary
-        });
-        
-        if (primary) {
-          await AsyncStorage.setItem('userAddress', JSON.stringify(primary));
-        }
+        updateState({ user: userData, addresses, primaryAddress: primary });
+        if (primary) await AsyncStorage.setItem('userAddress', JSON.stringify(primary));
       }
     } catch (err) {
       console.error('Error fetching user data:', err);

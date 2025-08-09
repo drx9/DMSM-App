@@ -188,10 +188,10 @@ class OTPService {
         // Clear test OTP
         await AsyncStorage.multiRemove(['testOTP', 'testOTPPhone', 'testOTPTime']);
         
-        // For test mode, we'll use a special token that the backend can recognize
-        // This will be handled differently in the login flow
-        const cleanPhone = storedPhone.replace(/\D/g, ''); // Remove non-digits
-        const testIdToken = `test_mode_token_${Date.now()}_${cleanPhone}`;
+      // For test mode, we'll use a special token that the backend can recognize
+      // Use simple format to avoid parsing errors: test_mode_token_<digits>
+      const cleanPhone = storedPhone.replace(/\D/g, ''); // Remove non-digits
+      const testIdToken = `test_mode_token_${cleanPhone}`;
         console.log('[OTP Service] Generated test token:', testIdToken);
         return { success: true, idToken: testIdToken };
       } else {

@@ -49,10 +49,11 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     try {
       setIsLoading(true);
       
-      // Check for JWT token first
+      // Check for JWT token and stored user first
       const token = await AsyncStorage.getItem('userToken');
       const userData = await AsyncStorage.getItem('user');
-      
+      const testMode = await AsyncStorage.getItem('testMode');
+
       if (token && userData) {
         try {
           // Validate token with backend
@@ -82,6 +83,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           console.log('✅ User authenticated offline:', parsedUser.id);
           return true;
         }
+      } else if (userData && testMode === 'true') {
+        // In test mode, allow auth with stored user even if token is missing
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
+        console.log('🧪 Test mode: authenticating with stored user only:', parsedUser.id);
+        return true;
+      } else if (userData && !token) {
+        // Offline/lenient mode: allow screens to proceed with stored user if token missing
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
+        console.log('⚠️ No token found, proceeding with stored user (offline/lenient):', parsedUser.id);
+        return true;
       } else {
         console.log('❌ No token or user data found');
         setUser(null);

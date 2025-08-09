@@ -25,7 +25,7 @@ const AccountDetailsScreen = () => {
     const userIdRef = useRef<string | null>(null);
     const [message, setMessage] = useState<string | null>(null);
     const router = useRouter();
-    const { logout } = useAuth();
+    const { logout, user: authUser, checkAuthStatus } = useAuth();
 
     const showMessage = (msg: string) => {
         setMessage(msg);
@@ -34,9 +34,10 @@ const AccountDetailsScreen = () => {
 
     const fetchUser = async () => {
         setLoading(true);
-        const userId = await AsyncStorage.getItem('userId');
+        const isAuthed = await checkAuthStatus();
+        const userId = authUser?.id || null;
         userIdRef.current = userId;
-        if (userId) {
+        if (isAuthed && userId) {
             try {
                 const res = await axios.get(`${API_URL}/auth/user/${userId}`);
                 setUser(res.data);
@@ -149,28 +150,18 @@ const AccountDetailsScreen = () => {
 
         setDeleting(true);
         try {
-            // Get auth token from AsyncStorage
-            const token = await AsyncStorage.getItem('userToken');
-            if (!token) {
+            const isAuthed = await checkAuthStatus();
+            if (!isAuthed) {
                 showMessage('Authentication required. Please login again.');
                 return;
             }
-
-            // Use the correct endpoint with confirmation text and auth token
             await axios.delete(`${API_URL}/users/delete-account`, {
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 data: { confirmationText: deleteConfirmation.trim() }
             });
-            
             showMessage('Account deleted successfully');
             setShowDeleteModal(false);
             setDeleteConfirmation('');
-            
-            // Clear all data and navigate to login
-            await AsyncStorage.clear();
             await logout();
             router.replace('/login');
         } catch (err: any) {
@@ -202,6 +193,12 @@ const AccountDetailsScreen = () => {
     if (loading) return (
         <SafeAreaView style={styles.container}>
             <ActivityIndicator size="small" color="#22C55E" style={styles.loader} />
+        </SafeAreaView>
+    );
+
+    if (!authUser) return (
+        <SafeAreaView style={styles.container}>
+            <Text style={styles.empty}>Please login to view account details.</Text>
         </SafeAreaView>
     );
 

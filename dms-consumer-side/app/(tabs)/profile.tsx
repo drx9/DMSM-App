@@ -30,7 +30,7 @@ import LocationSelectionScreen from '../location/LocationSelectionScreen';
 const ProfileScreen = () => {
   const router = useRouter();
   const { hasPermission, requestPermission, sendTestNotification } = useNotifications();
-  const { logout } = useAuth();
+  const { logout, user: authUser, checkAuthStatus } = useAuth();
   const [orders, setOrders] = useState<any[]>([]);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
@@ -44,14 +44,13 @@ const ProfileScreen = () => {
 
   useEffect(() => {
     const fetchUserData = async () => {
-      const storedUserId = await AsyncStorage.getItem('userId');
+      const isAuthed = await checkAuthStatus();
+      const storedUserId = authUser?.id || null;
       setUserId(storedUserId);
-      if (storedUserId) {
+      if (isAuthed && storedUserId) {
         fetchUser(storedUserId);
         fetchOrders(storedUserId);
         fetchAddresses(storedUserId);
-        
-        // Initialize FCM for notifications
         try {
           await fcmService.initialize(storedUserId);
         } catch (error) {
@@ -60,7 +59,7 @@ const ProfileScreen = () => {
       }
     };
     fetchUserData();
-  }, []);
+  }, [authUser?.id]);
 
   const fetchUser = async (uid: string) => {
     setLoadingUser(true);
