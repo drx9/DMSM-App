@@ -115,10 +115,16 @@ router.post('/verify-phone-otp', authController.verifyPhoneOTP);
 // Get current user profile (for /auth/user/me)
 router.get('/user/me', authenticateToken, async (req, res) => {
   try {
-    const user = await User.findByPk(req.user.id);
+    const user = await User.findByPk(req.user.id, {
+      attributes: ['id', 'name', 'email', 'phoneNumber', 'role', 'isVerified', 'isActive', 'createdAt', 'updatedAt', 'photo', 'gender', 'dateOfBirth']
+    });
     if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json(user);
+    
+    const userObj = user.toJSON();
+    if ('photo' in user) userObj.photo = user.photo || null;
+    res.json(userObj);
   } catch (err) {
+    console.error('Get current user error:', err);
     res.status(500).json({ message: 'Failed to fetch user profile' });
   }
 });

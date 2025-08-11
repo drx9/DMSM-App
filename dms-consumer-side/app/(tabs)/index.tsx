@@ -31,6 +31,7 @@ import Toast from 'react-native-root-toast';
 import SearchWithFilters from '../../components/SearchWithFilters';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { HorizontalProductSkeleton, GridProductSkeleton, SkeletonLoader } from '../../components/SimpleSkeletonLoader';
+import api from '../../services/api';
 
 // Suppress text rendering errors globally
 if (__DEV__) {
@@ -275,27 +276,28 @@ const useHomeAPI = (updateState: (updates: any) => void) => {
       if (uid) {
         // Fetch profile if possible (token may be absent in test mode)
         let userData: any = null;
-        const token = await AsyncStorage.getItem('userToken');
         try {
-          if (token) {
-            const userRes = await axios.get(`${API_URL}/auth/user/me`, {
-              headers: { 'Authorization': `Bearer ${token}` }
-            });
-            userData = userRes.data;
-          }
+          const userRes = await api.get(`/auth/user/${uid}`);
+          userData = userRes.data;
         } catch (e) {
+          console.log('⚠️ Could not fetch user data:', e);
           userData = null;
         }
         
-        const addrRes = await axios.get(`${API_URL}/addresses/${uid}`);
-        const addresses = addrRes.data || [];
-        const primary = addresses.find((a: Address) => a.isDefault) || addresses[0] || null;
-        
-        updateState({ user: userData, addresses, primaryAddress: primary });
-        if (primary) await AsyncStorage.setItem('userAddress', JSON.stringify(primary));
+        try {
+          const addrRes = await api.get(`/addresses/${uid}`);
+          const addresses = addrRes.data || [];
+          const primary = addresses.find((a: Address) => a.isDefault) || addresses[0] || null;
+          
+          updateState({ user: userData, addresses, primaryAddress: primary });
+          if (primary) await AsyncStorage.setItem('userAddress', JSON.stringify(primary));
+        } catch (addrError) {
+          console.log('⚠️ Could not fetch addresses:', addrError);
+          updateState({ user: userData, addresses: [], primaryAddress: null });
+        }
       }
     } catch (err) {
-      console.error('Error fetching user data:', err);
+      console.error('❌ Error fetching user data:', err);
     }
   }, [updateState]);
 

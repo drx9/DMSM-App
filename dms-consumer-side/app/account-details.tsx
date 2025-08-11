@@ -6,6 +6,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { API_URL } from './config';
 import { useRouter } from 'expo-router';
 import { useAuth } from './context/AuthContext';
+import api from '../services/api';
 
 const CLOUDINARY_CLOUD_NAME = 'dpdlmdl5x';
 const CLOUDINARY_UPLOAD_PRESET = 'dmsmart';
@@ -39,7 +40,7 @@ const AccountDetailsScreen = () => {
         userIdRef.current = userId;
         if (isAuthed && userId) {
             try {
-                const res = await axios.get(`${API_URL}/auth/user/${userId}`);
+                const res = await api.get(`/auth/user/${userId}`);
                 setUser(res.data);
                 setForm({
                     name: res.data.name,
@@ -49,6 +50,7 @@ const AccountDetailsScreen = () => {
                     dateOfBirth: res.data.dateOfBirth || '',
                 });
             } catch (err) {
+                console.error('❌ Error fetching user:', err);
                 setUser(null);
             }
         }
@@ -60,11 +62,12 @@ const AccountDetailsScreen = () => {
     const handleSave = async () => {
         if (!userIdRef.current) return;
         try {
-            const res = await axios.put(`${API_URL}/auth/user/${userIdRef.current}`, form);
+            const res = await api.put(`/auth/user/${userIdRef.current}`, form);
             setUser(res.data);
             setEditMode(false);
             showMessage('Profile updated');
         } catch (err) {
+            console.error('❌ Error updating user:', err);
             showMessage('Failed to update profile');
         }
     };

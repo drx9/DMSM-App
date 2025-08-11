@@ -24,7 +24,7 @@ import { useAuth } from '../context/AuthContext';
 import { fcmService } from '../services/fcmService';
 import AddressManagerModal, { Address } from '../../components/AddressManagerModal';
 import LocationSelectionScreen from '../location/LocationSelectionScreen';
-
+import api from '../../services/api';
 
 
 const ProfileScreen = () => {
@@ -64,9 +64,10 @@ const ProfileScreen = () => {
   const fetchUser = async (uid: string) => {
     setLoadingUser(true);
     try {
-      const res = await axios.get(`${API_URL}/auth/user/${uid}`);
+      const res = await api.get(`/auth/user/${uid}`);
       setUser(res.data);
     } catch (err) {
+      console.error('❌ Error fetching user:', err);
       setUser(null);
     } finally {
       setLoadingUser(false);
@@ -76,9 +77,10 @@ const ProfileScreen = () => {
   const fetchOrders = async (uid: string) => {
     setLoadingOrders(true);
     try {
-      const res = await axios.get(`${API_URL}/orders/user/${uid}`);
+      const res = await api.get(`/orders/user/${uid}`);
       setOrders(res.data);
     } catch (err) {
+      console.error('❌ Error fetching orders:', err);
       setOrders([]);
     } finally {
       setLoadingOrders(false);
@@ -88,12 +90,13 @@ const ProfileScreen = () => {
   const fetchAddresses = async (uid: string) => {
     setLoadingAddresses(true);
     try {
-      const res = await axios.get(`${API_URL}/addresses/${uid}`);
+      const res = await api.get(`/addresses/${uid}`);
       setAddresses(res.data);
       const primary = res.data.find((a: Address) => a.isDefault) || res.data[0] || null;
       setPrimaryAddress(primary);
       if (primary) await AsyncStorage.setItem('userAddress', JSON.stringify(primary));
     } catch (err) {
+      console.error('❌ Error fetching addresses:', err);
       setAddresses([]);
       setPrimaryAddress(null);
     } finally {

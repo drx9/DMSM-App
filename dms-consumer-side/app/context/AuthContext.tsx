@@ -56,8 +56,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
       if (token && userData) {
         try {
-          // Validate token with backend
-          const response = await fetch(`${API_URL}/auth/user/me`, {
+          // Validate token with backend using the working endpoint
+          const parsedUser = JSON.parse(userData);
+          const response = await fetch(`${API_URL}/auth/user/${parsedUser.id}`, {
             headers: {
               'Authorization': `Bearer ${token}`,
               'Content-Type': 'application/json',
@@ -65,7 +66,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           });
           
           if (response.ok) {
-            const parsedUser = JSON.parse(userData);
             setUser(parsedUser);
             console.log('✅ User authenticated with valid token:', parsedUser.id);
             return true;
