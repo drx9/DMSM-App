@@ -11,8 +11,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { addToWishlist, removeFromWishlist } from '../app/services/wishlistService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import Toast from 'react-native-root-toast';
+import Toast from 'react-native-toast-message';
 import { useCart } from '../app/context/CartContext';
+import AnimatedAddToCartButton from './AnimatedAddToCartButton';
 
 interface ProductCardProps {
   id: string;
@@ -131,15 +132,13 @@ const ProductCard: React.FC<ProductCardProps> = ({
         </TouchableOpacity>
         {/* Cart Icon Button */}
         {!isOutOfStock && (
-          <TouchableOpacity
-            style={styles.cartIconButton}
-            onPress={(e) => { 
-              e.stopPropagation && e.stopPropagation(); 
-              handleAddToCart(); 
-            }}
-          >
-            <Ionicons name="cart" size={20} color="#fff" />
-          </TouchableOpacity>
+          <AnimatedAddToCartButton
+            onPress={handleAddToCart}
+            size="small"
+            variant="primary"
+            text="ADD +"
+            style={styles.addToCartButton}
+          />
         )}
       </View>
 
@@ -258,7 +257,7 @@ const styles = StyleSheet.create({
     color: '#999999',
     marginLeft: 4,
   },
-  cartIconButton: {
+  addToCartButton: {
     position: 'absolute',
     bottom: 10,
     right: 10,

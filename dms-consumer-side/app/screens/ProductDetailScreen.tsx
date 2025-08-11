@@ -21,6 +21,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import { API_URL } from '../config';
 import Toast from 'react-native-root-toast';
+import AnimatedAddToCartButton from '../../components/AnimatedAddToCartButton';
 
 const { width, height } = Dimensions.get('window');
 
@@ -322,9 +323,13 @@ const ProductDetailScreen = () => {
           </Text>
         )}
         <View style={styles.actionButtons}>
-          <TouchableOpacity style={styles.addToCartButton} onPress={handleAddToCart}>
-            <Text style={styles.addToCartText}>Add to Cart</Text>
-          </TouchableOpacity>
+          <AnimatedAddToCartButton
+            onPress={handleAddToCart}
+            size="large"
+            variant="primary"
+            text="ADD TO CART"
+            style={styles.addToCartButton}
+          />
           <TouchableOpacity style={styles.buyNowButton} onPress={handleBuyNow}>
             <Text style={styles.buyNowText}>Buy Now</Text>
           </TouchableOpacity>

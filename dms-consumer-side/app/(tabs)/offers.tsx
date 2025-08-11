@@ -21,6 +21,7 @@ import axios from 'axios';
 import { Ionicons } from '@expo/vector-icons';
 import { useCart } from '../context/CartContext';
 import { Colors } from '../../constants/Colors';
+import AnimatedAddToCartButton from '../../components/AnimatedAddToCartButton';
 
 const { width } = Dimensions.get('window');
 
@@ -277,13 +278,13 @@ export default function OffersPage() {
                                             </View>
                                             
                                             {/* Add to Cart Button */}
-                                            <TouchableOpacity 
-                                                style={styles.addToCartButton}
+                                            <AnimatedAddToCartButton
                                                 onPress={() => handleAddToCart(product.id)}
-                                            >
-                                                <Ionicons name="add" size={16} color="#fff" />
-                                                <Text style={styles.addToCartText}>ADD</Text>
-                                            </TouchableOpacity>
+                                                size="small"
+                                                variant="primary"
+                                                text="ADD"
+                                                style={styles.addToCartButton}
+                                            />
                                         </View>
                                     </TouchableOpacity>
                                 );

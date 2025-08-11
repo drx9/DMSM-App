@@ -32,6 +32,8 @@ import SearchWithFilters from '../../components/SearchWithFilters';
 import ErrorBoundary from '../components/ErrorBoundary';
 import { HorizontalProductSkeleton, GridProductSkeleton, SkeletonLoader } from '../../components/SimpleSkeletonLoader';
 import api from '../../services/api';
+import { useAuth } from '../context/AuthContext';
+import AnimatedAddToCartButton from '../../components/AnimatedAddToCartButton';
 
 // Suppress text rendering errors globally
 if (__DEV__) {
@@ -432,15 +434,15 @@ const MemoizedProductCard = React.memo(({
             )}
           </View>
         </View>
-        <TouchableOpacity 
-          style={styles.addButton}
-          onPress={(e) => {
-            e.stopPropagation && e.stopPropagation();
+        <AnimatedAddToCartButton
+          onPress={() => {
             onAddToCart(product.id);
           }}
-        >
-          <Text style={styles.addButtonText}>ADD +</Text>
-        </TouchableOpacity>
+          size="small"
+          variant="primary"
+          text="ADD +"
+          style={styles.addButton}
+        />
       </View>
     </TouchableOpacity>
   </View>
@@ -486,15 +488,15 @@ const MemoizedHorizontalProductCard = React.memo(({
             )}
           </View>
         </View>
-        <TouchableOpacity 
-          style={styles.horizontalAddButton}
-          onPress={(e) => {
-            e.stopPropagation && e.stopPropagation();
+        <AnimatedAddToCartButton
+          onPress={() => {
             onAddToCart(product.id);
           }}
-        >
-          <Text style={styles.horizontalAddButtonText}>ADD +</Text>
-        </TouchableOpacity>
+          size="small"
+          variant="primary"
+          text="ADD +"
+          style={styles.horizontalAddButton}
+        />
       </View>
     </TouchableOpacity>
   </View>
@@ -511,6 +513,7 @@ const HomeScreen = () => {
     fetchActiveOffers 
   } = useHomeAPI(updateState);
   const { calculatePrice, getProductWeight, getProductName, getCurrentDateTime } = useHomeHelpers();
+  const { user } = useAuth();
   
   const { t } = useLanguage();
   const router = useRouter();
@@ -618,7 +621,8 @@ const HomeScreen = () => {
 
   const handleAddToCart = useCallback(async (productId: string) => {
     try {
-      const userId = await AsyncStorage.getItem('userId');
+      // Use AuthContext user ID instead of AsyncStorage
+      const userId = user?.id;
       if (!userId) {
         Toast.show('Please login to add items to cart', {
           duration: Toast.durations.LONG,
@@ -641,6 +645,7 @@ const HomeScreen = () => {
         delay: 0,
       });
     } catch (error) {
+      console.error('Add to cart error:', error);
       Toast.show('Failed to add to cart. Please try again.', {
         duration: Toast.durations.LONG,
         position: Toast.positions.BOTTOM,
@@ -650,7 +655,7 @@ const HomeScreen = () => {
         delay: 0,
       });
     }
-  }, [addToCart]);
+  }, [addToCart, user?.id]);
 
   const handleViewMore = useCallback(() => {
     router.push({
