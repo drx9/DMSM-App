@@ -270,21 +270,23 @@ const deliveryLogin = async (req, res) => {
 async function verifyFirebaseToken(req, res) {
   const { idToken, phoneNumber: requestPhoneNumber } = req.body;
   try {
+    console.log('🔐 Firebase token verification request:', { idToken: idToken ? 'present' : 'missing', requestPhoneNumber });
+    
     const decodedToken = await verifyFirebaseTokenService(idToken);
     let phoneNumber = decodedToken.phone_number;
     
-    console.log('Decoded token:', decodedToken);
-    console.log('Phone number from token:', phoneNumber);
-    console.log('Phone number from request:', requestPhoneNumber);
+    console.log('✅ Decoded token:', decodedToken);
+    console.log('📱 Phone number from token:', phoneNumber);
+    console.log('📱 Phone number from request:', requestPhoneNumber);
     
     // If phone number is not in token, use the one from request body
     if (!phoneNumber && requestPhoneNumber) {
       phoneNumber = requestPhoneNumber;
-      console.log('Using phone number from request body:', phoneNumber);
+      console.log('📱 Using phone number from request body:', phoneNumber);
     }
     
     if (!phoneNumber) {
-      console.log('No phone number found in token or request');
+      console.log('❌ No phone number found in token or request');
       return res.status(400).json({ error: "No phone number in token or request" });
     }
     
@@ -297,7 +299,7 @@ async function verifyFirebaseToken(req, res) {
       normalizedPhoneNumber = normalizedPhoneNumber.substring(2);
     }
     
-    console.log('Normalized phone number:', normalizedPhoneNumber);
+    console.log('📱 Normalized phone number:', normalizedPhoneNumber);
     
     // Try to find user with multiple phone number formats
     let user = null;
@@ -311,7 +313,7 @@ async function verifyFirebaseToken(req, res) {
     ];
     
     for (const format of phoneFormats) {
-      console.log(`Trying phone format: ${format}`);
+      console.log(`🔍 Trying phone format: ${format}`);
       user = await User.findOne({ 
         where: { 
           phoneNumber: format 
@@ -319,18 +321,18 @@ async function verifyFirebaseToken(req, res) {
       });
       
       if (user) {
-        console.log(`User found with phone format: ${format}`);
+        console.log(`✅ User found with phone format: ${format}`);
         break;
       }
     }
     
-    console.log('User found:', user ? user.id : 'not found');
+    console.log('👤 User found:', user ? user.id : 'not found');
     
     if (!user) {
       // Check if this is a test mode token
       if (idToken && idToken.startsWith('test_mode_token_')) {
-        console.log('Test mode: Creating new user for phone:', normalizedPhoneNumber);
-        console.log('Test mode: Token details:', { idToken, phoneNumber, requestPhoneNumber });
+        console.log('🧪 Test mode: Creating new user for phone:', normalizedPhoneNumber);
+        console.log('🧪 Test mode: Token details:', { idToken, phoneNumber, requestPhoneNumber });
         
         // Create a new user for test mode
         try {
@@ -342,21 +344,21 @@ async function verifyFirebaseToken(req, res) {
             isVerified: true,
             role: 'user' // Use 'user' instead of 'customer' to match the enum
           });
-          console.log('Test mode: New user created:', user.id);
+          console.log('✅ Test mode: New user created:', user.id);
         } catch (createError) {
-          console.error('Test mode: Failed to create user:', createError);
-          console.error('Test mode: Create error details:', createError.message);
+          console.error('❌ Test mode: Failed to create user:', createError);
+          console.error('❌ Test mode: Create error details:', createError.message);
           return res.status(500).json({ error: "Failed to create test user: " + createError.message });
         }
       } else {
         // User does not exist, tell frontend to redirect to signup/profile completion
-        console.log('User does not exist, redirecting to signup');
+        console.log('🔄 User does not exist, redirecting to signup');
         return res.status(200).json({ success: false, reason: 'new_user', phoneNumber: normalizedPhoneNumber });
       }
     } else if (!user.isVerified) {
       user.isVerified = true;
       await user.save();
-      console.log('User verified:', user.id);
+      console.log('✅ User verified:', user.id);
     }
     
     // Generate JWT
@@ -366,10 +368,15 @@ async function verifyFirebaseToken(req, res) {
       { expiresIn: '7d' }
     );
     
-    console.log('Login successful for user:', user.id);
+    console.log('🎉 Login successful for user:', user.id);
     res.json({ success: true, token, user: { id: user.id, phoneNumber: user.phoneNumber, name: user.name } });
   } catch (err) {
-    console.error('Firebase token verification error:', err);
+    console.error('❌ Firebase token verification error:', err);
+    console.error('❌ Error details:', {
+      message: err.message,
+      stack: err.stack,
+      idToken: idToken ? 'present' : 'missing'
+    });
     res.status(401).json({ error: "Invalid token" });
   }
 }
