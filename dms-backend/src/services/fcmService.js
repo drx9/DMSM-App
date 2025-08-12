@@ -1,29 +1,8 @@
 const admin = require('firebase-admin');
+const { getFirebaseApp, getFirebaseMessaging } = require('../config/firebase');
 
-// Initialize Firebase Admin SDK
-let app;
-try {
-  let serviceAccount;
-  
-  // Check if we're in Railway (production) environment
-  if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
-    // Use environment variable (Railway)
-    serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
-    console.log('Firebase Admin SDK initialized with Railway environment variable');
-  } else {
-    // Use local file (development)
-    serviceAccount = require('../service-account-key.json');
-    console.log('Firebase Admin SDK initialized with local service account key');
-  }
-  
-  app = admin.initializeApp({
-    credential: admin.credential.cert(serviceAccount)
-  });
-  console.log('Firebase Admin SDK initialized successfully');
-} catch (error) {
-  console.log('Firebase Admin SDK not initialized:', error.message);
-  console.log('Please add FIREBASE_SERVICE_ACCOUNT_KEY environment variable in Railway or service-account-key.json file locally');
-}
+// Get Firebase app instance from centralized config
+const app = getFirebaseApp();
 
 const sendFCMNotification = async (fcmToken, title, body, data = {}) => {
   if (!app) {
@@ -54,7 +33,12 @@ const sendFCMNotification = async (fcmToken, title, body, data = {}) => {
       },
     };
 
-    const response = await admin.messaging().send(message);
+    const messaging = getFirebaseMessaging();
+    if (!messaging) {
+      console.error('Firebase Messaging not available');
+      return false;
+    }
+    const response = await messaging.send(message);
     console.log('FCM notification sent successfully:', response);
     return true;
   } catch (error) {

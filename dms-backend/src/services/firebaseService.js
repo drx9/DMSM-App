@@ -1,35 +1,10 @@
 // dms-backend/src/services/firebaseService.js
 const admin = require('firebase-admin');
 const { User } = require('../models');
+const { getFirebaseApp, getFirebaseAuth } = require('../config/firebase');
 
-// Initialize Firebase Admin SDK
-let firebaseApp = null;
-try {
-  // Check if Firebase is already initialized
-  if (!admin.apps.length) {
-    // Initialize with service account or environment variables
-    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
-      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
-      firebaseApp = admin.initializeApp({
-        credential: admin.credential.cert(serviceAccount)
-      });
-    } else if (process.env.FIREBASE_PROJECT_ID) {
-      // Initialize with project ID (for testing/development)
-      console.log('⚠️ Firebase Admin SDK initialized with project ID only - token verification will not work');
-      console.log('⚠️ For production, you need FIREBASE_SERVICE_ACCOUNT with full credentials');
-      firebaseApp = admin.initializeApp({
-        projectId: process.env.FIREBASE_PROJECT_ID
-      });
-    } else {
-      console.log('Firebase Admin SDK not configured. Using test mode.');
-    }
-  } else {
-    firebaseApp = admin.app();
-  }
-} catch (error) {
-  console.log('Firebase Admin SDK initialization failed:', error.message);
-  console.log('Using test mode for development.');
-}
+// Get Firebase app instance from centralized config
+const firebaseApp = getFirebaseApp();
 
 // Proper Firebase token verification for Phone Auth
 async function verifyFirebaseToken(idToken) {
@@ -87,7 +62,12 @@ async function verifyFirebaseToken(idToken) {
     }
     
     try {
-      const decodedToken = await admin.auth().verifyIdToken(idToken);
+      const auth = getFirebaseAuth();
+      if (!auth) {
+        throw new Error('Firebase Auth not available');
+      }
+      
+      const decodedToken = await auth.verifyIdToken(idToken);
       console.log('✅ Firebase token verified successfully:', {
         uid: decodedToken.uid,
         phone_number: decodedToken.phone_number,

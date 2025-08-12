@@ -1,4 +1,5 @@
 require('dotenv').config();
+const { initializeFirebase } = require('./config/firebase');
 const server = require('./app');
 const PORT = process.env.PORT || 3001;
 
@@ -7,6 +8,17 @@ if (!process.env.JWT_SECRET) {
   console.warn('⚠️  JWT_SECRET environment variable is not set! Using fallback secret for Railway deployment.');
   console.warn('⚠️  Please set JWT_SECRET in Railway environment variables for production security.');
   process.env.JWT_SECRET = 'railway_fallback_jwt_secret_' + Date.now();
+}
+
+// Initialize Firebase
+console.log('🔥 Initializing Firebase...');
+const firebaseApp = initializeFirebase();
+if (firebaseApp && firebaseApp.options.credential) {
+  console.log('✅ Firebase Admin SDK initialized successfully with credentials');
+} else if (firebaseApp) {
+  console.log('⚠️ Firebase Admin SDK initialized but lacks credentials for token verification');
+} else {
+  console.log('❌ Firebase Admin SDK initialization failed');
 }
 
 // Check other critical environment variables
