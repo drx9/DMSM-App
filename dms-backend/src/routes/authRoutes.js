@@ -1,5 +1,6 @@
 const express = require('express');
 const { body } = require('express-validator');
+const rateLimit = require('express-rate-limit');
 const authController = require('../controllers/authController');
 const multer = require('multer');
 const path = require('path');
@@ -20,6 +21,7 @@ const emailValidation = body('email')
   .withMessage('Invalid email format');
 
 const passwordValidation = body('password')
+  .optional()  // ✅ Make password optional
   .isLength({ min: 6 })
   .withMessage('Password must be at least 6 characters long');
 
@@ -42,9 +44,27 @@ const genderValidation = body('gender').optional().isIn(['Male', 'Female', 'Othe
 
 const upload = multer({ dest: path.join(__dirname, '../../uploads/avatars') });
 
+// Rate limiting for security
+const signupLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // limit each IP to 5 signup requests per windowMs
+  message: 'Too many signup attempts, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // limit each IP to 10 login attempts per windowMs
+  message: 'Too many login attempts, please try again later',
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // Routes
 router.post(
   '/login',
+  loginLimiter, // ✅ Add rate limiting
   [
     body('phoneNumber').isString().withMessage('Phone number is required')
   ],
@@ -53,6 +73,7 @@ router.post(
 
 router.post(
   '/register',
+  signupLimiter, // ✅ Add rate limiting
   [
     nameValidation,
     body('phoneNumber').matches(/^[0-9]{10}$/).withMessage('Phone number is required and must be 10 digits'),
@@ -85,7 +106,7 @@ router.post('/google', authController.googleLogin);
 // Auto-login after registration
 router.post('/auto-login', [
   body('phoneNumber').isString().withMessage('Phone number is required'),
-  body('password').isString().withMessage('Password is required')
+  body('password').optional().isString().withMessage('Password must be a string if provided') // ✅ Make password optional
 ], authController.autoLoginAfterRegistration);
 
 router.put('/user/:userId', authController.updateUser);

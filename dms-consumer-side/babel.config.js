@@ -3,7 +3,7 @@ module.exports = function (api) {
   return {
     presets: ['babel-preset-expo'],
     plugins: [
-      'react-native-worklets/plugin',
+      // Removed react-native-worklets/plugin as the package was uninstalled
     ],
   };
 }; 

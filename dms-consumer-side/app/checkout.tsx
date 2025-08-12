@@ -93,8 +93,38 @@ const CheckoutScreen = () => {
         const fetchCartAndAddressesAndPayments = async () => {
             try {
                 setLoading(true);
+                
+                // Debug: Check all AsyncStorage keys
+                const allKeys = await AsyncStorage.getAllKeys();
+                console.log('🔍 All AsyncStorage keys:', allKeys);
+                
                 const storedUserId = await AsyncStorage.getItem('userId');
-                setUserId(storedUserId);
+                const storedUser = await AsyncStorage.getItem('user');
+                const storedBackupUserId = await AsyncStorage.getItem('backup_userId');
+                
+                console.log('🔍 AsyncStorage values:');
+                console.log('  - userId:', storedUserId);
+                console.log('  - user:', storedUser);
+                console.log('  - backup_userId:', storedBackupUserId);
+                
+                // Try to get userId from different sources
+                let finalUserId = storedUserId;
+                if (!finalUserId && storedUser) {
+                    try {
+                        const userData = JSON.parse(storedUser);
+                        finalUserId = userData.id;
+                        console.log('✅ Got userId from user object:', finalUserId);
+                    } catch (e) {
+                        console.log('❌ Failed to parse user object:', e);
+                    }
+                }
+                if (!finalUserId && storedBackupUserId) {
+                    finalUserId = storedBackupUserId;
+                    console.log('✅ Using backup_userId:', finalUserId);
+                }
+                
+                console.log('🔍 Final userId to use:', finalUserId);
+                setUserId(finalUserId);
                 let items: CartItem[] = [];
                 let fetchedAddresses: Address[] = [];
                 if (buyNow) {
@@ -104,41 +134,81 @@ const CheckoutScreen = () => {
                     const discount = Number(parsed.discount) || 0;
                     const salePrice = mrp - (mrp * discount / 100);
                     items = [{ ...parsed, mrp, salePrice, discount }];
-                    if (storedUserId) {
-                        const addrRes = await axios.get(`${API_URL}/addresses/${storedUserId}`);
+                    if (finalUserId) {
+                        console.log('🔍 Fetching addresses for buyNow, userId:', finalUserId);
+                        try {
+                            // Force fresh data by adding cache-busting headers and timestamp
+                            const timestamp = Date.now();
+                            const addrRes = await axios.get(`${API_URL}/addresses/${finalUserId}?t=${timestamp}`, {
+                                headers: {
+                                    'Cache-Control': 'no-cache, no-store, must-revalidate',
+                                    'Pragma': 'no-cache',
+                                    'Expires': '0'
+                                }
+                            });
+                            console.log('✅ Addresses fetched successfully:', addrRes.data);
+                            fetchedAddresses = addrRes.data;
+                            setAddresses(fetchedAddresses);
+                        } catch (error) {
+                            console.error('❌ Failed to fetch addresses:', error);
+                        }
+                    } else {
+                        console.log('❌ No userId found for buyNow');
+                    }
+                } else if (finalUserId) {
+                    console.log('🔍 Fetching cart, addresses, and payments for userId:', finalUserId);
+                    try {
+                        // Force fresh data for all API calls
+                        const timestamp = Date.now();
+                        const [cartRes, addrRes, paymentRes] = await Promise.all([
+                            axios.get(`${API_URL}/cart/${finalUserId}?t=${timestamp}`, {
+                                headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+                            }),
+                            axios.get(`${API_URL}/addresses/${finalUserId}?t=${timestamp}`, {
+                                headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+                            }),
+                            axios.get(`${API_URL}/payment-methods/${finalUserId}?t=${timestamp}`, {
+                                headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+                            }),
+                        ]);
+                        console.log('✅ Cart data:', cartRes.data);
+                        console.log('✅ Addresses data:', addrRes.data);
+                        console.log('✅ Payment methods:', paymentRes.data);
+                        
+                        items = cartRes.data.map((item: any) => {
+                            const prod = item.Product || item.product;
+                            const mrp = Number(prod?.price) || 0;
+                            const discount = Number(prod?.discount) || 0;
+                            const salePrice = mrp - (mrp * discount / 100);
+                            return {
+                                id: item.productId?.toString() || prod?.id?.toString(),
+                                name: prod?.name || '',
+                                mrp,
+                                salePrice,
+                                discount,
+                                quantity: item.quantity,
+                                image: prod?.images?.[0] || '',
+                            };
+                        });
                         fetchedAddresses = addrRes.data;
                         setAddresses(fetchedAddresses);
+                        setPaymentMethods(paymentRes.data || []);
+                    } catch (error: any) {
+                        console.error('❌ Failed to fetch cart, addresses, or payments:', error);
+                        console.error('❌ Error details:', error.response?.data || error.message);
                     }
-                } else if (storedUserId) {
-                    const [cartRes, addrRes, paymentRes] = await Promise.all([
-                        axios.get(`${API_URL}/cart/${storedUserId}`),
-                        axios.get(`${API_URL}/addresses/${storedUserId}`),
-                        axios.get(`${API_URL}/payment-methods/${storedUserId}`),
-                    ]);
-                    items = cartRes.data.map((item: any) => {
-                        const prod = item.Product || item.product;
-                        const mrp = Number(prod?.price) || 0;
-                        const discount = Number(prod?.discount) || 0;
-                        const salePrice = mrp - (mrp * discount / 100);
-                        return {
-                            id: item.productId?.toString() || prod?.id?.toString(),
-                            name: prod?.name || '',
-                            mrp,
-                            salePrice,
-                            discount,
-                            quantity: item.quantity,
-                            image: prod?.images?.[0] || '',
-                        };
-                    });
-                    fetchedAddresses = addrRes.data;
-                    setAddresses(fetchedAddresses);
-                    setPaymentMethods(paymentRes.data || []);
+                } else {
+                    console.log('❌ No userId found for regular cart flow');
                 }
                 setCartItems(items);
                 // Always set default/primary address after fetching
                 if (fetchedAddresses.length > 0) {
                     const defaultAddr = fetchedAddresses.find((a: any) => a.isDefault);
                     setSelectedAddressId(defaultAddr ? defaultAddr.id : fetchedAddresses[0].id);
+                    console.log('✅ Addresses loaded:', fetchedAddresses.length, 'Default:', defaultAddr?.id);
+                } else {
+                    console.log('⚠️ No addresses found for user. User needs to add an address.');
+                    // Don't set selectedAddressId - let user add address first
                 }
             } catch (error) {
                 console.error('Failed to fetch cart, addresses, or payment methods:', error);
@@ -421,6 +491,12 @@ const CheckoutScreen = () => {
 
     const renderAddressStep = () => {
         const selectedAddress = addresses.find(addr => addr.id === selectedAddressId);
+        
+        console.log('🔍 renderAddressStep - Debug Info:');
+        console.log('  - addresses array:', addresses);
+        console.log('  - addresses.length:', addresses.length);
+        console.log('  - selectedAddressId:', selectedAddressId);
+        console.log('  - selectedAddress:', selectedAddress);
 
         return (
             <ScrollView style={styles.stepContent}>
@@ -434,13 +510,19 @@ const CheckoutScreen = () => {
                     </TouchableOpacity>
                 </View>
 
-                {selectedAddress && (
+                {selectedAddress ? (
                     <View style={styles.selectedAddressContainer}>
                         <Text style={styles.selectedAddressText}>
                             {selectedAddress.line1}, {selectedAddress.line2 ? selectedAddress.line2 + ', ' : ''}
                             {selectedAddress.city}, {selectedAddress.state}, {selectedAddress.postalCode}
                         </Text>
                         <Text style={styles.phoneNumber}>9957898979</Text>
+                    </View>
+                ) : (
+                    <View style={styles.noAddressContainer}>
+                        <Text style={styles.noAddressText}>
+                            No delivery address found. Please add an address to continue.
+                        </Text>
                     </View>
                 )}
 
@@ -739,7 +821,10 @@ const CheckoutScreen = () => {
                     </TouchableOpacity>
                 </View>
                 <TouchableOpacity
-                    style={styles.continueButton}
+                    style={[
+                        styles.continueButton,
+                        currentStep === 1 && !selectedAddressId && styles.continueButtonDisabled
+                    ]}
                     onPress={() => {
                         if (currentStep === 1) {
                             if (!selectedAddressId) {
@@ -753,8 +838,14 @@ const CheckoutScreen = () => {
                             handlePlaceOrder();
                         }
                     }}
+                    disabled={currentStep === 1 && !selectedAddressId}
                 >
-                    <Text style={styles.continueButtonText}>{buttonText}</Text>
+                    <Text style={[
+                        styles.continueButtonText,
+                        currentStep === 1 && !selectedAddressId && styles.continueButtonTextDisabled
+                    ]}>
+                        {buttonText}
+                    </Text>
                 </TouchableOpacity>
             </View>
         );
@@ -1072,6 +1163,21 @@ const styles = StyleSheet.create({
         color: '#2874F0',
         fontWeight: '600',
         marginLeft: 8,
+    },
+    noAddressContainer: {
+        backgroundColor: '#FFF3E0',
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        marginBottom: 8,
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: '#FFE0B2',
+    },
+    noAddressText: {
+        fontSize: 14,
+        color: '#F57C00',
+        textAlign: 'center',
+        fontStyle: 'italic',
     },
     addAddressForm: {
         backgroundColor: '#FFFFFF',
@@ -1574,6 +1680,13 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '600',
         textAlign: 'center',
+    },
+    continueButtonDisabled: {
+        backgroundColor: '#CCCCCC',
+        opacity: 0.6,
+    },
+    continueButtonTextDisabled: {
+        color: '#999999',
     },
 });
 

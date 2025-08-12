@@ -16,6 +16,7 @@ interface AnimatedAddToCartButtonProps {
   text?: string;
   showIcon?: boolean;
   style?: any;
+  containerStyle?: any; // New prop for positioning wrapper styles
 }
 
 const AnimatedAddToCartButton: React.FC<AnimatedAddToCartButtonProps> = ({
@@ -26,6 +27,7 @@ const AnimatedAddToCartButton: React.FC<AnimatedAddToCartButtonProps> = ({
   text = 'ADD +',
   showIcon = true,
   style,
+  containerStyle,
 }) => {
   const [isPressed, setIsPressed] = useState(false);
   const scaleAnim = useRef(new Animated.Value(1)).current;
@@ -94,11 +96,17 @@ const AnimatedAddToCartButton: React.FC<AnimatedAddToCartButtonProps> = ({
           borderColor: '#00A86B',
           borderWidth: 1.5,
         };
+      case 'primary':
+        return {
+          backgroundColor: '#FFFFFF',
+          borderColor: '#FF4444',
+          borderWidth: 1.5,
+        };
       default: // primary
         return {
-          backgroundColor: '#00A86B',
-          borderColor: '#00A86B',
-          borderWidth: 0,
+          backgroundColor: '#FFFFFF',
+          borderColor: '#FF4444',
+          borderWidth: 1.5,
         };
     }
   };
@@ -110,7 +118,7 @@ const AnimatedAddToCartButton: React.FC<AnimatedAddToCartButtonProps> = ({
       case 'secondary':
         return '#333333';
       default:
-        return '#FFFFFF';
+        return '#FF4444';
     }
   };
 
@@ -121,13 +129,14 @@ const AnimatedAddToCartButton: React.FC<AnimatedAddToCartButtonProps> = ({
       case 'secondary':
         return '#333333';
       default:
-        return '#FFFFFF';
+        return '#FF4444';
     }
   };
 
   return (
     <Animated.View
       style={[
+        containerStyle, // Apply positioning styles here
         {
           transform: [
             { scale: scaleAnim },
@@ -147,7 +156,7 @@ const AnimatedAddToCartButton: React.FC<AnimatedAddToCartButtonProps> = ({
           getSizeStyles(),
           getVariantStyles(),
           disabled && styles.disabled,
-          style,
+          style, // Apply any additional button styles here
         ]}
         onPress={handlePress}
         onPressIn={handlePressIn}
@@ -191,20 +200,23 @@ const styles = StyleSheet.create({
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
     elevation: 5,
+    minHeight: 32,
   },
   content: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 4,
   },
   icon: {
     marginRight: 4,
   },
   text: {
     textAlign: 'center',
+    fontWeight: '700',
   },
   disabled: {
     opacity: 0.5,

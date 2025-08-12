@@ -122,9 +122,31 @@ android {
         jniLibs {
             useLegacyPackaging (findProperty('expo.useLegacyPackaging')?.toBoolean() ?: false)
         }
+        excludes += [
+            '**/lib/arm64-v8a/libworklets.so',
+            '**/lib/armeabi-v7a/libworklets.so',
+            '**/lib/x86/libworklets.so',
+            '**/lib/x86_64/libworklets.so'
+        ]
+        pickFirsts += [
+            '**/lib/arm64-v8a/libworklets.so',
+            '**/lib/armeabi-v7a/libworklets.so',
+            '**/lib/x86/libworklets.so',
+            '**/lib/x86_64/libworklets.so'
+        ]
     }
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
+    }
+    
+    // Build directory optimizations to solve Windows path length issues
+    buildDir = file("C:/tmp/app-build")
+    
+    // Configure CMake to use shorter build paths
+    externalNativeBuild {
+        cmake {
+            buildStagingDirectory = file("C:/tmp/cmake-build")
+        }
     }
 }
 

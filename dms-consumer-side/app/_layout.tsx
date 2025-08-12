@@ -11,50 +11,129 @@ import { Provider } from 'react-redux';
 import { store } from '../src/store';
 import { initializeFirebase } from './services/firebaseConfig';
 import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
+import { Platform, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+
+// Error Boundary Component
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: Error | null }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('🚨 Error Boundary Caught Error:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorTitle}>Something went wrong</Text>
+          <Text style={styles.errorMessage}>
+            The app encountered an unexpected error. Please restart the app.
+          </Text>
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => this.setState({ hasError: false, error: null })}
+          >
+            <Text style={styles.retryButtonText}>Try Again</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+const styles = StyleSheet.create({
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+    backgroundColor: '#fff',
+  },
+  errorTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#CB202D',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  errorMessage: {
+    fontSize: 16,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 24,
+  },
+  retryButton: {
+    backgroundColor: '#CB202D',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+});
 
 export default function RootLayout() {
   // Configure notifications for banner display
   useEffect(() => {
     const configureNotifications = async () => {
-      // Set notification handler for banner notifications
-      Notifications.setNotificationHandler({
-        handleNotification: async () => ({
-          shouldShowAlert: false, // Don't show popup alerts
-          shouldShowBanner: true, // Show as banner at top
-          shouldPlaySound: true,
-          shouldSetBadge: true,
-          shouldShowList: true,
-        }),
-      });
-
-      // Request notification permissions
-      const { status: existingStatus } = await Notifications.getPermissionsAsync();
-      let finalStatus = existingStatus;
-      
-      if (existingStatus !== 'granted') {
-        const { status } = await Notifications.requestPermissionsAsync();
-        finalStatus = status;
-      }
-      
-      if (finalStatus !== 'granted') {
-        console.log('Notification permissions not granted');
-        return;
-      }
-
-      // Create notification channel for Android
-      if (Platform.OS === 'android') {
-        await Notifications.setNotificationChannelAsync('default', {
-          name: 'Default',
-          importance: Notifications.AndroidImportance.HIGH,
-          vibrationPattern: [0, 250, 250, 250],
-          lightColor: '#FF231F7C',
-          lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-          bypassDnd: false,
+      try {
+        // Set notification handler for banner notifications
+        Notifications.setNotificationHandler({
+          handleNotification: async () => ({
+            shouldShowAlert: false, // Don't show popup alerts
+            shouldShowBanner: true, // Show as banner at top
+            shouldPlaySound: true,
+            shouldSetBadge: true,
+            shouldShowList: true,
+          }),
         });
+
+        // Request notification permissions
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        
+        if (existingStatus !== 'granted') {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+        
+        if (finalStatus !== 'granted') {
+          console.log('Notification permissions not granted');
+          return;
+        }
+
+        // Create notification channel for Android
+        if (Platform.OS === 'android') {
+          await Notifications.setNotificationChannelAsync('default', {
+            name: 'Default',
+            importance: Notifications.AndroidImportance.HIGH,
+            vibrationPattern: [0, 250, 250, 250],
+            lightColor: '#FF231F7C',
+            lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+            bypassDnd: false,
+          });
+        }
+        
+        console.log('✅ Notification permissions and channels configured successfully');
+      } catch (error) {
+        console.warn('⚠️ Notification configuration failed, continuing without notifications:', error);
       }
-      
-      console.log('✅ Notification permissions and channels configured successfully');
     };
 
     configureNotifications();
@@ -62,7 +141,11 @@ export default function RootLayout() {
 
   // Initialize Firebase on app start
   useEffect(() => {
-    initializeFirebase();
+    try {
+      initializeFirebase();
+    } catch (error) {
+      console.warn('⚠️ Firebase initialization failed, continuing without Firebase:', error);
+    }
   }, []);
 
   // Add comprehensive error boundary
@@ -115,28 +198,31 @@ export default function RootLayout() {
   }, []);
 
   return (
+    <ErrorBoundary>
       <Provider store={store}>
         <GestureHandlerRootView style={{ flex: 1 }}>
-        <LanguageProvider>
-          <AuthProvider>
-                <NotificationProvider>
-                  <CartProvider>
-                    <WishlistProvider>
-                  <Stack screenOptions={{ headerShown: false }} initialRouteName="splash">
-                        <Stack.Screen name="splash" />
-                        <Stack.Screen name="language" />
-                        <Stack.Screen name="login" />
-                        <Stack.Screen name="signup" />
-                        <Stack.Screen name="verify-otp" />
-                        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-                        <Stack.Screen name="notification-settings" options={{ headerShown: false }} />
-                      </Stack>
-                    </WishlistProvider>
-                  </CartProvider>
-                </NotificationProvider>
-          </AuthProvider>
-        </LanguageProvider>
+          <LanguageProvider>
+            <AuthProvider>
+              <NotificationProvider>
+                <CartProvider>
+                  <WishlistProvider>
+                    <Stack screenOptions={{ headerShown: false }} initialRouteName="splash">
+                      <Stack.Screen name="splash" />
+                      <Stack.Screen name="language" />
+                      <Stack.Screen name="login" />
+                      <Stack.Screen name="signup" />
+                      <Stack.Screen name="verify-otp" />
+                      <Stack.Screen name="debug-auth" />
+                      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+                      <Stack.Screen name="notification-settings" options={{ headerShown: false }} />
+                    </Stack>
+                  </WishlistProvider>
+                </CartProvider>
+              </NotificationProvider>
+            </AuthProvider>
+          </LanguageProvider>
         </GestureHandlerRootView>
       </Provider>
+    </ErrorBoundary>
   );
 }

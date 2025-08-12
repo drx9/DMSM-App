@@ -74,12 +74,22 @@ const register = async (req, res) => {
       return res.status(400).json({ message: 'User already exists with this phone number' });
     }
 
+    // Generate strong random password if none provided
+    const generateSecurePassword = () => {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+      let password = '';
+      for (let i = 0; i < 16; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+      }
+      return password;
+    };
+
     // Create new user with normalized phone number
     const user = await User.create({
       name,
       phoneNumber: normalizedPhoneNumber,
       email,
-      password: password || `default_${normalizedPhoneNumber}_${Date.now()}`, // Generate default password if not provided
+      password: password || generateSecurePassword(), // ✅ Generate secure password if not provided
       isVerified: isVerified,
       dateOfBirth,
       gender,
@@ -562,15 +572,15 @@ const verifyPhoneOTP = async (req, res) => {
   }
 };
 
-// Auto-login after registration (for phone + password users)
+// Auto-login after registration (for phone-only users)
 const autoLoginAfterRegistration = async (req, res) => {
   try {
     const { phoneNumber, password } = req.body;
 
-    if (!phoneNumber || !password) {
+    if (!phoneNumber) {
       return res.status(400).json({
         success: false,
-        message: 'Phone number and password are required'
+        message: 'Phone number is required'
       });
     }
 
@@ -595,22 +605,28 @@ const autoLoginAfterRegistration = async (req, res) => {
       });
     }
 
-    // Verify password - handle default password pattern
-    let isMatch = false;
-    if (password.startsWith('default_')) {
-      // For default passwords, check if it matches the pattern
-      const expectedPassword = `default_${normalizedPhoneNumber}_`;
-      isMatch = user.password.includes(expectedPassword);
+    // For phone-only users, skip password verification
+    if (!password) {
+      // No password provided - this is a phone-only user
+      console.log('Phone-only login for user:', user.id);
     } else {
-      // For regular passwords, use bcrypt comparison
-      isMatch = await bcrypt.compare(password, user.password);
-    }
-    
-    if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
+      // Password provided - verify it
+      let isMatch = false;
+      if (password.startsWith('default_')) {
+        // For default passwords, check if it matches the pattern
+        const expectedPassword = `default_${normalizedPhoneNumber}_`;
+        isMatch = user.password.includes(expectedPassword);
+      } else {
+        // For regular passwords, use bcrypt comparison
+        isMatch = await bcrypt.compare(password, user.password);
+      }
+      
+      if (!isMatch) {
+        return res.status(401).json({
+          success: false,
+          message: 'Invalid credentials'
+        });
+      }
     }
 
     // Generate JWT token

@@ -1,13 +1,6 @@
-import React from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import React, { useRef, useEffect } from 'react';
+import { View, StyleSheet, Dimensions, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withRepeat, 
-  withTiming,
-  interpolate
-} from 'react-native-reanimated';
 
 const { width } = Dimensions.get('window');
 
@@ -24,24 +17,26 @@ const SkeletonLoader: React.FC<SkeletonLoaderProps> = ({
   borderRadius = 8,
   style 
 }) => {
-  const animatedValue = useSharedValue(0);
+  const fadeAnim = useRef(new Animated.Value(0.3)).current;
 
-  React.useEffect(() => {
-    animatedValue.value = withRepeat(
-      withTiming(1, { duration: 1000 }),
-      -1,
-      true
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(fadeAnim, {
+          toValue: 0.7,
+          duration: 1000,
+          useNativeDriver: false,
+        }),
+        Animated.timing(fadeAnim, {
+          toValue: 0.3,
+          duration: 1000,
+          useNativeDriver: false,
+        }),
+      ])
     );
-    
-    return () => {
-      animatedValue.value = 0;
-    };
+    animation.start();
+    return () => animation.stop();
   }, []);
-
-  const animatedStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(animatedValue.value, [0, 0.5, 1], [0.3, 0.7, 0.3]);
-    return { opacity };
-  });
 
   // Handle string widths by converting to numbers
   const getWidth = () => {
@@ -56,7 +51,7 @@ const SkeletonLoader: React.FC<SkeletonLoaderProps> = ({
   };
 
   return (
-    <Animated.View style={[animatedStyle, style]}>
+    <Animated.View style={[{ opacity: fadeAnim }, style]}>
       <View
         style={[
           styles.skeleton,
