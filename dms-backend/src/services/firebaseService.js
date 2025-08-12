@@ -15,6 +15,8 @@ try {
       });
     } else if (process.env.FIREBASE_PROJECT_ID) {
       // Initialize with project ID (for testing/development)
+      console.log('⚠️ Firebase Admin SDK initialized with project ID only - token verification will not work');
+      console.log('⚠️ For production, you need FIREBASE_SERVICE_ACCOUNT with full credentials');
       firebaseApp = admin.initializeApp({
         projectId: process.env.FIREBASE_PROJECT_ID
       });
@@ -75,6 +77,13 @@ async function verifyFirebaseToken(idToken) {
     if (!firebaseApp) {
       console.log('⚠️ Firebase Admin SDK not configured, cannot verify real tokens');
       throw new Error('Firebase Admin SDK not configured');
+    }
+    
+    // Check if Firebase app has proper credentials for token verification
+    if (!firebaseApp.options.credential) {
+      console.log('⚠️ Firebase Admin SDK initialized without credentials - cannot verify tokens');
+      console.log('⚠️ Current Firebase config:', firebaseApp.options);
+      throw new Error('Firebase Admin SDK initialized without credentials - token verification not supported');
     }
     
     try {
