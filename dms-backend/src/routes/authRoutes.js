@@ -129,9 +129,7 @@ router.post(
 
 router.post("/firebase-login", authController.verifyFirebaseToken);
 
-// Simple phone OTP routes
-router.post('/send-phone-otp', authController.sendPhoneOTP);
-router.post('/verify-phone-otp', authController.verifyPhoneOTP);
+// OTP routes removed - Firebase Phone Auth handles OTP verification
 
 // Get current user profile (for /auth/user/me)
 router.get('/user/me', authenticateToken, async (req, res) => {

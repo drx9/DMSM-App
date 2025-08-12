@@ -459,119 +459,6 @@ const verifyFirebasePhone = async (req, res) => {
   }
 };
 
-// Simple phone OTP methods
-const sendPhoneOTP = async (req, res) => {
-  try {
-    const { phoneNumber } = req.body;
-    
-    if (!phoneNumber) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Phone number is required' 
-      });
-    }
-
-    // Generate a simple 6-digit OTP
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
-    
-    // Store OTP in memory (in production, use Redis or database)
-    if (!global.phoneOTPs) {
-      global.phoneOTPs = new Map();
-    }
-    global.phoneOTPs.set(phoneNumber, {
-      otp,
-      timestamp: Date.now(),
-      attempts: 0
-    });
-
-    console.log(`[Phone OTP] Generated OTP for ${phoneNumber}: ${otp}`);
-    
-    res.json({
-      success: true,
-      message: 'OTP sent successfully'
-    });
-  } catch (error) {
-    console.error('Send phone OTP error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to send OTP'
-    });
-  }
-};
-
-const verifyPhoneOTP = async (req, res) => {
-  try {
-    const { phoneNumber, otp } = req.body;
-    
-    if (!phoneNumber || !otp) {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'Phone number and OTP are required' 
-      });
-    }
-
-    // Get stored OTP
-    if (!global.phoneOTPs) {
-      return res.status(400).json({
-        success: false,
-        message: 'No OTP found. Please request a new one.'
-      });
-    }
-
-    const stored = global.phoneOTPs.get(phoneNumber);
-    if (!stored) {
-      return res.status(400).json({
-        success: false,
-        message: 'No OTP found. Please request a new one.'
-      });
-    }
-
-    // Check if OTP is expired (5 minutes)
-    if (Date.now() - stored.timestamp > 5 * 60 * 1000) {
-      global.phoneOTPs.delete(phoneNumber);
-      return res.status(400).json({
-        success: false,
-        message: 'OTP expired. Please request a new one.'
-      });
-    }
-
-    // Check if too many attempts
-    if (stored.attempts >= 3) {
-      global.phoneOTPs.delete(phoneNumber);
-      return res.status(400).json({
-        success: false,
-        message: 'Too many attempts. Please request a new OTP.'
-      });
-    }
-
-    // Verify OTP
-    if (stored.otp === otp) {
-      // Clear OTP after successful verification
-      global.phoneOTPs.delete(phoneNumber);
-      
-      res.json({
-        success: true,
-        message: 'OTP verified successfully'
-      });
-    } else {
-      // Increment attempts
-      stored.attempts += 1;
-      global.phoneOTPs.set(phoneNumber, stored);
-      
-      res.status(400).json({
-        success: false,
-        message: 'Invalid OTP'
-      });
-    }
-  } catch (error) {
-    console.error('Verify phone OTP error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to verify OTP'
-    });
-  }
-};
-
 // Auto-login after registration (for phone-only users)
 const autoLoginAfterRegistration = async (req, res) => {
   try {
@@ -672,7 +559,5 @@ module.exports = {
   verifyFirebaseToken,
   verifyFirebaseEmail,
   verifyFirebasePhone,
-  sendPhoneOTP,
-  verifyPhoneOTP,
   autoLoginAfterRegistration,
 }; 
