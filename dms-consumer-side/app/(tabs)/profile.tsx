@@ -13,6 +13,7 @@ import {
   FlatList,
   ActivityIndicator,
   Image,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -239,7 +240,7 @@ const ProfileScreen = () => {
   }
 
   return (
-    <SafeAreaView style={[styles.container, { flex: 1, paddingTop: 16 }]}>
+    <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" />
 
       {/* Header */}
@@ -299,13 +300,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#F5F5F5',
+    paddingTop: Platform.OS === 'ios' ? 0 : 25, // Add platform-specific top padding
   },
   header: {
     padding: 16,
+    paddingTop: 20, // Increase top padding for header
     borderBottomWidth: 1,
     borderBottomColor: '#F0F0F0',
     backgroundColor: '#FFFFFF',
     alignItems: 'center',
+    marginTop: Platform.OS === 'ios' ? 0 : 10, // Add margin for Android
   },
   headerTitle: {
     fontSize: 16,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 
 const PaymentOptionsScreen = () => (
@@ -81,8 +81,18 @@ const PaymentOptionsScreen = () => (
 );
 
 const styles = StyleSheet.create({
-    container: { flex: 1, padding: 20, backgroundColor: '#fff' },
-    title: { fontSize: 20, fontWeight: 'bold', marginBottom: 20 },
+    container: { 
+        flex: 1, 
+        padding: 20, 
+        backgroundColor: '#fff',
+        paddingTop: Platform.OS === 'ios' ? 20 : 45, // Add platform-specific top padding
+    },
+    title: { 
+        fontSize: 20, 
+        fontWeight: 'bold', 
+        marginBottom: 20,
+        marginTop: Platform.OS === 'ios' ? 0 : 10, // Add margin for Android
+    },
     paymentMethods: {
         marginTop: 20,
     },

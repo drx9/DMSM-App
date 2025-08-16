@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, SafeAreaView } from 'react-native';
+import { View, Text, StyleSheet, SafeAreaView, Platform } from 'react-native';
 
 const CustomerSupportScreen = () => (
     <SafeAreaView style={styles.container}>
@@ -12,8 +12,18 @@ const CustomerSupportScreen = () => (
 );
 
 const styles = StyleSheet.create({
-    container: { flex: 1, padding: 20, backgroundColor: '#fff' },
-    title: { fontSize: 20, fontWeight: 'bold', marginBottom: 20 },
+    container: { 
+        flex: 1, 
+        padding: 20, 
+        backgroundColor: '#fff',
+        paddingTop: Platform.OS === 'ios' ? 20 : 45, // Add platform-specific top padding
+    },
+    title: { 
+        fontSize: 20, 
+        fontWeight: 'bold', 
+        marginBottom: 20,
+        marginTop: Platform.OS === 'ios' ? 0 : 10, // Add margin for Android
+    },
     info: { fontSize: 16, marginBottom: 10 },
     email: { fontSize: 16, color: '#CB202D', marginBottom: 10 },
 });

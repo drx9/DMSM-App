@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, ActivityIndicator, SafeAreaView, StatusBar, TouchableOpacity, Modal, TextInput } from 'react-native';
+import { View, Text, StyleSheet, FlatList, ActivityIndicator, SafeAreaView, StatusBar, TouchableOpacity, Modal, TextInput, Platform } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from './context/AuthContext';
@@ -158,13 +158,14 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: '#F5F5F5',
         paddingHorizontal: 16,
-        paddingTop: 16,
+        paddingTop: Platform.OS === 'ios' ? 16 : 45, // Add platform-specific top padding
     },
     header: {
         fontSize: 18,
         fontWeight: 'bold',
         color: '#CB202D',
         marginBottom: 16,
+        marginTop: Platform.OS === 'ios' ? 0 : 10, // Add margin for Android
         textAlign: 'center',
     },
     errorText: {

@@ -7,6 +7,7 @@ import { CartProvider } from './context/CartContext';
 import { AuthProvider } from './context/AuthContext';
 import { fcmService } from './services/fcmService';
 import * as Notifications from 'expo-notifications';
+import { initializeFirebase, checkFirebaseConfig } from './services/firebaseConfig';
 
 export default function App() {
   useEffect(() => {
@@ -33,6 +34,23 @@ export default function App() {
     };
 
     refreshFCMToken();
+  }, []);
+
+  // Initialize Firebase on app start
+  useEffect(() => {
+    try {
+      console.log('🚀 Initializing Firebase...');
+      const firebaseApp = initializeFirebase();
+      if (firebaseApp) {
+        console.log('✅ Firebase initialized successfully');
+        const isConfigValid = checkFirebaseConfig();
+        console.log('🔧 Firebase config valid:', isConfigValid);
+      } else {
+        console.error('❌ Firebase initialization failed');
+      }
+    } catch (error) {
+      console.error('❌ Firebase initialization error:', error);
+    }
   }, []);
 
   return (

@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, SafeAreaView, TextInput, TouchableOpacity, Image, Alert, ScrollView, Modal } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, SafeAreaView, TextInput, TouchableOpacity, Image, Alert, ScrollView, Modal, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import * as ImagePicker from 'expo-image-picker';
@@ -464,6 +464,7 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#F8FAFC',
+        paddingTop: Platform.OS === 'ios' ? 0 : 25, // Add platform-specific top padding
     },
     scrollContent: {
         paddingBottom: 20,
@@ -482,11 +483,12 @@ const styles = StyleSheet.create({
     },
     header: {
         paddingHorizontal: 16,
-        paddingTop: 10,
+        paddingTop: 20, // Increase top padding for header
         paddingBottom: 16,
         backgroundColor: '#FFFFFF',
         borderBottomWidth: 1,
         borderBottomColor: '#E2E8F0',
+        marginTop: Platform.OS === 'ios' ? 0 : 10, // Add margin for Android
     },
     title: {
         fontSize: 18,

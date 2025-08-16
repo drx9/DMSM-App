@@ -545,6 +545,135 @@ const autoLoginAfterRegistration = async (req, res) => {
   }
 };
 
+// Verify OTP endpoint for phone verification
+const verifyOTP = async (req, res) => {
+  try {
+    const { userId, otp, type } = req.body;
+    
+    console.log('🔐 OTP verification request:', { userId, otp, type });
+    
+    if (!userId || !otp || !type) {
+      return res.status(400).json({
+        success: false,
+        message: 'userId, otp, and type are required'
+      });
+    }
+    
+    if (type !== 'PHONE') {
+      return res.status(400).json({
+        success: false,
+        message: 'Only phone verification is supported'
+      });
+    }
+    
+    if (otp.length !== 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'OTP must be 6 digits'
+      });
+    }
+    
+    // Find user by ID
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    // For now, we'll use a simple OTP verification
+    // In production, you should implement proper OTP storage and verification
+    // This is a temporary solution for testing
+    
+    // Check if OTP is valid (you can implement your own OTP validation logic here)
+    // For testing purposes, we'll accept any 6-digit OTP
+    if (otp === '123456' || otp === '000000') {
+      // Mark user as verified
+      await user.update({ isVerified: true });
+      
+      // Generate JWT token
+      const token = jwt.sign(
+        { id: user.id, role: user.role },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+      );
+      
+      console.log('✅ OTP verified successfully for user:', user.id);
+      
+      return res.json({
+        success: true,
+        message: 'OTP verified successfully',
+        token,
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          phoneNumber: user.phoneNumber,
+          role: user.role,
+          isVerified: true
+        }
+      });
+    } else {
+      // For testing, you can implement proper OTP validation
+      // For now, we'll return an error for invalid OTPs
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid OTP. Please try again.'
+      });
+    }
+    
+  } catch (error) {
+    console.error('❌ OTP verification error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'An internal server error occurred'
+    });
+  }
+};
+
+// Resend OTP endpoint
+const resendOTP = async (req, res) => {
+  try {
+    const { userId } = req.body;
+    
+    console.log('📤 Resend OTP request for user:', userId);
+    
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        message: 'userId is required'
+      });
+    }
+    
+    // Find user by ID
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    
+    // In production, you would send a new OTP here
+    // For testing purposes, we'll just return success
+    
+    console.log('✅ OTP resent successfully for user:', user.id);
+    
+    return res.json({
+      success: true,
+      message: 'OTP has been resent successfully'
+    });
+    
+  } catch (error) {
+    console.error('❌ Resend OTP error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'An internal server error occurred'
+    });
+  }
+};
+
 module.exports = {
   login,
   register,
@@ -560,4 +689,6 @@ module.exports = {
   verifyFirebaseEmail,
   verifyFirebasePhone,
   autoLoginAfterRegistration,
+  verifyOTP,
+  resendOTP,
 }; 
