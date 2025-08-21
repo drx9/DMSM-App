@@ -4,6 +4,7 @@ const orderController = require('../controllers/orderController');
 const { User, Order } = require('../models');
 // const { isAdmin } = require('../middleware/auth'); // Temporarily disabled for dev
 const { Op } = require('sequelize');
+const { sendFCMNotificationToUser } = require('../services/fcmService');
 
 // Delivery Boy Management Endpoints (must come before parameterized order routes)
 router.get('/delivery-boys', async (req, res) => {
@@ -123,12 +124,12 @@ router.put('/:id/assign-delivery', async (req, res) => {
         });
         
         // Send push notification to delivery boy
-        await sendNotificationWithPreferences(deliveryBoyId, 'New Delivery Assigned', 'You have been assigned a new delivery order.', {
+        await sendFCMNotificationToUser(deliveryBoyId, 'New Delivery Assigned', 'You have been assigned a new delivery order.', {
             orderId: order.id
         }, 'delivery');
         
         // Send push notification to customer
-        await sendNotificationWithPreferences(order.userId, 'Order Confirmed', 'Your order has been confirmed and a delivery partner has been assigned!', {
+        await sendFCMNotificationToUser(order.userId, 'Order Confirmed', 'Your order has been confirmed and a delivery partner has been assigned!', {
             orderId: order.id,
             status: 'processing'
         }, 'order_updates');

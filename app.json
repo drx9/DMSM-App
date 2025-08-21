@@ -63,6 +63,13 @@
           "icon": "./dms-consumer-side/assets/images/dms-logo.png",
           "color": "#ffffff"
         }
+      ],
+      [
+        "@react-native-firebase/app",
+        {
+          "android_package_name": "com.dmsm.dmsconsumerside",
+          "google_services_file": "./android/app/google-services.json"
+        }
       ]
     ],
     "experiments": {
