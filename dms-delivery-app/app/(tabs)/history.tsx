@@ -52,7 +52,7 @@ export default function HistoryScreen() {
       });
       setOrders(response.data.orders || []);
       setStats(response.data.stats || null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to fetch history:', error);
       setOrders([]);
       setStats(null);

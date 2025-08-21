@@ -8,21 +8,41 @@ import { connectSocket, joinRoom, onSocketEvent, offSocketEvent } from '../servi
 
 interface Order {
   id: string;
-  customerName: string;
-  address: string;
+  customerName?: string;
+  customer?: { name: string; phoneNumber: string };
+  address?: string;
   status: string;
   shippingAddress?: {
     line1: string;
-    line2: string;
+    line2?: string;
     city: string;
+    state?: string;
+    pincode?: string;
   };
   totalAmount: number;
+  products?: Array<{
+    name: string;
+    quantity: number;
+    image?: string;
+  }>;
 }
 
 const statusColors: Record<string, string> = {
-  pending: '#059669', // emerald-600
-  picked_up: '#047857', // emerald-700
-  delivered: '#10b981', // emerald-500
+  pending: '#059669',
+  processing: '#059669',
+  packed: '#047857',
+  out_for_delivery: '#047857',
+  delivered: '#10b981',
+  cancelled: '#ef4444',
+};
+
+const statusLabels: Record<string, string> = {
+  pending: 'PENDING',
+  processing: 'PROCESSING',
+  packed: 'PACKED',
+  out_for_delivery: 'OUT FOR DELIVERY',
+  delivered: 'DELIVERED',
+  cancelled: 'CANCELLED',
 };
 
 export default function TabOneScreen() {
@@ -38,8 +58,9 @@ export default function TabOneScreen() {
         headers: { Authorization: `Bearer ${token}` },
       });
       setOrders(response.data);
-    } catch (err) {
-      setError('Failed to fetch orders');
+    } catch (err: any) {
+      console.error('Error fetching orders:', err);
+      setError(err.response?.data?.message || 'Failed to fetch orders');
     } finally {
       setLoading(false);
     }
@@ -64,6 +85,18 @@ export default function TabOneScreen() {
     };
   }, [user, fetchOrders]);
 
+  const getCustomerName = (order: Order) => {
+    return order.customer?.name || order.customerName || 'Customer';
+  };
+
+  const getAddress = (order: Order) => {
+    if (order.shippingAddress) {
+      const { line1, line2, city, state, pincode } = order.shippingAddress;
+      return `${line1}${line2 ? `, ${line2}` : ''}, ${city}${state ? `, ${state}` : ''}${pincode ? ` - ${pincode}` : ''}`;
+    }
+    return order.address || 'Address not available';
+  };
+
   return (
     <View style={styles.bg}>
       <View style={styles.header}>
@@ -82,10 +115,14 @@ export default function TabOneScreen() {
       ) : error ? (
         <View style={styles.centered}>
           <Text style={styles.errorText}>{error}</Text>
+          <TouchableOpacity style={styles.retryButton} onPress={fetchOrders}>
+            <Text style={styles.retryText}>Retry</Text>
+          </TouchableOpacity>
         </View>
       ) : orders.length === 0 ? (
         <View style={styles.centered}>
-          <Text style={styles.emptyText}>No orders yet</Text>
+          <Text style={styles.emptyText}>No orders assigned yet</Text>
+          <Text style={styles.emptySubtext}>You'll see orders here once they're assigned to you</Text>
         </View>
       ) : (
         <FlatList
@@ -99,17 +136,33 @@ export default function TabOneScreen() {
                 <View style={styles.cardHeader}>
                   <Text style={styles.orderId}>#{item.id.slice(-4)}</Text>
                   <View style={[styles.statusBadge, { backgroundColor: statusColors[item.status] || '#10b981' }]}>
-                    <Text style={styles.statusText}>{item.status.replace('_', ' ').toUpperCase()}</Text>
+                    <Text style={styles.statusText}>{statusLabels[item.status] || item.status.toUpperCase()}</Text>
                   </View>
                 </View>
 
+                <Text style={styles.customerName}>{getCustomerName(item)}</Text>
+
                 <Text style={styles.address} numberOfLines={2}>
-                  {item.shippingAddress?.line1} {item.shippingAddress?.line2}, {item.shippingAddress?.city}
+                  {getAddress(item)}
                 </Text>
+
+                {item.products && item.products.length > 0 && (
+                  <View style={styles.productsContainer}>
+                    <Text style={styles.productsLabel}>Items:</Text>
+                    {item.products.slice(0, 2).map((product, index) => (
+                      <Text key={index} style={styles.productItem}>
+                        • {product.name} (x{product.quantity})
+                      </Text>
+                    ))}
+                    {item.products.length > 2 && (
+                      <Text style={styles.moreItems}>+{item.products.length - 2} more items</Text>
+                    )}
+                  </View>
+                )}
 
                 <View style={styles.cardFooter}>
                   <Text style={styles.amount}>₹{item.totalAmount}</Text>
-                  <Text style={styles.tapHint}>Tap to view</Text>
+                  <Text style={styles.tapHint}>Tap to view details</Text>
                 </View>
               </TouchableOpacity>
             </Link>
@@ -194,11 +247,36 @@ const styles = StyleSheet.create({
     fontSize: 10,
     letterSpacing: 0.5,
   },
+  customerName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 2,
+  },
   address: {
     fontSize: 13,
     color: '#475569',
     lineHeight: 18,
     marginBottom: 8,
+  },
+  productsContainer: {
+    marginBottom: 8,
+  },
+  productsLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#475569',
+    marginBottom: 4,
+  },
+  productItem: {
+    fontSize: 12,
+    color: '#475569',
+    marginBottom: 2,
+  },
+  moreItems: {
+    fontSize: 12,
+    color: '#94a3b8',
+    fontWeight: '500',
   },
   cardFooter: {
     flexDirection: 'row',
@@ -230,9 +308,29 @@ const styles = StyleSheet.create({
     color: '#ef4444',
     fontSize: 14,
     fontWeight: '600',
+    textAlign: 'center',
+    marginBottom: 10,
+  },
+  retryButton: {
+    backgroundColor: '#10b981',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  retryText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   emptyText: {
     color: '#64748b',
     fontSize: 14,
+    textAlign: 'center',
+    marginBottom: 5,
+  },
+  emptySubtext: {
+    color: '#94a3b8',
+    fontSize: 12,
+    textAlign: 'center',
   },
 });

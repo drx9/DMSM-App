@@ -15,30 +15,46 @@ import Constants from 'expo-constants';
 interface Order {
   id: string;
   customerName?: string;
-  customer?: { name: string };
+  customer?: { name: string; phoneNumber: string };
   address?: string;
   shippingAddress?: {
-    latitude: number;
-    longitude: number;
+    latitude?: number;
+    longitude?: number;
     line1: string;
+    line2?: string;
     city: string;
+    state?: string;
+    pincode?: string;
   };
   status: string;
   items?: { name?: string; product?: { name: string }; quantity: number }[];
   products?: { name?: string; product?: { name: string }; quantity: number }[];
   total?: number;
   totalAmount?: number;
+  paymentStatus?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 const statusColors: Record<string, string> = {
-  pending: '#059669', // emerald-600
-  picked_up: '#047857', // emerald-700
-  delivered: '#10b981', // emerald-500
+  pending: '#059669',
   processing: '#059669',
+  packed: '#047857',
   out_for_delivery: '#047857',
+  delivered: '#10b981',
+  cancelled: '#ef4444',
 };
 
-const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.GOOGLE_MAPS_API_KEY || Constants.manifest?.extra?.GOOGLE_MAPS_API_KEY;
+const statusLabels: Record<string, string> = {
+  pending: 'PENDING',
+  processing: 'PROCESSING',
+  packed: 'PACKED',
+  out_for_delivery: 'OUT FOR DELIVERY',
+  delivered: 'DELIVERED',
+  cancelled: 'CANCELLED',
+};
+
+const GOOGLE_MAPS_API_KEY = Constants.expoConfig?.extra?.GOOGLE_MAPS_API_KEY || (Constants.manifest as any)?.extra?.GOOGLE_MAPS_API_KEY;
 
 export default function OrderDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -108,7 +124,7 @@ export default function OrderDetailScreen() {
     setCurrentLocation(currentLoc);
     if (order?.shippingAddress) {
       const origin = `${currentLoc.latitude},${currentLoc.longitude}`;
-      const destination = `${order.shippingAddress.latitude},${order.shippingAddress.longitude}`;
+      const destination = `${getCoordinates().latitude},${getCoordinates().longitude}`;
       try {
         const directionsRes = await fetch(
           `https://maps.googleapis.com/maps/api/directions/json?origin=${origin}&destination=${destination}&key=${GOOGLE_MAPS_API_KEY}`
@@ -153,10 +169,7 @@ export default function OrderDetailScreen() {
         };
         setCurrentLocation(newLoc);
         if (order?.shippingAddress) {
-          const dist = getDistance(newLoc, {
-            latitude: order.shippingAddress.latitude,
-            longitude: order.shippingAddress.longitude,
-          });
+          const dist = getDistance(newLoc, getCoordinates());
           if (dist < 30 && !arrived) {
             setArrived(true);
             setShowMarkDelivered(true);
@@ -196,9 +209,9 @@ export default function OrderDetailScreen() {
   };
 
   const openInGoogleMaps = () => {
-    if (order?.shippingAddress?.latitude && order?.shippingAddress?.longitude) {
-      const { latitude, longitude } = order.shippingAddress;
-      const url = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+    const coords = getCoordinates();
+    if (coords.latitude && coords.longitude) {
+      const url = `https://www.google.com/maps/search/?api=1&query=${coords.latitude},${coords.longitude}`;
       Linking.openURL(url);
     } else {
       Alert.alert('Error', 'No delivery location found');
@@ -242,6 +255,50 @@ export default function OrderDetailScreen() {
     }
   }
 
+  const getCustomerName = () => {
+    return order?.customer?.name || order?.customerName || 'Customer';
+  };
+
+  const getCustomerPhone = () => {
+    return order?.customer?.phoneNumber || 'Phone not available';
+  };
+
+  const getAddress = () => {
+    if (order?.shippingAddress) {
+      const { line1, line2, city, state, pincode } = order.shippingAddress;
+      return `${line1}${line2 ? `, ${line2}` : ''}, ${city}${state ? `, ${state}` : ''}${pincode ? ` - ${pincode}` : ''}`;
+    }
+    return order?.address || 'Address not available';
+  };
+
+  const getProducts = () => {
+    if (order?.products && order.products.length > 0) {
+      return order.products;
+    }
+    if (order?.items && order.items.length > 0) {
+      return order.items;
+    }
+    return [];
+  };
+
+  const getTotalAmount = () => {
+    return order?.totalAmount || order?.total || 0;
+  };
+
+  const getCoordinates = () => {
+    if (order?.shippingAddress?.latitude && order?.shippingAddress?.longitude) {
+      return {
+        latitude: order.shippingAddress.latitude!,
+        longitude: order.shippingAddress.longitude!
+      };
+    }
+    // Default coordinates (you can set this to a default location)
+    return {
+      latitude: 26.1833, // Default to Nalbari coordinates
+      longitude: 91.7333
+    };
+  };
+
   if (loading) return (
     <View style={styles.centered}>
       <ActivityIndicator size="small" color="#10b981" />
@@ -269,27 +326,24 @@ export default function OrderDetailScreen() {
           <ScrollView showsVerticalScrollIndicator={false}>
             <View style={styles.infoSection}>
               <Text style={styles.sectionTitle}>Customer</Text>
-              <Text style={styles.infoText}>{order.customer?.name || order.customerName || 'N/A'}</Text>
+              <Text style={styles.infoText}>{getCustomerName()}</Text>
             </View>
 
             <View style={styles.infoSection}>
               <Text style={styles.sectionTitle}>Delivery Address</Text>
-              <Text style={styles.infoText}>{order.shippingAddress?.line1 || order.address || 'N/A'}</Text>
-              {order.shippingAddress?.city && (
-                <Text style={styles.infoText}>{order.shippingAddress.city}</Text>
-              )}
+              <Text style={styles.infoText}>{getAddress()}</Text>
             </View>
 
             <View style={styles.statusSection}>
               <Text style={styles.sectionTitle}>Status</Text>
               <View style={[styles.statusBadge, { backgroundColor: statusColors[order.status] || '#10b981' }]}>
-                <Text style={styles.statusText}>{order.status.replace('_', ' ').toUpperCase()}</Text>
+                <Text style={styles.statusText}>{statusLabels[order.status] || order.status.toUpperCase()}</Text>
               </View>
             </View>
 
             <View style={styles.infoSection}>
               <Text style={styles.sectionTitle}>Items</Text>
-              {(order.products || order.items || []).map((item: any, idx: number) => (
+              {getProducts().map((item: any, idx: number) => (
                 <View key={idx} style={styles.itemRow}>
                   <Text style={styles.itemText}>• {item.name || item.product?.name || 'Product'}</Text>
                   <Text style={styles.itemQty}>×{item.quantity}</Text>
@@ -299,7 +353,7 @@ export default function OrderDetailScreen() {
 
             <View style={styles.totalSection}>
               <Text style={styles.sectionTitle}>Total Amount</Text>
-              <Text style={styles.totalAmount}>₹{order.totalAmount || order.total || 'N/A'}</Text>
+              <Text style={styles.totalAmount}>₹{getTotalAmount()}</Text>
             </View>
 
             <View style={styles.actionSection}>
@@ -419,10 +473,7 @@ export default function OrderDetailScreen() {
               <Image source={scootyImg} style={{ width: 32, height: 32 }} />
             </Marker>
             <Marker
-              coordinate={{
-                latitude: order.shippingAddress.latitude,
-                longitude: order.shippingAddress.longitude,
-              }}
+              coordinate={getCoordinates()}
               title="Delivery Address"
               pinColor="#10b981"
             />

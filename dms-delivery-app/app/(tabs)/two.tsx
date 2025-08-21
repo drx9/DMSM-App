@@ -31,11 +31,12 @@ export default function TabTwoScreen() {
     const fetchMetrics = async () => {
       if (!user) return;
       try {
-        const res = await axios.get(`${API_URL}/orders/delivery-boys/${user.id}/metrics`, {
+        const res = await axios.get(`${API_URL}/delivery/metrics`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         setMetrics(res.data);
-      } catch {
+      } catch (error: any) {
+        console.error('Error fetching metrics:', error);
         setMetrics(null);
       } finally {
         setLoading(false);
